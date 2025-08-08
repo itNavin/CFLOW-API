@@ -1,12 +1,7 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
-  provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -14,7 +9,247 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ExampleTable {
-  id   Int    @id @default(autoincrement())
-  name String
+enum Role {
+  STUDENT
+  ADVISOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AdvisorRole {
+  ADVISOR
+  CO_ADVISOR
+}
+
+enum ClassProgram {
+  CS
+  DSI
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  REJECTED
+  APPROVED_WITH_FEEDBACK
+  FINAL
+}
+
+enum EntityType {
+  ANNOUNCEMENT
+  ASSIGNMENT
+  SUBMISSION
+  GROUP
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String
+  prefix       String
+  name         String
+  surname      String
+  role         Role
+  createdAt    DateTime @default(now())
+
+  createdClasses       Course[]                  @relation("CreatedByUser")
+  classMemberships     CourseMember[]
+  createdAnnouncements Announcement[]
+  uploadedFiles        File[]
+  dueDateUpdatesMade   AssignmentDueDateUpdate[]
+}
+
+model Course {
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String
+  program     ClassProgram
+  createdById Int
+  createdAt   DateTime     @default(now())
+
+  createdBy     User                @relation("CreatedByUser", fields: [createdById], references: [id])
+  members       CourseMember[]
+  groups        Group[]
+  assignments   Assignment[]        @relation(name: "CourseAssignments")
+  announcements Announcement[]
+  activityLogs  CourseActivityLog[]
+}
+
+model CourseMember {
+  id       Int @id @default(autoincrement())
+  courseId Int
+  userId   Int
+
+  course        Course              @relation(fields: [courseId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
+  groupMembers  GroupMember[]
+  groupAdvisors GroupAdvisor[]
+  activityLogs  CourseActivityLog[]
+}
+
+model Group {
+  id          Int     @id @default(autoincrement())
+  courseId    Int
+  projectName String
+  productName String?
+  company     String?
+
+  course         Course                    @relation(fields: [courseId], references: [id])
+  members        GroupMember[]
+  advisors       GroupAdvisor[]
+  submissions    Submission[]              @relation(name: "GroupSubmissions")
+  dueDateUpdates AssignmentDueDateUpdate[]
+}
+
+model GroupMember {
+  id             Int    @id @default(autoincrement())
+  workRole       String
+  courseMemberId Int
+  groupId        Int
+
+  courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
+  group        Group        @relation(fields: [groupId], references: [id])
+}
+
+model GroupAdvisor {
+  id             Int         @id @default(autoincrement())
+  courseMemberId Int
+  advisorRole    AdvisorRole
+  groupId        Int
+
+  courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
+  group        Group        @relation(fields: [groupId], references: [id])
+}
+
+model Assignment {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String
+  dueDate     DateTime
+  endDate     DateTime
+  schedule    DateTime
+  courseId    Int
+
+  course         Course                    @relation(fields: [courseId], references: [id], name: "CourseAssignments")
+  deliverables   Deliverable[]
+  submissions    Submission[]
+  dueDateUpdates AssignmentDueDateUpdate[]
+}
+
+model Deliverable {
+  id           Int    @id @default(autoincrement())
+  name         String
+  assignmentId Int
+
+  assignment       Assignment        @relation(fields: [assignmentId], references: [id])
+  allowedFileTypes AllowedFileType[]
+  submissionFiles  SubmissionFile[]
+}
+
+model AllowedFileType {
+  id            Int    @id @default(autoincrement())
+  type          String
+  deliverableId Int
+
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id])
+}
+
+model Submission {
+  id           Int              @id @default(autoincrement())
+  submittedAt  DateTime?
+  assignmentId Int
+  groupId      Int
+  status       SubmissionStatus @default(SUBMITTED)
+  missed       Boolean          @default(false)
+
+  assignment      Assignment       @relation(fields: [assignmentId], references: [id])
+  group           Group            @relation(fields: [groupId], references: [id], name: "GroupSubmissions")
+  feedbacks       Feedback[]
+  submissionFiles SubmissionFile[]
+}
+
+model SubmissionFile {
+  id            Int      @id @default(autoincrement())
+  submissionId  Int
+  deliverableId Int
+  fileUrl       String[]
+
+  submission  Submission  @relation(fields: [submissionId], references: [id])
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id])
+}
+
+model Feedback {
+  id           Int      @id @default(autoincrement())
+  submissionId Int
+  comment      String
+  createdAt    DateTime @default(now())
+  fileUrl      String[]
+
+  submission Submission @relation(fields: [submissionId], references: [id])
+}
+
+model AssignmentDueDateUpdate {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int
+  groupId      Int
+  updatedById  Int
+  newDueDate   DateTime
+  updatedAt    DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  group      Group      @relation(fields: [groupId], references: [id])
+  updatedBy  User       @relation(fields: [updatedById], references: [id])
+
+  @@index([assignmentId])
+  @@index([groupId])
+  @@index([updatedById])
+}
+
+model Announcement {
+  id          Int      @id @default(autoincrement())
+  courseId    Int
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  schedule    DateTime
+  createById  Int
+
+  createdBy User               @relation(fields: [createById], references: [id])
+  course    Course             @relation(fields: [courseId], references: [id])
+  files     Announcementfile[]
+}
+
+model File {
+  id         Int      @id @default(autoincrement())
+  name       String
+  filepath   String
+  uploadAt   DateTime @default(now())
+  uploadById Int
+
+  uploadBy          User               @relation(fields: [uploadById], references: [id])
+  announcementFiles Announcementfile[]
+}
+
+model Announcementfile {
+  id             Int @id @default(autoincrement())
+  announcementId Int
+  fileId         Int
+
+  announcement Announcement @relation(fields: [announcementId], references: [id])
+  file         File         @relation(fields: [fileId], references: [id])
+
+  @@unique([announcementId, fileId])
+}
+
+model CourseActivityLog {
+  id             Int        @id @default(autoincrement())
+  courseId       Int
+  courseMemberId Int
+  action         String
+  entityType     EntityType
+  entityId       Int
+  createdAt      DateTime   @default(now())
+
+  course       Course       @relation(fields: [courseId], references: [id])
+  courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
+
+  @@index([courseId, entityType, entityId])
 }

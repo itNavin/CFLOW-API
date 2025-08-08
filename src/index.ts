@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
-import { PrismaClient } from "./generated/prisma";
 import { mainRouter } from "./router/main.routes";
+import { PrismaClient } from "./generated/prisma";
 
 const app = new Hono({
   strict: false,
@@ -10,7 +10,7 @@ const app = new Hono({
 
 export const prisma = new PrismaClient();
 
-prisma.$connect().catch((e) => {
+prisma.$connect().catch((e: Error) => {
   throw new Error(`Error connecting to database : ${e}`);
 });
 

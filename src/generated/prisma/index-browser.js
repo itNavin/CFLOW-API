@@ -20,12 +20,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.7.0
- * Query Engine version: 3cff47a7f5d65c3ea74883f1d736e41d68ce91ed
+ * Prisma Client JS version: 6.13.0
+ * Query Engine version: 361e86d0ea4987e9f53a565309b3eed797a6bcbd
  */
 Prisma.prismaVersion = {
-  client: "6.7.0",
-  engine: "3cff47a7f5d65c3ea74883f1d736e41d68ce91ed"
+  client: "6.13.0",
+  engine: "361e86d0ea4987e9f53a565309b3eed797a6bcbd"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -120,9 +120,141 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
-exports.Prisma.ExampleTableScalarFieldEnum = {
+exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
-  name: 'name'
+  email: 'email',
+  passwordHash: 'passwordHash',
+  prefix: 'prefix',
+  name: 'name',
+  surname: 'surname',
+  role: 'role',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CourseScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  program: 'program',
+  createdById: 'createdById',
+  createdAt: 'createdAt'
+};
+
+exports.Prisma.CourseMemberScalarFieldEnum = {
+  id: 'id',
+  courseId: 'courseId',
+  userId: 'userId'
+};
+
+exports.Prisma.GroupScalarFieldEnum = {
+  id: 'id',
+  courseId: 'courseId',
+  projectName: 'projectName',
+  productName: 'productName',
+  company: 'company'
+};
+
+exports.Prisma.GroupMemberScalarFieldEnum = {
+  id: 'id',
+  workRole: 'workRole',
+  courseMemberId: 'courseMemberId',
+  groupId: 'groupId'
+};
+
+exports.Prisma.GroupAdvisorScalarFieldEnum = {
+  id: 'id',
+  courseMemberId: 'courseMemberId',
+  advisorRole: 'advisorRole',
+  groupId: 'groupId'
+};
+
+exports.Prisma.AssignmentScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  dueDate: 'dueDate',
+  endDate: 'endDate',
+  schedule: 'schedule',
+  courseId: 'courseId'
+};
+
+exports.Prisma.DeliverableScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  assignmentId: 'assignmentId'
+};
+
+exports.Prisma.AllowedFileTypeScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  deliverableId: 'deliverableId'
+};
+
+exports.Prisma.SubmissionScalarFieldEnum = {
+  id: 'id',
+  submittedAt: 'submittedAt',
+  assignmentId: 'assignmentId',
+  groupId: 'groupId',
+  status: 'status',
+  missed: 'missed'
+};
+
+exports.Prisma.SubmissionFileScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  deliverableId: 'deliverableId',
+  fileUrl: 'fileUrl'
+};
+
+exports.Prisma.FeedbackScalarFieldEnum = {
+  id: 'id',
+  submissionId: 'submissionId',
+  comment: 'comment',
+  createdAt: 'createdAt',
+  fileUrl: 'fileUrl'
+};
+
+exports.Prisma.AssignmentDueDateUpdateScalarFieldEnum = {
+  id: 'id',
+  assignmentId: 'assignmentId',
+  groupId: 'groupId',
+  updatedById: 'updatedById',
+  newDueDate: 'newDueDate',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.AnnouncementScalarFieldEnum = {
+  id: 'id',
+  courseId: 'courseId',
+  name: 'name',
+  description: 'description',
+  createdAt: 'createdAt',
+  schedule: 'schedule',
+  createById: 'createById'
+};
+
+exports.Prisma.FileScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  filepath: 'filepath',
+  uploadAt: 'uploadAt',
+  uploadById: 'uploadById'
+};
+
+exports.Prisma.AnnouncementfileScalarFieldEnum = {
+  id: 'id',
+  announcementId: 'announcementId',
+  fileId: 'fileId'
+};
+
+exports.Prisma.CourseActivityLogScalarFieldEnum = {
+  id: 'id',
+  courseId: 'courseId',
+  courseMemberId: 'courseMemberId',
+  action: 'action',
+  entityType: 'entityType',
+  entityId: 'entityId',
+  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -135,9 +267,59 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
+};
+exports.Role = exports.$Enums.Role = {
+  STUDENT: 'STUDENT',
+  ADVISOR: 'ADVISOR',
+  ADMIN: 'ADMIN',
+  SUPER_ADMIN: 'SUPER_ADMIN'
+};
+
+exports.ClassProgram = exports.$Enums.ClassProgram = {
+  CS: 'CS',
+  DSI: 'DSI'
+};
+
+exports.AdvisorRole = exports.$Enums.AdvisorRole = {
+  ADVISOR: 'ADVISOR',
+  CO_ADVISOR: 'CO_ADVISOR'
+};
+
+exports.SubmissionStatus = exports.$Enums.SubmissionStatus = {
+  SUBMITTED: 'SUBMITTED',
+  REJECTED: 'REJECTED',
+  APPROVED_WITH_FEEDBACK: 'APPROVED_WITH_FEEDBACK',
+  FINAL: 'FINAL'
+};
+
+exports.EntityType = exports.$Enums.EntityType = {
+  ANNOUNCEMENT: 'ANNOUNCEMENT',
+  ASSIGNMENT: 'ASSIGNMENT',
+  SUBMISSION: 'SUBMISSION',
+  GROUP: 'GROUP'
+};
 
 exports.Prisma.ModelName = {
-  ExampleTable: 'ExampleTable'
+  User: 'User',
+  Course: 'Course',
+  CourseMember: 'CourseMember',
+  Group: 'Group',
+  GroupMember: 'GroupMember',
+  GroupAdvisor: 'GroupAdvisor',
+  Assignment: 'Assignment',
+  Deliverable: 'Deliverable',
+  AllowedFileType: 'AllowedFileType',
+  Submission: 'Submission',
+  SubmissionFile: 'SubmissionFile',
+  Feedback: 'Feedback',
+  AssignmentDueDateUpdate: 'AssignmentDueDateUpdate',
+  Announcement: 'Announcement',
+  File: 'File',
+  Announcementfile: 'Announcementfile',
+  CourseActivityLog: 'CourseActivityLog'
 };
 
 /**
