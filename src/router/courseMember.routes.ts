@@ -15,3 +15,7 @@ courseMemberRouter.get(
   "/:courseId/students",
   CourseMemberController.getStudentMembers
 );
+
+// ✅ POST to add a member by userId
+// Body: { "userId": 123 }
+courseMemberRouter.post("/:courseId/members", CourseMemberController.addMember);

@@ -1,12 +1,14 @@
+// routes/group.route.ts
 import { Hono } from "hono";
-import {
-  createGroupHandler,
-  getAllGroupsHandler,
-} from "../controller/group.controller";
+import { GroupController } from "../controller/group.controller";
 
 export const groupRouter = new Hono();
 
-groupRouter.post("/createGroup/:courseId", createGroupHandler);
+// Create a group
+groupRouter.post("/createGroup/:courseId", GroupController.createGroup);
 
-// Add courseId param to filter groups by courseId
-groupRouter.get("/groups/:courseId", getAllGroupsHandler);
+// List all groups in a course
+groupRouter.get("/:courseId", GroupController.getAllGroups);
+
+// ✅ Update a group (partial update + replace relations if provided)
+groupRouter.patch("/:courseId/:groupId", GroupController.updateGroup);

@@ -1,8 +1,8 @@
-import { Hono } from "hono";
-import { GetExampleController } from "../controller/example/getExample";
+// import { Hono } from "hono";
+// import { GetExampleController } from "../controller/example/getExample";
 
-const exampleRouter = new Hono();
+// const exampleRouter = new Hono();
 
-exampleRouter.get("/", GetExampleController);
+// exampleRouter.get("/", GetExampleController);
 
-export { exampleRouter };
+// export { exampleRouter };

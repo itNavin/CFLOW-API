@@ -1,7 +1,7 @@
 generator client {
-  provider      = "prisma-client-js"
-  output        = "../src/generated/prisma"
-  binaryTargets = ["native"]
+  provider = "prisma-client-js"
+  // output   = "../src/generated/prisma"
+  // binaryTargets = ["native"]
 }
 
 datasource db {
@@ -50,11 +50,10 @@ model User {
   role         Role
   createdAt    DateTime @default(now())
 
-  createdClasses       Course[]                  @relation("CreatedByUser")
+  createdClasses       Course[]       @relation("CreatedByUser")
   classMemberships     CourseMember[]
   createdAnnouncements Announcement[]
   uploadedFiles        File[]
-  dueDateUpdatesMade   AssignmentDueDateUpdate[]
 }
 
 model Course {
@@ -86,17 +85,20 @@ model CourseMember {
 }
 
 model Group {
-  id          Int    @id @default(autoincrement())
+  id          Int     @id @default(autoincrement())
   courseId    Int
+  codeNumber  String? // admin can type "0001" manually
   projectName String
   productName String?
   company     String?
 
-  course         Course                    @relation(fields: [courseId], references: [id])
-  members        GroupMember[]
-  advisors       GroupAdvisor[]
-  submissions    Submission[]              @relation(name: "GroupSubmissions")
-  dueDateUpdates AssignmentDueDateUpdate[]
+  course             Course              @relation(fields: [courseId], references: [id])
+  members            GroupMember[]
+  advisors           GroupAdvisor[]
+  submissions        Submission[]        @relation(name: "GroupSubmissions")
+  assignmentDueDates AssignmentDueDate[]
+
+  @@unique([courseId, codeNumber])
 }
 
 model GroupMember {
@@ -123,15 +125,29 @@ model Assignment {
   id          Int      @id @default(autoincrement())
   name        String
   description String
-  dueDate     DateTime
   endDate     DateTime
   schedule    DateTime
   courseId    Int
 
-  course         Course                    @relation(fields: [courseId], references: [id], name: "CourseAssignments")
-  deliverables   Deliverable[]
-  submissions    Submission[]
-  dueDateUpdates AssignmentDueDateUpdate[]
+  course             Course              @relation(fields: [courseId], references: [id], name: "CourseAssignments")
+  deliverables       Deliverable[]
+  submissions        Submission[]
+  assignmentDueDates AssignmentDueDate[]
+}
+
+model AssignmentDueDate {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int
+  groupId      Int
+  dueDate      DateTime
+  createdAt    DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  group      Group      @relation(fields: [groupId], references: [id])
+
+  @@unique([assignmentId, groupId])
+  @@index([assignmentId])
+  @@index([groupId])
 }
 
 model Deliverable {
@@ -142,6 +158,7 @@ model Deliverable {
   assignment       Assignment        @relation(fields: [assignmentId], references: [id])
   allowedFileTypes AllowedFileType[]
   submissionFiles  SubmissionFile[]
+  feedbackFiles    FeedbackFile[]
 }
 
 model AllowedFileType {
@@ -157,8 +174,10 @@ model Submission {
   submittedAt  DateTime?
   assignmentId Int
   groupId      Int
+  comment      String
   status       SubmissionStatus @default(SUBMITTED)
   missed       Boolean          @default(false)
+  version      Int              @default(1)
 
   assignment      Assignment       @relation(fields: [assignmentId], references: [id])
   group           Group            @relation(fields: [groupId], references: [id], name: "GroupSubmissions")
@@ -181,26 +200,22 @@ model Feedback {
   submissionId Int
   comment      String
   createdAt    DateTime @default(now())
-  fileUrl      String[]
 
-  submission Submission @relation(fields: [submissionId], references: [id])
+  submission    Submission     @relation(fields: [submissionId], references: [id])
+  feedbackFiles FeedbackFile[]
 }
 
-model AssignmentDueDateUpdate {
-  id           Int      @id @default(autoincrement())
-  assignmentId Int
-  groupId      Int
-  updatedById  Int
-  newDueDate   DateTime
-  updatedAt    DateTime @default(now())
+model FeedbackFile {
+  id            Int      @id @default(autoincrement())
+  feedbackId    Int
+  deliverableId Int
+  fileUrl       String[]
 
-  assignment Assignment @relation(fields: [assignmentId], references: [id])
-  group      Group      @relation(fields: [groupId], references: [id])
-  updatedBy  User       @relation(fields: [updatedById], references: [id])
+  feedback    Feedback    @relation(fields: [feedbackId], references: [id])
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id])
 
-  @@index([assignmentId])
-  @@index([groupId])
-  @@index([updatedById])
+  @@index([feedbackId])
+  @@index([deliverableId])
 }
 
 model Announcement {
@@ -212,31 +227,23 @@ model Announcement {
   schedule    DateTime
   createById  Int
 
-  createdBy User               @relation(fields: [createById], references: [id])
-  course    Course             @relation(fields: [courseId], references: [id])
-  files     Announcementfile[]
+  createdBy User   @relation(fields: [createById], references: [id])
+  course    Course @relation(fields: [courseId], references: [id])
+  files     File[]
 }
 
 model File {
-  id         Int      @id @default(autoincrement())
-  name       String
-  filepath   String
-  uploadAt   DateTime @default(now())
-  uploadById Int
+  id             Int      @id @default(autoincrement())
+  name           String
+  filepath       String
+  uploadAt       DateTime @default(now())
+  uploadById     Int
+  announcementId Int?
 
-  uploadBy          User               @relation(fields: [uploadById], references: [id])
-  announcementFiles Announcementfile[]
-}
+  uploadBy     User          @relation(fields: [uploadById], references: [id])
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
 
-model Announcementfile {
-  id             Int @id @default(autoincrement())
-  announcementId Int
-  fileId         Int
-
-  announcement Announcement @relation(fields: [announcementId], references: [id])
-  file         File         @relation(fields: [fileId], references: [id])
-
-  @@unique([announcementId, fileId])
+  @@index([announcementId])
 }
 
 model CourseActivityLog {

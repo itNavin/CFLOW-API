@@ -1,16 +1,16 @@
-import { prisma } from "..";
+// import { prisma } from "../prisma";
 
-export const createExample = async (name: string) => {
-  const newEx = await prisma.exampleTable.create({
-    data: {
-      name,
-    },
-  });
+// export const createExample = async (name: string) => {
+//   const newEx = await prisma.exampleTable.create({
+//     data: {
+//       name,
+//     },
+//   });
 
-  return newEx;
-};
+//   return newEx;
+// };
 
-export const getAllExample = async () => {
-  const data = await prisma.exampleTable.findMany();
-  return data;
-};
+// export const getAllExample = async () => {
+//   const data = await prisma.exampleTable.findMany();
+//   return data;
+// };

@@ -34,4 +34,20 @@ export const CourseController = {
       return c.json({ message: "Internal server error" }, 500);
     }
   },
+
+  getCourseByUser: async (c: Context) => {
+    try {
+      const userId = c.get("userId") as number; // comes from authMiddleware
+
+      const overview = await CourseModel.getUserCourseOverview(userId);
+      if (!overview) {
+        return c.json({ message: "User not found" }, 404);
+      }
+
+      return c.json(overview, 200);
+    } catch (error) {
+      console.error("Error fetching user course overview:", error);
+      return c.json({ message: "Internal server error" }, 500);
+    }
+  },
 };

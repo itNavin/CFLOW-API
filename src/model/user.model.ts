@@ -1,4 +1,4 @@
-import { prisma } from "..";
+import { prisma } from "../prisma";
 
 class UserModel {
   static async createUser(
