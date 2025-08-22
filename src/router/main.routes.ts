@@ -11,6 +11,7 @@ import { loginRouter } from "./login.routes";
 import { authMiddleware } from "src/middleware/auth";
 import { assignmentRouter} from "./assignment.routes"
 import { submissionRouter } from "./submission.routes";
+import { feedbackRouter } from "./feedback.routes";
 import { main } from "bun";
 
 const mainRouter = new Hono();
@@ -18,7 +19,7 @@ const mainRouter = new Hono();
 mainRouter.route("/login", loginRouter); // Mount the /login route
 
 mainRouter.use(authMiddleware);
-mainRouter.route("/course", courseRouter); // 👈 mount the /course route
+mainRouter.route("/course", courseRouter); //  mount the /course route
 mainRouter.route("/user", userRouter); // Mount the /user route
 mainRouter.route("/courseMember", courseMemberRouter); // Mount the /courseMember route
 mainRouter.route("/group", groupRouter); // Mount the /group route
@@ -27,5 +28,6 @@ mainRouter.route("/announcement", announcementRouter); // Mount the /announcemen
 mainRouter.route("/file", fileRouter); // Mount the /file route
 mainRouter.route("/assignment", assignmentRouter)
 mainRouter.route("/submission", submissionRouter); // Mount the /submission route
+mainRouter.route("/feedback", feedbackRouter); // Mount the /feedback route
 
 export { mainRouter };

@@ -5,6 +5,6 @@ import { SubmissionController } from "../controller/submission.controller";
 export const submissionRouter = new Hono();
 
 submissionRouter.post(
-  "/:assignmentId/group/:groupId",
+  "/assignment/:assignmentId/group/:groupId",
   SubmissionController.createSubmission
 );
