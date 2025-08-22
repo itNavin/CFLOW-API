@@ -1,0 +1,87 @@
+import { Context } from "hono";
+import AnnouncementModel from "../model/announcement.model";
+
+export const AnnouncementController = {
+  createAnnouncement: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      if (!courseId || Number.isNaN(courseId)) {
+        return c.json({ error: "Invalid courseId" }, 400);
+      }
+
+      const body = await c.req.json();
+
+      const name = typeof body.name === "string" ? body.name.trim() : undefined;
+      const description =
+        typeof body.description === "string"
+          ? body.description.trim()
+          : undefined;
+
+      const scheduleStr = body.schedule;
+      const schedule = new Date(scheduleStr);
+      if (!name) return c.json({ error: "name is required" }, 400);
+      if (!description)
+        return c.json({ error: "description is required" }, 400);
+      if (!schedule || isNaN(schedule.getTime())) {
+        return c.json(
+          { error: "schedule must be a valid ISO datetime string" },
+          400
+        );
+      }
+
+      const createById = Number(body.createById);
+      if (!createById || Number.isNaN(createById)) {
+        return c.json(
+          { error: "createById is required and must be a number" },
+          400
+        );
+      }
+
+      //optional files array
+      const files = Array.isArray(body.files)
+        ? body.files.map(
+            (f: { name: string; filepath: string; uploadById: number }) => ({
+              name: String(f?.name ?? "").trim(),
+              filepath: String(f?.filepath ?? "").trim(),
+              uploadById: Number(f?.uploadById),
+            })
+          )
+        : undefined;
+
+      const created = await AnnouncementModel.createAnnouncement({
+        courseId,
+        name,
+        description,
+        schedule,
+        createById,
+        files,
+      });
+
+      return c.json(created, 201);
+    } catch (err: any) {
+      console.error("Error creating announcement:", err);
+      return c.json({ error: "Failed to create announcement" }, 500);
+    }
+  },
+
+  getAllAnnouncement: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      if (!courseId || Number.isNaN(courseId)) {
+        return c.json({ error: "Invalid courseId" }, 400);
+      }
+      const url = new URL(c.req.url);
+      const all = url.searchParams.get("all");
+      const publishedOnly = !(all && all.toLowerCase() === "true");
+
+      const rows = await AnnouncementModel.getAllAnnouncement(
+        courseId,
+        publishedOnly
+      );
+      return c.json(rows, 200);
+    } catch (err) {
+      console.error("Error fetching announcements:", err);
+      return c.json({ error: "Failed to fetch announcements" }, 500);
+    }
+  },
+};
