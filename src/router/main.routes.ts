@@ -12,6 +12,7 @@ import { authMiddleware } from "src/middleware/auth";
 import { assignmentRouter} from "./assignment.routes"
 import { submissionRouter } from "./submission.routes";
 import { feedbackRouter } from "./feedback.routes";
+import { filenameRouter } from "./filename.routes";
 import { main } from "bun";
 
 const mainRouter = new Hono();
@@ -29,5 +30,7 @@ mainRouter.route("/file", fileRouter); // Mount the /file route
 mainRouter.route("/assignment", assignmentRouter)
 mainRouter.route("/submission", submissionRouter); // Mount the /submission route
 mainRouter.route("/feedback", feedbackRouter); // Mount the /feedback route
+mainRouter.route("/filename", filenameRouter); // Mount the /filename route
+
 
 export { mainRouter };
