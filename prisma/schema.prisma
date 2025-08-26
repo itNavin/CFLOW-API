@@ -163,11 +163,17 @@ model Deliverable {
 
 model AllowedFileType {
   id            Int    @id @default(autoincrement())
-  type          String
+  mime          String? // e.g. "application/pdf"
+  type          String // e.g. "PDF" or "Word Document"
   deliverableId Int
 
   deliverable Deliverable @relation(fields: [deliverableId], references: [id])
+
+  @@unique([deliverableId, mime])
+  @@index([deliverableId])
 }
+
+
 
 model Submission {
   id           Int              @id @default(autoincrement())

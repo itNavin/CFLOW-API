@@ -16,7 +16,7 @@ class FeedbackModel {
 
     return prisma
       .$transaction(async (tx) => {
-        // 1) Load submission + related info
+        // 1) Load submission + related info (include assignment.endDate for validation)
         const submission = await tx.submission.findUnique({
           where: { id: submissionId },
           select: {
@@ -24,11 +24,32 @@ class FeedbackModel {
             assignmentId: true,
             groupId: true,
             assignment: {
-              select: { id: true, deliverables: { select: { id: true } } },
+              select: {
+                id: true,
+                endDate: true, // 👈 need this to cap newDueDate
+                deliverables: { select: { id: true } },
+              },
             },
           },
         });
         if (!submission) throw new Error("Submission not found");
+
+        const now = new Date();
+
+        // 1.1) Validate newDueDate: now <= newDueDate <= assignment.endDate
+        if (!(newDueDate instanceof Date) || isNaN(newDueDate.getTime())) {
+          throw new Error("newDueDate must be a valid Date");
+        }
+        if (newDueDate < now) {
+          throw new Error(
+            `newDueDate must not be in the past. Received: ${newDueDate.toISOString()}, now: ${now.toISOString()}`
+          );
+        }
+        if (newDueDate > submission.assignment.endDate) {
+          throw new Error(
+            `newDueDate must be on or before the assignment endDate (${submission.assignment.endDate.toISOString()})`
+          );
+        }
 
         // 2) Validate deliverables belong to this assignment
         const validDeliverableIds = new Set(

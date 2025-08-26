@@ -7,17 +7,95 @@ export type CreateAssignmentInput = {
   description: string;
   endDate: Date;
   schedule: Date;
-  dueDate: Date; // 👈 NEW: single due date to apply to all groups in the course
+  dueDate: Date;
   deliverables?: Array<{
     name: string;
-    allowedFileTypes?: string[];
+    // can be ["pdf", "docx"] OR [{ mime, type }]
+    allowedFileTypes?: Array<string | { mime: string; type?: string }>;
   }>;
 };
+
+// --- helpers ---
+const EXT_TO_MIME: Record<string, { mime: string; label: string }> = {
+  pdf: { mime: "application/pdf", label: "PDF" },
+  docx: {
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    label: "Word Document",
+  },
+  xlsx: {
+    mime: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    label: "Excel Spreadsheet",
+  },
+  pptx: {
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    label: "PowerPoint",
+  },
+  png: { mime: "image/png", label: "PNG Image" },
+  jpg: { mime: "image/jpeg", label: "JPEG Image" },
+  jpeg: { mime: "image/jpeg", label: "JPEG Image" },
+  gif: { mime: "image/gif", label: "GIF Image" },
+  svg: { mime: "image/svg+xml", label: "SVG Image" },
+  zip: { mime: "application/zip", label: "ZIP Archive" },
+  txt: { mime: "text/plain", label: "Text File" },
+};
+
+function normalizeAllowedFileTypes(
+  list?: Array<string | { mime: string; type?: string }>
+): Array<{ mime: string; type: string }> {
+  if (!Array.isArray(list) || list.length === 0) return [];
+
+  const normalized: Array<{ mime: string; type: string }> = [];
+
+  for (const item of list) {
+    if (!item) continue;
+
+    if (typeof item === "string") {
+      // extension or raw mime?
+      const val = item.trim();
+      if (!val) continue;
+
+      if (val.includes("/")) {
+        // looks like a MIME string already
+        normalized.push({
+          mime: val.toLowerCase(),
+          type: val.split("/")[1].toUpperCase(),
+        });
+      } else {
+        // treat as extension
+        const key = val.toLowerCase();
+        const mapped = EXT_TO_MIME[key];
+        if (!mapped) {
+          throw new Error(
+            `Unknown file type/extension: "${item}". Send a known extension or a MIME string.`
+          );
+        }
+        normalized.push({ mime: mapped.mime, type: mapped.label });
+      }
+    } else {
+      const mime = String(item.mime ?? "")
+        .trim()
+        .toLowerCase();
+      if (!mime || !mime.includes("/")) {
+        throw new Error(`Invalid MIME: "${item?.mime}"`);
+      }
+      const type = item.type?.trim() || mime.split("/")[1].toUpperCase();
+      normalized.push({ mime, type });
+    }
+  }
+
+  // de-duplicate by mime
+  const seen = new Set<string>();
+  return normalized.filter((x) => {
+    if (seen.has(x.mime)) return false;
+    seen.add(x.mime);
+    return true;
+  });
+}
 
 class AssignmentModel {
   static async createAssignment(data: CreateAssignmentInput) {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1) Create assignment
+      // 1) Create assignment (we’ll add deliverables afterward so we can normalize types)
       const assignment = await tx.assignment.create({
         data: {
           courseId: data.courseId,
@@ -25,34 +103,39 @@ class AssignmentModel {
           description: data.description,
           endDate: data.endDate,
           schedule: data.schedule,
-          ...(data.deliverables?.length
-            ? {
-                deliverables: {
-                  create: data.deliverables.map((d) => ({
-                    name: d.name,
-                    ...(d.allowedFileTypes?.length
-                      ? {
-                          allowedFileTypes: {
-                            create: d.allowedFileTypes.map((t) => ({
-                              type: t,
-                            })),
-                          },
-                        }
-                      : {}),
-                  })),
-                },
-              }
-            : {}),
         },
       });
 
-      // 2) Get all groups in this course
+      // 2) Create deliverables + allowedFileTypes
+      if (data.deliverables?.length) {
+        for (const d of data.deliverables) {
+          const createdDeliverable = await tx.deliverable.create({
+            data: {
+              name: d.name,
+              assignmentId: assignment.id,
+            },
+          });
+
+          const normalized = normalizeAllowedFileTypes(d.allowedFileTypes);
+          if (normalized.length) {
+            await tx.allowedFileType.createMany({
+              data: normalized.map((t) => ({
+                deliverableId: createdDeliverable.id,
+                mime: t.mime,
+                type: t.type, // UI label
+              })),
+              skipDuplicates: true, // respects @@unique(deliverableId, mime)
+            });
+          }
+        }
+      }
+
+      // 3) Add due date to all groups in course
       const groups = await tx.group.findMany({
         where: { courseId: data.courseId },
         select: { id: true },
       });
 
-      // 3) Insert one AssignmentDueDate per group (if any groups exist)
       if (groups.length) {
         await tx.assignmentDueDate.createMany({
           data: groups.map((g) => ({
@@ -60,11 +143,11 @@ class AssignmentModel {
             groupId: g.id,
             dueDate: data.dueDate,
           })),
-          skipDuplicates: true, // safety
+          skipDuplicates: true,
         });
       }
 
-      // 4) Return assignment with full includes (including the generated due dates)
+      // 4) Return full assignment with normalized file types included
       const full = await tx.assignment.findUnique({
         where: { id: assignment.id },
         include: {
@@ -80,10 +163,7 @@ class AssignmentModel {
   static async getAllAssignments(courseId: number) {
     const now = new Date();
     return prisma.assignment.findMany({
-      where: {
-        courseId,
-        schedule: { lte: now }, 
-      },
+      where: { courseId, schedule: { lte: now } },
       include: {
         deliverables: { include: { allowedFileTypes: true } },
         assignmentDueDates: true,
@@ -96,7 +176,7 @@ class AssignmentModel {
     assignmentId: number,
     groupId: number
   ) {
-    const assignment = await prisma.assignment.findUnique({
+    return prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
         deliverables: { include: { allowedFileTypes: true } },
@@ -122,8 +202,6 @@ class AssignmentModel {
         },
       },
     });
-
-    return assignment;
   }
 }
 
