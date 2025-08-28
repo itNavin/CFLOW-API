@@ -1,7 +1,9 @@
 import { Context } from "hono";
 import UserModel from "../model/user.model";
+import { decodeToken, getTokenFromHeader } from "../util/jwt";
 
 export const UserController = {
+  // POST /user/createUser
   createUser: async (c: Context) => {
     try {
       const body = await c.req.json();
@@ -27,6 +29,7 @@ export const UserController = {
     }
   },
 
+  // GET /user/users
   getAllUsers: async (c: Context) => {
     try {
       const users = await UserModel.getAllUsers();
@@ -37,23 +40,34 @@ export const UserController = {
     }
   },
 
+  // GET /user/
   getUserById: async (c: Context) => {
     try {
-      const idParam = c.req.param("id");
-      const id = Number(idParam);
-
-      if (isNaN(id)) {
-        return c.json({ message: "Invalid user ID" }, 400);
+      const token = getTokenFromHeader(c.req.header("Authorization"));
+      if (!token) {
+        return c.json({ message: "Unauthorized: missing token" }, 401);
       }
 
-      const user = await UserModel.getUserById(id);
+      const payload = decodeToken(token);
+      const userId = payload.userId;
+
+      const user = await UserModel.getUserById(userId);
       if (!user) {
         return c.json({ message: "User not found" }, 404);
       }
 
-      return c.json(user);
-    } catch (error) {
-      console.error("Error fetching user by ID:", error);
+      return c.json(user, 200);
+    } catch (error: any) {
+      console.error("Error fetching user from token:", error);
+      if (
+        error.name === "JsonWebTokenError" ||
+        error.name === "TokenExpiredError"
+      ) {
+        return c.json(
+          { message: "Unauthorized: invalid or expired token" },
+          401
+        );
+      }
       return c.json({ message: "Internal server error" }, 500);
     }
   },

@@ -26,7 +26,7 @@ class FeedbackModel {
             assignment: {
               select: {
                 id: true,
-                endDate: true, // 👈 need this to cap newDueDate
+                endDate: true,
                 deliverables: { select: { id: true } },
               },
             },
@@ -72,7 +72,7 @@ class FeedbackModel {
               ? {
                   create: files.map((f) => ({
                     deliverableId: f.deliverableId,
-                    fileUrl: f.fileUrls, // String[]
+                    fileUrl: f.fileUrls,
                   })),
                 }
               : undefined,
@@ -107,7 +107,6 @@ class FeedbackModel {
           data: { status: newStatus },
         });
 
-        // Return feedback plus a small summary
         const updatedDue = await tx.assignmentDueDate.findUnique({
           where: {
             assignmentId_groupId: {

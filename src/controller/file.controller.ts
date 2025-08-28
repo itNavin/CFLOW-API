@@ -3,8 +3,7 @@ import FileModel from "../model/file.model";
 import { FilePayload } from "../types/payload/file.type";
 
 export const FileController = {
-  // POST /file
-  // Body: { name, filepath, uploadById }
+  // POST /file/
   createFile: async (c: Context) => {
     try {
       const body = await c.req.json<FilePayload.createFile>();
@@ -31,6 +30,7 @@ export const FileController = {
     }
   },
 
+  // GET /file/
   getAllFiles: async (c: Context) => {
     try {
       const url = new URL(c.req.url);

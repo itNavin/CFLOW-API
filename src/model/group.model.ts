@@ -4,7 +4,7 @@ import type { Prisma } from "@prisma/client";
 class GroupModel {
   static async createGroup(data: {
     courseId: number;
-    codeNumber?: string | null; // admin provides, can be null
+    codeNumber?: string | null;
     projectName: string;
     productName?: string | null;
     company?: string | null;
@@ -43,7 +43,6 @@ class GroupModel {
       const { existingIds: memberExisting, missing: memberMissing } =
         await validateCourseMembers(memberIds);
       if (memberMissing.length) {
-        // Throwing an error here will make controller return 400
         const err: any = new Error(
           `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(
             ", "
@@ -140,8 +139,6 @@ class GroupModel {
       projectName?: string;
       productName?: string | null;
       company?: string | null;
-
-      // FULL REPLACE semantics if provided:
       memberIds?: { id: number; workRole: string }[];
       advisorIds?: number[];
       coAdvisorIds?: number[];
@@ -220,7 +217,7 @@ class GroupModel {
         ids: number[] | undefined,
         role: "ADVISOR" | "CO_ADVISOR"
       ) => {
-        if (ids === undefined) return; // not provided → do nothing
+        if (ids === undefined) return;
         const { existingIds, missing } = await validateCourseMembers(ids ?? []);
         if (missing.length) {
           const err: any = new Error(
@@ -231,7 +228,6 @@ class GroupModel {
           err.status = 400;
           throw err;
         }
-        // delete current rows for this role
         await tx.groupAdvisor.deleteMany({
           where: { groupId, advisorRole: role },
         });

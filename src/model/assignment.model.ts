@@ -15,7 +15,6 @@ export type CreateAssignmentInput = {
   }>;
 };
 
-// --- helpers ---
 const EXT_TO_MIME: Record<string, { mime: string; label: string }> = {
   pdf: { mime: "application/pdf", label: "PDF" },
   docx: {
@@ -50,18 +49,15 @@ function normalizeAllowedFileTypes(
     if (!item) continue;
 
     if (typeof item === "string") {
-      // extension or raw mime?
       const val = item.trim();
       if (!val) continue;
 
       if (val.includes("/")) {
-        // looks like a MIME string already
         normalized.push({
           mime: val.toLowerCase(),
           type: val.split("/")[1].toUpperCase(),
         });
       } else {
-        // treat as extension
         const key = val.toLowerCase();
         const mapped = EXT_TO_MIME[key];
         if (!mapped) {
@@ -83,7 +79,6 @@ function normalizeAllowedFileTypes(
     }
   }
 
-  // de-duplicate by mime
   const seen = new Set<string>();
   return normalized.filter((x) => {
     if (seen.has(x.mime)) return false;
@@ -122,9 +117,9 @@ class AssignmentModel {
               data: normalized.map((t) => ({
                 deliverableId: createdDeliverable.id,
                 mime: t.mime,
-                type: t.type, // UI label
+                type: t.type,
               })),
-              skipDuplicates: true, // respects @@unique(deliverableId, mime)
+              skipDuplicates: true,
             });
           }
         }

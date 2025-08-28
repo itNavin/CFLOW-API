@@ -6,10 +6,10 @@ export type CreateFileInput = {
   uploadById: number;
 };
 export type GetAllFilesParams = {
-  announcementId?: number | null; // if provided (number), filter by that announcement
-  unattached?: boolean; // if true, announcementId must be null
-  uploadedById?: number; // filter by uploader
-  order?: "asc" | "desc"; // default "asc"
+  announcementId?: number | null;
+  unattached?: boolean;
+  uploadedById?: number;
+  order?: "asc" | "desc";
 };
 
 class FileModel {
@@ -25,13 +25,12 @@ class FileModel {
       throw err;
     }
 
-    // create file with announcementId = null
     return prisma.file.create({
       data: {
         name: data.name,
         filepath: data.filepath,
         uploadById: data.uploadById,
-        announcementId: null, // 👈 explicitly not linked to any announcement
+        announcementId: null,
       },
     });
   }
@@ -39,13 +38,11 @@ class FileModel {
   static async getAllFiles(params: GetAllFilesParams = {}) {
     const { announcementId, unattached, uploadedById, order = "asc" } = params;
 
-    // Build WHERE
     const where: any = {};
     if (typeof uploadedById === "number" && !Number.isNaN(uploadedById)) {
       where.uploadById = uploadedById;
     }
 
-    // If explicit announcementId is provided, use it (overrides unattached flag)
     if (typeof announcementId === "number" && !Number.isNaN(announcementId)) {
       where.announcementId = announcementId;
     } else if (unattached) {
@@ -55,8 +52,8 @@ class FileModel {
     return prisma.file.findMany({
       where,
       include: {
-        uploadBy: true, // who uploaded
-        announcement: true, // linked announcement (may be null)
+        uploadBy: true,
+        announcement: true,
       },
       orderBy: { id: order },
     });

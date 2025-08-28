@@ -4,18 +4,18 @@ import { CourseMemberController } from "../controller/courseMember.controller";
 export const courseMemberRouter = new Hono();
 
 courseMemberRouter.get(
-  "/:courseId",
+  "/course/:courseId",
   CourseMemberController.getAllCourseMembers
 );
+
 courseMemberRouter.get(
-  "/:courseId/advisors",
+  "/advisors/course/:courseId",
   CourseMemberController.getAdvisorMembers
 );
+
 courseMemberRouter.get(
-  "/:courseId/students",
+  "/students/course/:courseId",
   CourseMemberController.getStudentMembers
 );
 
-// ✅ POST to add a member by userId
-// Body: { "userId": 123 }
-courseMemberRouter.post("/:courseId/members", CourseMemberController.addMember);
+courseMemberRouter.post("/members/course/:courseId", CourseMemberController.addMember);
