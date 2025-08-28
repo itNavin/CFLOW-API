@@ -1,6 +1,7 @@
 // src/controller/feedback.controller.ts
 import type { Context } from "hono";
 import FeedbackModel from "../model/feedback.model";
+import { FeedbackPayload } from "../types/payload/feedback.type";
 
 const ALLOWED_STATUSES = new Set([
   "REJECTED",
@@ -17,12 +18,12 @@ export const FeedbackController = {
         return c.json({ error: "Invalid submissionId" }, 400);
       }
 
-      const body = await c.req.json();
-      const comment = String(body?.comment ?? "").trim();
-      const newStatus = String(body?.newStatus ?? "")
+      const body = await c.req.json<FeedbackPayload.CreateFeedback>();
+      const comment = body.comment.trim();
+      const newStatus = body.newStatus
         .trim()
         .toUpperCase();
-      const newDueDateStr = body?.newDueDate;
+      const newDueDateStr = body.newDueDate;
 
       if (!comment) return c.json({ error: "comment is required" }, 400);
       if (!ALLOWED_STATUSES.has(newStatus))
@@ -43,15 +44,15 @@ export const FeedbackController = {
           400
         );
 
-      const filesRaw = Array.isArray(body?.files) ? body.files : [];
-      const files: { deliverableId: number; fileUrls: string[] }[] =
-        filesRaw.map((f: any) => ({
-          deliverableId: Number(f?.deliverableId),
-          fileUrls: Array.isArray(f?.fileUrls)
+      const filesRaw = body.files
+      const files =
+        filesRaw.map((f) => ({
+          deliverableId: f.deliverableId,
+          fileUrls: Array.isArray(f.fileUrls)
             ? f.fileUrls.map((u: any) => String(u ?? "").trim()).filter(Boolean)
             : [],
         }));
-      if (files.some((f) => !Number.isFinite(f.deliverableId))) {
+      if (files.some((f) => !(f.deliverableId))) {
         return c.json(
           { error: "Each file must include a valid deliverableId" },
           400

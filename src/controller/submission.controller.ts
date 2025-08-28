@@ -1,30 +1,31 @@
 import type { Context } from "hono";
 import SubmissionModel from "../model/submission.model";
+import { SubmissionPayload } from "src/types/payload/submission.type";
 
 export const SubmissionController = {
+  // POST /submission/assignment/:assignmentId/group/:groupId
   createSubmission: async (c: Context) => {
     try {
       const assignmentId = Number(c.req.param("assignmentId"));
       const groupId = Number(c.req.param("groupId"));
+
       if (!Number.isFinite(assignmentId))
         return c.json({ error: "Invalid assignmentId" }, 400);
       if (!Number.isFinite(groupId))
         return c.json({ error: "Invalid groupId" }, 400);
 
-      const body = await c.req.json();
-      const comment = String(body?.comment ?? "").trim();
-      if (!comment) return c.json({ error: "comment is required" }, 400);
-
+      const body = await c.req.json<SubmissionPayload.CreateSubmission>();
+      const comment = body?.comment.trim();
       const filesRaw = Array.isArray(body?.files) ? body.files : [];
-      const files: { deliverableId: number; fileUrls: string[] }[] =
-        filesRaw.map((f: any) => ({
-          deliverableId: Number(f?.deliverableId),
-          fileUrls: Array.isArray(f?.fileUrls)
-            ? f.fileUrls.map((u: any) => String(u ?? "").trim()).filter(Boolean)
+      const files =
+        filesRaw.map((f) => ({
+          deliverableId: f.deliverableId,
+          fileUrls: Array.isArray(f.fileUrls)
+            ? f.fileUrls.map((u) => (u).trim()).filter(Boolean)
             : [],
         }));
 
-      // Require at least one file (change to allow empty if your business rules allow late/no-file)
+      //Require at least one file
       if (files.length === 0) {
         return c.json({ error: "files are required" }, 400);
       }

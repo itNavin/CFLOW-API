@@ -1,10 +1,11 @@
 import { Context } from "hono";
 import CourseModel from "../model/course.model";
+import { CoursePayload } from "../types/payload/course.type";
 
 export const CourseController = {
   createCourse: async (c: Context) => {
     try {
-      const body = await c.req.json();
+      const body = await c.req.json<CoursePayload.CreateCourse>();
       const { name, description, program, createdById } = body;
 
       if (!name || !description || !program || !createdById) {
@@ -37,13 +38,13 @@ export const CourseController = {
 
   getCourseByUser: async (c: Context) => {
     try {
-      const userId = c.get("userId") as number; // comes from authMiddleware
-
+      const userId = c.get("userId") as number; //From middlewar
       const overview = await CourseModel.getUserCourseOverview(userId);
+
       if (!overview) {
         return c.json({ message: "User not found" }, 404);
       }
-
+      
       return c.json(overview, 200);
     } catch (error) {
       console.error("Error fetching user course overview:", error);
