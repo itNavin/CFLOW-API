@@ -9,24 +9,28 @@ import { addMember } from "../model/courseMember.model";
 import { CourseMemberPayload } from "../types/payload/courseMember.type";
 
 export const CourseMemberController = {
+  // GET /courseMember/:courseId
   getAllCourseMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     const members = await getAllCourseMembers(courseId);
     return c.json(members);
   },
 
+  // GET /courseMember/:courseId/advisors
   getAdvisorMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     const advisors = await getAdvisorMembers(courseId);
     return c.json(advisors);
   },
 
+  // GET /courseMember/:courseId/students
   getStudentMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     const students = await getStudentMembers(courseId);
     return c.json(students);
   },
 
+  // POST /courseMember/:courseId/members
   addMember: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     let body: { userId?: number };

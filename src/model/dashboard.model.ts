@@ -1,13 +1,12 @@
 import { prisma } from "../prisma";
 
-/** Rollup of latest submission status per (assignment, group) pair */
 export type SubmissionRollup = {
   NOT_SUBMITTED: number;
   SUBMITTED: number;
   REJECTED: number;
   APPROVED_WITH_FEEDBACK: number;
   FINAL: number;
-  totalPairs: number; // number of (assignment, group) pairs considered
+  totalPairs: number;
 };
 
 function emptyRollup(): SubmissionRollup {
@@ -25,13 +24,6 @@ function nowAsDate(): Date {
   return new Date();
 }
 
-/**
- * Compute submission status rollup across (assignment, group) pairs.
- * - Excludes assignments whose schedule is in the future (schedule > asOf).
- * - For each (assignmentId, groupId):
- *    - If no submission OR latest submission.missed === true -> NOT_SUBMITTED
- *    - Else bucket by latest submission.status
- */
 async function computeSubmissionRollup(
   courseId: number,
   opts?: { assignmentId?: number; groupId?: number; asOf?: Date }
@@ -45,7 +37,7 @@ async function computeSubmissionRollup(
       where: {
         courseId,
         ...(assignmentId ? { id: assignmentId } : {}),
-        schedule: { lte: asOf }, // <<< exclude future assignments
+        schedule: { lte: asOf },
       },
       select: { id: true },
       orderBy: { id: "asc" },
@@ -77,7 +69,7 @@ async function computeSubmissionRollup(
       assignmentId: true,
       groupId: true,
       version: true,
-      status: true, // "SUBMITTED" | "REJECTED" | "APPROVED_WITH_FEEDBACK" | "FINAL"
+      status: true,
       missed: true,
     },
     orderBy: [{ assignmentId: "asc" }, { groupId: "asc" }, { version: "desc" }],
@@ -87,7 +79,7 @@ async function computeSubmissionRollup(
   const latest = new Map<string, (typeof submissions)[number]>();
   for (const s of submissions) {
     const key = `${s.assignmentId}:${s.groupId}`;
-    if (!latest.has(key)) latest.set(key, s); // first is latest due to ordering
+    if (!latest.has(key)) latest.set(key, s);
   }
 
   // 4) Classify each (assignment, group) pair
@@ -125,7 +117,6 @@ async function computeSubmissionRollup(
 }
 
 class DashboardModel {
-  /** Unfiltered (whole course) summary + submission rollup (excluding future assignments) */
   static async getCourseSummary(courseId: number, asOf?: Date) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
@@ -199,7 +190,6 @@ class DashboardModel {
     };
   }
 
-  /** Filtered summary, same shape, but rollup scoped by assignmentId/groupId (and still excludes future schedule) */
   static async getCourseSummaryFiltered(
     courseId: number,
     opts?: { assignmentId?: number; groupId?: number; asOf?: Date }

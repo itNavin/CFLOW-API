@@ -1,6 +1,5 @@
-// src/model/submission.model.ts
 import { prisma } from "../prisma";
-import { MIME_TO_EXT } from "../util/filenaming"; // 👈 use your existing map
+import { MIME_TO_EXT } from "../util/filenaming";
 
 function extFromUrl(u: string): string | null {
   const m = u.split("?")[0].match(/\.([a-z0-9]+)$/i);
@@ -66,10 +65,9 @@ class SubmissionModel {
 
       // 4) Validate: each deliverable must include all required types (by extension)
       for (const d of deliverables) {
-        // map allowed MIME → extension (pdf, docx, ...)
         const requiredExts = d.allowedFileTypes
           .map((t) => {
-            if (!t.mime) return null; // skip nulls
+            if (!t.mime) return null;
             const key = t.mime.toLowerCase();
             return MIME_TO_EXT[key] || null;
           })
@@ -89,7 +87,7 @@ class SubmissionModel {
           );
         }
 
-        if (requiredExts.length === 0) continue; // no constraints
+        if (requiredExts.length === 0) continue;
 
         const submitted = submittedByDeliverable.get(d.id) ?? new Set<string>();
         const missing = requiredExts.filter((req) => !submitted.has(req));

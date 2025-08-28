@@ -26,7 +26,6 @@ export const GroupController = {
 
       const newGroup = await GroupModel.createGroup({
         courseId,
-        // admin-provided codeNumber (string like "0001") or null/omitted
         codeNumber:
           typeof body.codeNumber === "string" && body.codeNumber.trim() !== ""
             ? body.codeNumber.trim()
@@ -34,18 +33,18 @@ export const GroupController = {
         projectName: body.projectName,
         productName: body.productName ?? null,
         company: body.company ?? null,
-        // members
+        //members
         memberIds: Array.isArray(body.memberIds)
           ? body.memberIds.map((m) => ({
               id: m.id,
               workRole: m.workRole,
             }))
           : [],
-        // advisors
+        //advisors
         advisorIds: Array.isArray(body.advisorIds)
           ? body.advisorIds.map((ad) => ad.id)
           : [],
-        // coAdvisors
+        //coAdvisors
         coAdvisorIds: Array.isArray(body.coAdvisorIds)
           ? body.coAdvisorIds.map((ad) => ad.id)
           : [],
@@ -79,6 +78,7 @@ export const GroupController = {
     }
   },
 
+  // PATCH /group/:courseId/:groupId
   updateGroup: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));

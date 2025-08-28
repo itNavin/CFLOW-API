@@ -1,7 +1,5 @@
-// auth.middleware.ts
 import type { Context, Next } from "hono";
 import * as jwt from "jsonwebtoken";
-import { getCookie } from "hono/cookie"; // bun add hono if not present
 
 type AuthPayload = { userId: number; role: string };
 
@@ -13,7 +11,6 @@ function getJwtSecret(): string {
 
 export async function authMiddleware(c: Context, next: Next) {
   // 1) Read token from cookie
-  // const token = getCookie(c, "auth");
   const AuthorizationHeader = c.req.header("Authorization");
   if (!AuthorizationHeader) {
     return c.json({ message: "Unauthorized: no Authorization header" }, 401);
@@ -22,8 +19,6 @@ export async function authMiddleware(c: Context, next: Next) {
     return c.json({ message: "Unauthorized : invalid header format" }, 401);
   }
   const token = AuthorizationHeader.split(" ")[1];
-
-  // if (!token) return c.json({ message: "Unauthorized: no cookie" }, 401);
 
   try {
     // 2) Verify with explicit algorithms
@@ -37,7 +32,6 @@ export async function authMiddleware(c: Context, next: Next) {
 
     await next();
   } catch (err: any) {
-    // Optional: finer error messages
     if (err?.name === "TokenExpiredError") {
       return c.json({ message: "Unauthorized: token expired" }, 401);
     }

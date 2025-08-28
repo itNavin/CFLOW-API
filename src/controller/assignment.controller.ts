@@ -56,7 +56,7 @@ export const AssignmentController = {
     }
   },
 
-  // GET /assignment/:courseId
+  // GET /assignment/course/:courseId
   getAllAssignments: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));
@@ -72,6 +72,7 @@ export const AssignmentController = {
     }
   },
 
+  // GET /assignment/:assignmentId/group/:groupId
   getAssignmentWithSubmissions: async (c: Context) => {
     try {
       const assignmentId = Number(c.req.param("assignmentId"));

@@ -25,8 +25,6 @@ class CourseModel {
             course: true,
             groupMembers: {
               include: {
-                // If your Group model now has `assignmentDueDates`, you can include it here.
-                // Otherwise, leaving `group: true` is fine.
                 group: true,
               },
             },
@@ -37,10 +35,9 @@ class CourseModel {
             },
           },
         },
-        createdClasses: true, // courses created by this user (if any)
-        createdAnnouncements: true, // announcements created by this user
-        uploadedFiles: true, // files uploaded by this user
-        // ⚠️ removed: dueDateUpdatesMade (model was deleted)
+        createdClasses: true,
+        createdAnnouncements: true,
+        uploadedFiles: true,
       },
     });
 
@@ -85,7 +82,6 @@ class CourseModel {
         createdClasses: user.createdClasses,
         createdAnnouncements: user.createdAnnouncements,
         uploadedFiles: user.uploadedFiles,
-        // removed: dueDateUpdatesMade
       },
     };
   }

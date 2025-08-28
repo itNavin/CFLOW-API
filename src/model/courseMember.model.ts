@@ -69,7 +69,7 @@ export const addMember = async (courseId: number, userId: number) => {
     select: { id: true },
   });
   if (existing) {
-    return existing; // or throw new Error("ALREADY_MEMBER")
+    return existing;
   }
 
   return prisma.courseMember.create({

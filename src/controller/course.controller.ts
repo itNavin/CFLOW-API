@@ -4,6 +4,7 @@ import { CoursePayload } from "../types/payload/course.type";
 import { decodeToken, getTokenFromHeader } from "../util/jwt";
 
 export const CourseController = {
+  // POST /course/createCourse
   createCourse: async (c: Context) => {
     try {
       const body = await c.req.json<CoursePayload.CreateCourse>();
@@ -27,6 +28,7 @@ export const CourseController = {
     }
   },
 
+  // GET /course/getAllCourses
   getAllCourses: async (c: Context) => {
     try {
       const courses = await CourseModel.getAllCourses();
@@ -37,6 +39,7 @@ export const CourseController = {
     }
   },
 
+  // GET /course/my-courses
   getCourseByUser: async (c: Context) => {
     try {
       // 1) Extract token from header

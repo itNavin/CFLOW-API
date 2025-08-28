@@ -1,4 +1,3 @@
-// src/controller/feedback.controller.ts
 import type { Context } from "hono";
 import FeedbackModel from "../model/feedback.model";
 import { FeedbackPayload } from "../types/payload/feedback.type";
