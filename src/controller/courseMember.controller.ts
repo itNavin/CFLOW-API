@@ -6,6 +6,7 @@ import {
   getStudentMembers,
 } from "../model/courseMember.model";
 import { addMember } from "../model/courseMember.model";
+import { CourseMemberPayload } from "../types/payload/courseMember.type";
 
 export const CourseMemberController = {
   getAllCourseMembers: async (c: Context) => {
@@ -30,12 +31,12 @@ export const CourseMemberController = {
     const courseId = Number(c.req.param("courseId"));
     let body: { userId?: number };
     try {
-      body = await c.req.json();
+      body = await c.req.json<CourseMemberPayload.AddMember>();
     } catch {
       return c.json({ message: "Invalid JSON body" }, 400);
     }
 
-    const userId = Number(body.userId);
+    const userId = body.userId;
     if (!courseId || !userId) {
       return c.json(
         { message: "courseId param and userId in body are required" },

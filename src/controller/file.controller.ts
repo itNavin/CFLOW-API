@@ -1,17 +1,17 @@
 import { Context } from "hono";
 import FileModel from "../model/file.model";
+import { FilePayload } from "../types/payload/file.type";
 
 export const FileController = {
   // POST /file
   // Body: { name, filepath, uploadById }
   createFile: async (c: Context) => {
     try {
-      const body = await c.req.json();
+      const body = await c.req.json<FilePayload.createFile>();
 
-      const name = typeof body.name === "string" ? body.name.trim() : undefined;
-      const filepath =
-        typeof body.filepath === "string" ? body.filepath.trim() : undefined;
-      const uploadById = Number(body.uploadById);
+      const name = body.name;
+      const filepath = body.filepath;
+      const uploadById = body.uploadById;
 
       if (!name) return c.json({ error: "name is required" }, 400);
       if (!filepath) return c.json({ error: "filepath is required" }, 400);

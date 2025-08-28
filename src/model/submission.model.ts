@@ -1,5 +1,6 @@
 // src/model/submission.model.ts
 import { prisma } from "../prisma";
+import { MIME_TO_EXT } from "../util/filenaming"; // 👈 use your existing map
 
 function extFromUrl(u: string): string | null {
   const m = u.split("?")[0].match(/\.([a-z0-9]+)$/i);
@@ -18,7 +19,7 @@ class SubmissionModel {
     const { assignmentId, groupId, comment, files } = input;
 
     return prisma.$transaction(async (tx) => {
-      // 0) Due date (compute missed etc.) — keep whatever you already have
+      // 0) Due date check
       const due = await tx.assignmentDueDate.findUnique({
         where: { assignmentId_groupId: { assignmentId, groupId } },
         select: { dueDate: true },
@@ -27,7 +28,7 @@ class SubmissionModel {
         throw new Error("No due date found for this assignment and group.");
       const now = new Date();
 
-      // 1) Load latest submission to decide version/status (keep your existing logic)
+      // 1) latest submission for version/status
       const last = await tx.submission.findFirst({
         where: { assignmentId, groupId },
         orderBy: { version: "desc" },
@@ -42,10 +43,12 @@ class SubmissionModel {
       const nextStatus =
         last?.status === "APPROVED_WITH_FEEDBACK" ? "FINAL" : "SUBMITTED";
 
-      // 2) Fetch deliverables + allowed types for this assignment
+      // 2) Fetch deliverables + allowed MIME types
       const deliverables = await tx.deliverable.findMany({
         where: { assignmentId },
-        include: { allowedFileTypes: true }, // uses .type like "pdf" / "docx"
+        include: {
+          allowedFileTypes: { select: { mime: true, type: true } }, // mime + label
+        },
       });
 
       // 3) Build a map of submitted extensions per deliverable
@@ -61,28 +64,50 @@ class SubmissionModel {
         }
       }
 
-      // 4) Validate: each deliverable must include all required types
+      // 4) Validate: each deliverable must include all required types (by extension)
       for (const d of deliverables) {
-        const required = d.allowedFileTypes.map((t) => t.type.toLowerCase()); // ["pdf","docx"]
-        if (required.length === 0) continue; // nothing required
+        // map allowed MIME → extension (pdf, docx, ...)
+        const requiredExts = d.allowedFileTypes
+          .map((t) => {
+            if (!t.mime) return null; // skip nulls
+            const key = t.mime.toLowerCase();
+            return MIME_TO_EXT[key] || null;
+          })
+          .filter((x): x is string => !!x);
+
+        // if some MIME has no mapping, you can choose to reject:
+        const unmapped = d.allowedFileTypes.filter(
+          (t) => !t.mime || !MIME_TO_EXT[t.mime.toLowerCase?.() ?? ""]
+        );
+        if (unmapped.length > 0) {
+          throw new Error(
+            `Deliverable "${d.name}" (id: ${
+              d.id
+            }) has unsupported or missing MIME(s): ${unmapped
+              .map((t) => t.mime ?? "null")
+              .join(", ")}`
+          );
+        }
+
+        if (requiredExts.length === 0) continue; // no constraints
 
         const submitted = submittedByDeliverable.get(d.id) ?? new Set<string>();
-        const missing = required.filter((req) => !submitted.has(req));
+        const missing = requiredExts.filter((req) => !submitted.has(req));
 
         if (missing.length > 0) {
           throw new Error(
             `Deliverable "${d.name}" (id: ${
               d.id
-            }) is missing required file types: ${missing.join(", ")}. ` +
-              `Submitted: [${Array.from(submitted).join(
-                ", "
-              )}], Required: [${required.join(", ")}]`
+            }) is missing required file types: ${missing.join(
+              ", "
+            )}. Submitted: [${Array.from(submitted).join(
+              ", "
+            )}], Required (by ext): [${requiredExts.join(", ")}]`
           );
         }
-
       }
 
-      // 5) Compute missed from current due date
+      // 5) missed flag
       const missed = now > due.dueDate;
 
       // 6) Create submission

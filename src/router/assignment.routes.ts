@@ -5,7 +5,7 @@ export const assignmentRouter = new Hono();
 
 // Create an assignment (with deliverables + allowed file types)
 assignmentRouter.post(
-  "/create/:courseId", AssignmentController.createAssignment
+  "/create/course/:courseId", AssignmentController.createAssignment
 );
 
 // List all assignments for a course

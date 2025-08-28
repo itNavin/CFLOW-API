@@ -1,7 +1,9 @@
 import { Context } from "hono";
 import AnnouncementModel from "../model/announcement.model";
+import { AnnouncementPayload } from "../types/payload//announcement.type";
 
 export const AnnouncementController = {
+  // POST /announcement/create/:courseId
   createAnnouncement: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));
@@ -9,11 +11,10 @@ export const AnnouncementController = {
         return c.json({ error: "Invalid courseId" }, 400);
       }
 
-      const body = await c.req.json();
+      const body = await c.req.json<AnnouncementPayload.CreateAnnouncement>();
 
-      const name = typeof body.name === "string" ? body.name.trim() : undefined;
-      const description =
-        typeof body.description === "string"
+      const name = body.name ? body.name.trim() : undefined;
+      const description = body.description
           ? body.description.trim()
           : undefined;
 
@@ -29,7 +30,7 @@ export const AnnouncementController = {
         );
       }
 
-      const createById = Number(body.createById);
+      const createById = body.createById;
       if (!createById || Number.isNaN(createById)) {
         return c.json(
           { error: "createById is required and must be a number" },
@@ -37,13 +38,12 @@ export const AnnouncementController = {
         );
       }
 
-      //optional files array
       const files = Array.isArray(body.files)
         ? body.files.map(
-            (f: { name: string; filepath: string; uploadById: number }) => ({
-              name: String(f?.name ?? "").trim(),
-              filepath: String(f?.filepath ?? "").trim(),
-              uploadById: Number(f?.uploadById),
+            (f) => ({
+              name: f.name.trim(),
+              filepath: f.filepath.trim(),
+              uploadById: f.uploadById,
             })
           )
         : undefined;
@@ -63,7 +63,8 @@ export const AnnouncementController = {
       return c.json({ error: "Failed to create announcement" }, 500);
     }
   },
-
+  
+  // GET /announcement/:courseId
   getAllAnnouncement: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));

@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import AssignmentModel from "../model/assignment.model";
+import { AssignmentPayload } from "src/types/payload/assignment.types";
 
 export const AssignmentController = {
   // POST /assignment/create/:courseId
@@ -10,13 +11,13 @@ export const AssignmentController = {
         return c.json({ error: "Invalid courseId" }, 400);
       }
 
-      const body = await c.req.json();
+      const body = await c.req.json<AssignmentPayload.CreateAssignment>();
 
-      const name = String(body?.name ?? "").trim();
-      const description = String(body?.description ?? "").trim();
-      const endDateStr = body?.endDate;
-      const scheduleStr = body?.schedule;
-      const dueDateStr = body?.dueDate; // 👈 required
+      const name = body.name.trim();
+      const description = body.description.trim();
+      const endDateStr = body.endDate;
+      const scheduleStr = body.schedule;
+      const dueDateStr = body.dueDate;
 
       if (!name) return c.json({ error: "name is required" }, 400);
       if (!description)
@@ -36,18 +37,7 @@ export const AssignmentController = {
       if (isNaN(dueDate.getTime()))
         return c.json({ error: "dueDate must be a valid ISO datetime" }, 400);
 
-      const deliverables = Array.isArray(body?.deliverables)
-        ? body.deliverables
-            .map((d: any) => ({
-              name: String(d?.name ?? "").trim(),
-              allowedFileTypes: Array.isArray(d?.allowedFileTypes)
-                ? d.allowedFileTypes
-                    .map((t: any) => String(t ?? "").trim())
-                    .filter(Boolean)
-                : [],
-            }))
-            .filter((d: any) => d.name)
-        : [];
+      const deliverables = body.deliverables;
 
       const created = await AssignmentModel.createAssignment({
         courseId,
@@ -55,7 +45,7 @@ export const AssignmentController = {
         description,
         endDate,
         schedule,
-        dueDate, // 👈 feed into model to generate rows for every group
+        dueDate,
         deliverables,
       });
 

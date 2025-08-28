@@ -1,31 +1,24 @@
-// src/controller/filename.controller.ts
 import type { Context } from "hono";
 import FilenameModel from "../model/filename.model";
+import { FilenamePayload } from "../types/payload/filename.type";
 
 export const FilenameController = {
   // POST /filename/change
   changeFileName: async (c: Context) => {
     try {
-      const body = await c.req.json();
+      const body = await c.req.json<FilenamePayload.FilePayload>();
 
-      const groupCode = String(body?.groupCode ?? "").trim();
-      const deliverableName = String(body?.deliverableName ?? "").trim();
-      const version = Number(body?.version);
-      const originalName = body?.originalName
-        ? String(body.originalName)
-        : undefined;
-      const mime = body?.mime ? String(body.mime) : undefined;
-      const partIndex =
-        body?.partIndex != null ? Number(body.partIndex) : undefined;
+      const groupCode = body.groupCode.trim();
+      const deliverableName = body.deliverableName.trim();
+      const version = body.version;
+      const originalName = body.originalName;
+      const mime = body.mime;
+      const partIndex = body.partIndex;
+      const deliverableId = body.deliverableId;
+      const courseId = body.courseId;
+      const assignmentId = body.assignmentId;
 
-      // optional extras (if your model supports them):
-      const deliverableId =
-        body?.deliverableId != null ? Number(body.deliverableId) : undefined;
-      const courseId =
-        body?.courseId != null ? Number(body.courseId) : undefined;
-      const assignmentId =
-        body?.assignmentId != null ? Number(body.assignmentId) : undefined;
-
+      //validations
       if (!groupCode) return c.json({ error: "groupCode is required" }, 400);
       if (!deliverableName)
         return c.json({ error: "deliverableName is required" }, 400);
@@ -39,7 +32,6 @@ export const FilenameController = {
         );
       }
 
-      // 🔑 FIX: await the model
       const result = await FilenameModel.changeFileName({
         groupCode,
         deliverableName,
@@ -47,15 +39,15 @@ export const FilenameController = {
         originalName,
         mime,
         partIndex,
-        deliverableId, // optional: validate mime allowed for this deliverable
-        courseId, // optional: to build full storage key
-        assignmentId, // optional: to build full storage key
+        deliverableId, 
+        courseId,
+        assignmentId,
       });
 
       return c.json(result, 200);
     } catch (err: any) {
       console.error("changeFileName error:", err);
-      // surface useful error messages (e.g., unsupported MIME)
+      //(e.g., unsupported MIME)
       return c.json(
         { error: err?.message ?? "Failed to generate filename" },
         400
