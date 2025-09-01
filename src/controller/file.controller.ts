@@ -1,45 +1,126 @@
+// src/controller/file.controller.ts
 import { Context } from "hono";
 import FileModel from "../model/file.model";
-import { FilePayload } from "../types/payload/file.type";
 
 export const FileController = {
-  // POST /file/
+  // POST /file/course/:courseId
   createFile: async (c: Context) => {
     try {
       const role = c.get("role");
       if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: ADVISOR & ADMIN only" }, 403);
+        return c.json(
+          { error: "Forbidden: ADVISOR, ADMIN or SUPER_ADMIN only" },
+          403
+        );
       }
 
-      const body = await c.req.json<FilePayload.createFile>();
+      const userId = c.get("userId");
+      if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-      const name = body.name;
-      const filepath = body.filepath;
-      const uploadById = body.uploadById;
+      // NEW: take courseId from path param
+      const courseId = Number(c.req.param("courseId"));
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        return c.json({ error: "Invalid courseId" }, 400);
+      }
+
+      const body = await c.req.json<any>();
+
+      const name = String(body.name ?? "").trim();
+      const filepath = String(body.filepath ?? "").trim();
+      const announcementId =
+        body.announcementId !== undefined && body.announcementId !== null
+          ? Number(body.announcementId)
+          : undefined;
 
       if (!name) return c.json({ error: "name is required" }, 400);
       if (!filepath) return c.json({ error: "filepath is required" }, 400);
-      if (!uploadById || Number.isNaN(uploadById)) {
+      if (
+        announcementId !== undefined &&
+        (Number.isNaN(announcementId) || announcementId <= 0)
+      ) {
         return c.json(
-          { error: "uploadById is required and must be a number" },
+          { error: "announcementId must be a positive number" },
           400
         );
       }
 
-      const file = await FileModel.createFile({ name, filepath, uploadById });
+      const file = await FileModel.createFile({
+        name,
+        filepath,
+        uploadById: userId, // from context
+        courseId, // from path param (REQUIRED)
+        announcementId, // optional; model checks it matches course
+      });
+
       return c.json(file, 201);
     } catch (err: any) {
-      if (err?.status === 404) return c.json({ error: err.message }, 404);
+      if (err?.status === 400 || err?.status === 404) {
+        return c.json({ error: err.message }, err.status);
+      }
       console.error("Error creating file:", err);
       return c.json({ error: "Failed to create file" }, 500);
     }
   },
 
-  // GET /file/
+  // (unchanged) GET /file
   getAllFiles: async (c: Context) => {
     try {
       const url = new URL(c.req.url);
 
+      const announcementIdParam = url.searchParams.get("announcementId");
+      const unattachedParam = url.searchParams.get("unattached");
+      const uploadedByIdParam = url.searchParams.get("uploadedById");
+      const courseIdParam = url.searchParams.get("courseId");
+      const orderParam = url.searchParams.get("order");
+
+      const announcementId =
+        announcementIdParam !== null ? Number(announcementIdParam) : undefined;
+
+      const unattached = unattachedParam
+        ? unattachedParam.toLowerCase() === "true"
+        : undefined;
+
+      const uploadedById =
+        uploadedByIdParam !== null ? Number(uploadedByIdParam) : undefined;
+
+      const courseId =
+        courseIdParam !== null ? Number(courseIdParam) : undefined;
+
+      const order = orderParam === "desc" ? "desc" : "asc";
+
+      const files = await FileModel.getAllFiles({
+        announcementId:
+          typeof announcementId === "number" && !Number.isNaN(announcementId)
+            ? announcementId
+            : undefined,
+        unattached,
+        uploadedById:
+          typeof uploadedById === "number" && !Number.isNaN(uploadedById)
+            ? uploadedById
+            : undefined,
+        courseId:
+          typeof courseId === "number" && !Number.isNaN(courseId)
+            ? courseId
+            : undefined,
+        order,
+      });
+
+      return c.json(files, 200);
+    } catch (err) {
+      console.error("Error fetching files:", err);
+      return c.json({ error: "Failed to fetch files" }, 500);
+    }
+  },
+
+  // (unchanged) GET /file/course/:courseId
+  getFilesByCourseId: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        return c.json({ error: "Invalid courseId" }, 400);
+      }
+
+      const url = new URL(c.req.url);
       const announcementIdParam = url.searchParams.get("announcementId");
       const unattachedParam = url.searchParams.get("unattached");
       const uploadedByIdParam = url.searchParams.get("uploadedById");
@@ -57,7 +138,7 @@ export const FileController = {
 
       const order = orderParam === "desc" ? "desc" : "asc";
 
-      const files = await FileModel.getAllFiles({
+      const files = await FileModel.getFilesByCourseId(courseId, {
         announcementId:
           typeof announcementId === "number" && !Number.isNaN(announcementId)
             ? announcementId
@@ -72,8 +153,8 @@ export const FileController = {
 
       return c.json(files, 200);
     } catch (err) {
-      console.error("Error fetching files:", err);
-      return c.json({ error: "Failed to fetch files" }, 500);
+      console.error("Error fetching files by course:", err);
+      return c.json({ error: "Failed to fetch files by course" }, 500);
     }
   },
 };

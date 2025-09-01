@@ -70,6 +70,7 @@ model Course {
   assignments   Assignment[]        @relation(name: "CourseAssignments")
   announcements Announcement[]
   activityLogs  CourseActivityLog[]
+  files        File[]
 }
 
 model CourseMember {
@@ -237,7 +238,7 @@ model Announcement {
   name        String
   description String
   createdAt   DateTime @default(now())
-  schedule    DateTime
+  schedule    DateTime?
   createById  Int
 
   createdBy User   @relation(fields: [createById], references: [id])
@@ -251,13 +252,17 @@ model File {
   filepath       String
   uploadAt       DateTime @default(now())
   uploadById     Int
+  courseId       Int                  // <- required
   announcementId Int?
 
-  uploadBy     User          @relation(fields: [uploadById], references: [id])
+  uploadBy     User     @relation(fields: [uploadById], references: [id])
+  course       Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
 
+  @@index([courseId])
   @@index([announcementId])
 }
+
 
 model CourseActivityLog {
   id             Int        @id @default(autoincrement())
