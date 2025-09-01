@@ -8,92 +8,56 @@ function parseAsOf(c: Context): Date | undefined {
   return isNaN(d.getTime()) ? undefined : d;
 }
 
+function readOptionalId(
+  c: Context,
+  name: string
+): number | undefined | "INVALID" {
+  const p = c.req.param(name);
+  if (p !== undefined) {
+    const n = Number(p);
+    return Number.isFinite(n) ? n : "INVALID";
+  }
+  const q = c.req.query(name);
+  if (q == null || q === "") return undefined;
+  const n = Number(q);
+  return Number.isFinite(n) ? n : "INVALID";
+}
+
 export const DashboardController = {
-  // GET /dashboard/course/:courseId
-  getCourseSummary: async (c: Context) => {
+  getCourseSummaryUnified: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));
-      if (Number.isNaN(courseId)) {
+      if (!Number.isFinite(courseId)) {
         return c.json({ message: "Invalid courseId" }, 400);
       }
+
+      const assignmentId = readOptionalId(c, "assignmentId");
+      if (assignmentId === "INVALID") {
+        return c.json({ message: "Invalid assignmentId" }, 400);
+      }
+
+      const groupId = readOptionalId(c, "groupId");
+      if (groupId === "INVALID") {
+        return c.json({ message: "Invalid groupId" }, 400);
+      }
+
       const asOf = parseAsOf(c);
-      const summary = await DashboardModel.getCourseSummary(courseId, asOf);
+
+      const hasFilters =
+        typeof assignmentId === "number" || typeof groupId === "number";
+
+      const summary = hasFilters
+        ? await DashboardModel.getCourseSummaryFiltered(courseId, {
+            assignmentId: assignmentId as number | undefined,
+            groupId: groupId as number | undefined,
+            asOf,
+          })
+        : await DashboardModel.getCourseSummary(courseId, asOf);
+
       if (!summary) return c.json({ message: "Course not found" }, 404);
       return c.json(summary, 200);
     } catch (err) {
       console.error("Error fetching dashboard summary:", err);
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
-
-  // GET /dashboard/course/:courseId/assignment/:assignmentId
-  getCourseSummaryByAssignment: async (c: Context) => {
-    try {
-      const courseId = Number(c.req.param("courseId"));
-      const assignmentId = Number(c.req.param("assignmentId"));
-      if (Number.isNaN(courseId) || Number.isNaN(assignmentId)) {
-        return c.json({ message: "Invalid courseId or assignmentId" }, 400);
-      }
-      const asOf = parseAsOf(c);
-      const summary = await DashboardModel.getCourseSummaryFiltered(courseId, {
-        assignmentId,
-        asOf,
-      });
-      if (!summary) return c.json({ message: "Course not found" }, 404);
-      return c.json(summary, 200);
-    } catch (err) {
-      console.error("Error fetching dashboard summary by assignment:", err);
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
-
-  // GET /dashboard/course/:courseId/group/:groupId
-  getCourseSummaryByGroup: async (c: Context) => {
-    try {
-      const courseId = Number(c.req.param("courseId"));
-      const groupId = Number(c.req.param("groupId"));
-      if (Number.isNaN(courseId) || Number.isNaN(groupId)) {
-        return c.json({ message: "Invalid courseId or groupId" }, 400);
-      }
-      const asOf = parseAsOf(c);
-      const summary = await DashboardModel.getCourseSummaryFiltered(courseId, {
-        groupId,
-        asOf,
-      });
-      if (!summary) return c.json({ message: "Course not found" }, 404);
-      return c.json(summary, 200);
-    } catch (err) {
-      console.error("Error fetching dashboard summary by group:", err);
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
-
-  // GET /dashboard/course/:courseId/assignment/:assignmentId/group/:groupId
-  getCourseSummaryByAssignmentAndGroup: async (c: Context) => {
-    try {
-      const courseId = Number(c.req.param("courseId"));
-      const assignmentId = Number(c.req.param("assignmentId"));
-      const groupId = Number(c.req.param("groupId"));
-      if (
-        Number.isNaN(courseId) ||
-        Number.isNaN(assignmentId) ||
-        Number.isNaN(groupId)
-      ) {
-        return c.json({ message: "Invalid params" }, 400);
-      }
-      const asOf = parseAsOf(c);
-      const summary = await DashboardModel.getCourseSummaryFiltered(courseId, {
-        assignmentId,
-        groupId,
-        asOf,
-      });
-      if (!summary) return c.json({ message: "Course not found" }, 404);
-      return c.json(summary, 200);
-    } catch (err) {
-      console.error(
-        "Error fetching dashboard summary by assignment/group:",
-        err
-      );
       return c.json({ message: "Internal server error" }, 500);
     }
   },

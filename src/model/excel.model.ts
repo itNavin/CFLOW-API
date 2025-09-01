@@ -3,23 +3,6 @@ import { prisma } from "../prisma";
 
 type Row = Record<string, any>;
 
-function splitNameFlexible(input: string): { name: string; surname: string } {
-  const raw = input.trim().replace(/\s+/g, " ");
-  if (!raw) return { name: "", surname: "" };
-
-  // Handle "Surname, Name" form
-  if (raw.includes(",")) {
-    const [left, right] = raw.split(",").map((s) => s.trim());
-    return { name: right || "", surname: left || "" };
-  }
-
-  // Default "Name Surname" (last token is surname)
-  const parts = raw.split(" ");
-  if (parts.length === 1) return { name: parts[0], surname: "" };
-  const surname = parts.pop()!;
-  return { name: parts.join(" "), surname };
-}
-
 function s(v: any): string {
   return typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
 }

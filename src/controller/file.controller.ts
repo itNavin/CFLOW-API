@@ -7,7 +7,7 @@ export const FileController = {
   createFile: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "ADVISOR || ADMIN || SUPER_ADMIN") {
+      if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
         return c.json({ error: "Forbidden: ADVISOR & ADMIN only" }, 403);
       }
 
