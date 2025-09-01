@@ -38,7 +38,7 @@ export const CourseMemberController = {
     const students = await getStudentMembers(courseId);
     return c.json(students);
   },
-
+  // DELETE /courseMember/delete/:courseMemberId
   deleteMember: async (c: Context) => {
   try {
     const role = c.get("role");

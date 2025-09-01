@@ -31,7 +31,6 @@ async function computeSubmissionRollup(
   const { assignmentId, groupId } = opts ?? {};
   const asOf = opts?.asOf ?? nowAsDate();
 
-  // 1) Pick assignments (schedule <= asOf) and groups within the course, honoring filters
   const [assignments, groups] = await Promise.all([
     prisma.assignment.findMany({
       where: {
@@ -58,8 +57,6 @@ async function computeSubmissionRollup(
 
   const assignmentIds = assignments.map((a) => a.id);
   const groupIds = groups.map((g) => g.id);
-
-  // 2) Pull all submissions for these ids; we'll keep only the latest per pair (max version)
   const submissions = await prisma.submission.findMany({
     where: {
       assignmentId: { in: assignmentIds },
@@ -75,14 +72,12 @@ async function computeSubmissionRollup(
     orderBy: [{ assignmentId: "asc" }, { groupId: "asc" }, { version: "desc" }],
   });
 
-  // 3) Reduce to latest submission per (assignmentId, groupId)
   const latest = new Map<string, (typeof submissions)[number]>();
   for (const s of submissions) {
     const key = `${s.assignmentId}:${s.groupId}`;
     if (!latest.has(key)) latest.set(key, s);
   }
 
-  // 4) Classify each (assignment, group) pair
   const rollup: SubmissionRollup = {
     ...emptyRollup(),
     totalPairs: assignmentIds.length * groupIds.length,
@@ -262,11 +257,7 @@ class DashboardModel {
           APPROVED_WITH_FEEDBACK: rollup.APPROVED_WITH_FEEDBACK,
           FINAL: rollup.FINAL,
         },
-        filters: {
-          assignmentId: opts?.assignmentId,
-          groupId: opts?.groupId,
-          asOf: opts?.asOf?.toISOString(),
-        },
+        
       },
     };
   }
