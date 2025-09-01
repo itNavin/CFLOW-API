@@ -251,11 +251,11 @@ model File {
   name           String
   filepath       String
   uploadAt       DateTime @default(now())
-  uploadById     Int
-  courseId       Int                  // <- required
+  createdById     Int
+  courseId       Int                  
   announcementId Int?
 
-  uploadBy     User     @relation(fields: [uploadById], references: [id])
+  createdBy     User     @relation(fields: [createdById], references: [id])
   course       Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
 

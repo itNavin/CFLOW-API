@@ -1,5 +1,4 @@
-// src/controller/file.controller.ts
-import { Context } from "hono";
+import type { Context } from "hono";
 import FileModel from "../model/file.model";
 
 export const FileController = {
@@ -17,14 +16,12 @@ export const FileController = {
       const userId = c.get("userId");
       if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-      // NEW: take courseId from path param
       const courseId = Number(c.req.param("courseId"));
       if (!Number.isFinite(courseId) || courseId <= 0) {
         return c.json({ error: "Invalid courseId" }, 400);
       }
 
       const body = await c.req.json<any>();
-
       const name = String(body.name ?? "").trim();
       const filepath = String(body.filepath ?? "").trim();
       const announcementId =
@@ -47,9 +44,9 @@ export const FileController = {
       const file = await FileModel.createFile({
         name,
         filepath,
-        uploadById: userId, // from context
-        courseId, // from path param (REQUIRED)
-        announcementId, // optional; model checks it matches course
+        createdById: userId, 
+        courseId, 
+        announcementId, 
       });
 
       return c.json(file, 201);
@@ -62,14 +59,17 @@ export const FileController = {
     }
   },
 
-  // (unchanged) GET /file
   getAllFiles: async (c: Context) => {
     try {
       const url = new URL(c.req.url);
 
       const announcementIdParam = url.searchParams.get("announcementId");
       const unattachedParam = url.searchParams.get("unattached");
+
+      const createdByIdParam = url.searchParams.get("createdById");
+
       const uploadedByIdParam = url.searchParams.get("uploadedById");
+
       const courseIdParam = url.searchParams.get("courseId");
       const orderParam = url.searchParams.get("order");
 
@@ -80,8 +80,12 @@ export const FileController = {
         ? unattachedParam.toLowerCase() === "true"
         : undefined;
 
-      const uploadedById =
-        uploadedByIdParam !== null ? Number(uploadedByIdParam) : undefined;
+      const createdById =
+        createdByIdParam !== null
+          ? Number(createdByIdParam)
+          : uploadedByIdParam !== null
+          ? Number(uploadedByIdParam)
+          : undefined;
 
       const courseId =
         courseIdParam !== null ? Number(courseIdParam) : undefined;
@@ -94,9 +98,9 @@ export const FileController = {
             ? announcementId
             : undefined,
         unattached,
-        uploadedById:
-          typeof uploadedById === "number" && !Number.isNaN(uploadedById)
-            ? uploadedById
+        createdById:
+          typeof createdById === "number" && !Number.isNaN(createdById)
+            ? createdById
             : undefined,
         courseId:
           typeof courseId === "number" && !Number.isNaN(courseId)
@@ -112,7 +116,7 @@ export const FileController = {
     }
   },
 
-  // (unchanged) GET /file/course/:courseId
+  // GET /file/course/:courseId
   getFilesByCourseId: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));
@@ -123,7 +127,10 @@ export const FileController = {
       const url = new URL(c.req.url);
       const announcementIdParam = url.searchParams.get("announcementId");
       const unattachedParam = url.searchParams.get("unattached");
+
+      const createdByIdParam = url.searchParams.get("createdById");
       const uploadedByIdParam = url.searchParams.get("uploadedById");
+
       const orderParam = url.searchParams.get("order");
 
       const announcementId =
@@ -133,8 +140,12 @@ export const FileController = {
         ? unattachedParam.toLowerCase() === "true"
         : undefined;
 
-      const uploadedById =
-        uploadedByIdParam !== null ? Number(uploadedByIdParam) : undefined;
+      const createdById =
+        createdByIdParam !== null
+          ? Number(createdByIdParam)
+          : uploadedByIdParam !== null
+          ? Number(uploadedByIdParam)
+          : undefined;
 
       const order = orderParam === "desc" ? "desc" : "asc";
 
@@ -144,9 +155,9 @@ export const FileController = {
             ? announcementId
             : undefined,
         unattached,
-        uploadedById:
-          typeof uploadedById === "number" && !Number.isNaN(uploadedById)
-            ? uploadedById
+        createdById:
+          typeof createdById === "number" && !Number.isNaN(createdById)
+            ? createdById
             : undefined,
         order,
       });

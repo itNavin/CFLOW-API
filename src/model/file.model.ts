@@ -3,36 +3,41 @@ import { prisma } from "../prisma";
 export type CreateFileInput = {
   name: string;
   filepath: string;
-  uploadById: number;
-  courseId?: number; // optional if announcementId is provided
-  announcementId?: number | null; // optional
+  createdById: number; 
+  courseId?: number; 
+  announcementId?: number | null;
 };
 
 export type GetAllFilesParams = {
   courseId?: number;
   announcementId?: number | null;
-  unattached?: boolean; // announcementId IS NULL
-  uploadedById?: number;
+  unattached?: boolean; 
+  createdById?: number; 
   order?: "asc" | "desc";
 };
 
 class FileModel {
-  static async createFile(data: CreateFileInput) {
-    // Validate uploader
-    const uploader = await prisma.user.findUnique({
-      where: { id: data.uploadById },
+  static async createFile(data: {
+    name: string;
+    filepath: string;
+    createdById: number;
+    courseId?: number; 
+    announcementId?: number | null; 
+  }) {
+
+    const creator = await prisma.user.findUnique({
+      where: { id: data.createdById },
       select: { id: true },
     });
-    if (!uploader) {
-      const err: any = new Error("Uploader (uploadById) not found");
+    if (!creator) {
+      const err: any = new Error("Creator (createdById) not found");
       err.status = 404;
       throw err;
     }
 
-    let courseId: number | undefined = data.courseId;
-    let announcementId: number | null | undefined = data.announcementId ?? null;
+    let courseId = data.courseId;
+    let announcementId = data.announcementId ?? null;
 
-    // If announcementId is provided, derive/validate courseId from it
     if (announcementId != null) {
       const ann = await prisma.announcement.findUnique({
         where: { id: announcementId },
@@ -50,10 +55,9 @@ class FileModel {
         err.status = 400;
         throw err;
       }
-      courseId = ann.courseId; // force to announcement course
+      courseId = ann.courseId; 
     }
 
-    // If still no courseId, require it
     if (courseId == null) {
       const err: any = new Error(
         "courseId is required (or provide announcementId)"
@@ -62,7 +66,6 @@ class FileModel {
       throw err;
     }
 
-    // Validate course exists
     const course = await prisma.course.findUnique({
       where: { id: courseId },
       select: { id: true },
@@ -73,17 +76,16 @@ class FileModel {
       throw err;
     }
 
-    // Create file row
     return prisma.file.create({
       data: {
         name: data.name,
         filepath: data.filepath,
-        uploadById: data.uploadById,
+        createdById: data.createdById, 
         courseId,
         announcementId: announcementId ?? null,
       },
       include: {
-        uploadBy: true,
+        createdBy: true, 
         course: true,
       },
     });
@@ -94,14 +96,14 @@ class FileModel {
       courseId,
       announcementId,
       unattached,
-      uploadedById,
+      createdById, 
       order = "asc",
     } = params;
 
     const where: any = {};
 
-    if (typeof uploadedById === "number" && !Number.isNaN(uploadedById)) {
-      where.uploadById = uploadedById;
+    if (typeof createdById === "number" && !Number.isNaN(createdById)) {
+      where.createdById = createdById; 
     }
 
     if (typeof courseId === "number" && !Number.isNaN(courseId)) {
@@ -117,9 +119,8 @@ class FileModel {
     return prisma.file.findMany({
       where,
       include: {
-        uploadBy: true,
+        createdBy: true, 
         course: true,
-        announcement: true,
       },
       orderBy: { id: order },
     });
