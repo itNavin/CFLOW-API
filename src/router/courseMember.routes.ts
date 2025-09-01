@@ -19,3 +19,8 @@ courseMemberRouter.get(
 );
 
 courseMemberRouter.post("/members/course/:courseId", CourseMemberController.addMember);
+
+courseMemberRouter.delete(
+  "/delete/courseMember/:courseMemberId",
+  CourseMemberController.deleteMember
+);

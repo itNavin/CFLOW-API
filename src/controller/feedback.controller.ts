@@ -12,6 +12,11 @@ export const FeedbackController = {
   // POST /feedback/:submissionId
   createFeedback: async (c: Context) => {
     try {
+      const role = c.get("role");
+      if (role !== "ADVISOR") {
+        return c.json({ error: "Forbidden: ADVISOR only" }, 403);
+      }
+
       const submissionId = Number(c.req.param("submissionId"));
       if (!Number.isFinite(submissionId)) {
         return c.json({ error: "Invalid submissionId" }, 400);

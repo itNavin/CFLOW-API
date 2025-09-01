@@ -1,16 +1,25 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 import CourseModel from "../model/course.model";
-import { CoursePayload } from "../types/payload/course.type";
-import { decodeToken, getTokenFromHeader } from "../util/jwt";
+import type { CoursePayload } from "../types/payload/course.type";
 
 export const CourseController = {
-  // POST /course/createCourse
+  // POST /course/createCourse  
   createCourse: async (c: Context) => {
     try {
-      const body = await c.req.json<CoursePayload.CreateCourse>();
-      const { name, description, program, createdById } = body;
+      const role = c.get("role");
+      const userId = c.get("userId");
 
-      if (!name || !description || !program || !createdById) {
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+      if (role !== "ADMIN") {
+        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      }
+
+      const body = await c.req.json<CoursePayload.CreateCourse>();
+      const { name, description, program } = body; 
+
+      if (!name || !description || !program) {
         return c.json({ message: "Missing required fields" }, 400);
       }
 
@@ -18,21 +27,31 @@ export const CourseController = {
         name,
         description,
         program,
-        createdById
+        userId 
       );
 
       return c.json(course, 201);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating course:", error);
-      return c.json({ message: "Internal server error" }, 500);
+      const status = error?.status ?? 500;
+      const message =
+        status === 403
+          ? "Forbidden: ADMIN only"
+          : error?.message ?? "Internal server error";
+      return c.json({ message }, status);
     }
   },
 
   // GET /course/getAllCourses
   getAllCourses: async (c: Context) => {
     try {
+      const role = c.get("role");
+      if (role !== "ADMIN") {
+        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      }
+
       const courses = await CourseModel.getAllCourses();
-      return c.json(courses);
+      return c.json(courses, 200);
     } catch (error) {
       console.error("Error fetching courses:", error);
       return c.json({ message: "Internal server error" }, 500);
@@ -42,17 +61,11 @@ export const CourseController = {
   // GET /course/my-courses
   getCourseByUser: async (c: Context) => {
     try {
-      // 1) Extract token from header
-      const token = getTokenFromHeader(c.req.header("Authorization"));
-      if (!token) {
-        return c.json({ message: "Unauthorized: missing token" }, 401);
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
       }
 
-      // 2) Decode
-      const payload = decodeToken(token);
-      const userId = payload.userId;
-
-      // 3) Fetch overview
       const overview = await CourseModel.getUserCourseOverview(userId);
       if (!overview) {
         return c.json({ message: "User not found" }, 404);
@@ -61,15 +74,6 @@ export const CourseController = {
       return c.json(overview, 200);
     } catch (error: any) {
       console.error("Error fetching user course overview:", error);
-      if (
-        error.name === "JsonWebTokenError" ||
-        error.name === "TokenExpiredError"
-      ) {
-        return c.json(
-          { message: "Unauthorized: invalid or expired token" },
-          401
-        );
-      }
       return c.json({ message: "Internal server error" }, 500);
     }
   },
