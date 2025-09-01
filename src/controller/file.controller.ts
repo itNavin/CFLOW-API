@@ -6,6 +6,11 @@ export const FileController = {
   // POST /file/
   createFile: async (c: Context) => {
     try {
+      const role = c.get("role");
+      if (role !== "ADVISOR || ADMIN || SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: ADVISOR & ADMIN only" }, 403);
+      }
+
       const body = await c.req.json<FilePayload.createFile>();
 
       const name = body.name;

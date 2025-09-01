@@ -7,8 +7,35 @@ class CourseModel {
     program: "CS" | "DSI",
     createdById: number
   ) {
-    return prisma.course.create({
-      data: { name, description, program, createdById },
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: createdById },
+        select: { id: true },
+      });
+      if (!user) {
+        const err: any = new Error(`User ${createdById} does not exist`);
+        err.status = 400;
+        throw err;
+      }
+
+      // 1) Create course
+      const course = await tx.course.create({
+        data: { name, description, program, createdById },
+      });
+
+      // 2) Add creator as CourseMember (ignore if already exists)
+      try {
+        await tx.courseMember.create({
+          data: {
+            courseId: course.id,
+            userId: createdById,
+          },
+        });
+      } catch (e: any) {
+        if (e?.code !== "P2002") throw e;
+      }
+
+      return course;
     });
   }
 

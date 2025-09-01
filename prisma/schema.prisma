@@ -82,6 +82,8 @@ model CourseMember {
   groupMembers  GroupMember[]
   groupAdvisors GroupAdvisor[]
   activityLogs  CourseActivityLog[]
+
+  @@unique([courseId, userId])
 }
 
 model Group {
@@ -99,6 +101,7 @@ model Group {
   assignmentDueDates AssignmentDueDate[]
 
   @@unique([courseId, codeNumber])
+  @@unique([courseId, projectName])
 }
 
 model GroupMember {
@@ -109,6 +112,8 @@ model GroupMember {
 
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
   group        Group        @relation(fields: [groupId], references: [id])
+
+   @@unique([groupId, courseMemberId])
 }
 
 model GroupAdvisor {
@@ -119,6 +124,8 @@ model GroupAdvisor {
 
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
   group        Group        @relation(fields: [groupId], references: [id])
+
+  @@unique([groupId, courseMemberId, advisorRole])
 }
 
 model Assignment {

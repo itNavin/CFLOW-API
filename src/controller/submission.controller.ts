@@ -6,6 +6,11 @@ export const SubmissionController = {
   // POST /submission/assignment/:assignmentId/group/:groupId
   createSubmission: async (c: Context) => {
     try {
+      const role = c.get("role");
+      if (role !== "STUDENT") {
+        return c.json({ error: "Forbidden: STUDENT only" }, 403);
+      }
+
       const assignmentId = Number(c.req.param("assignmentId"));
       const groupId = Number(c.req.param("groupId"));
 

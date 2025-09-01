@@ -6,6 +6,10 @@ export const AnnouncementController = {
   // POST /announcement/create/:courseId
   createAnnouncement: async (c: Context) => {
     try {
+      const role = c.get("role");
+      if (role !== "ADVISOR || ADMIN || SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: ADVISOR and ADMIN only" }, 403);
+      }
       const courseId = Number(c.req.param("courseId"));
       if (!courseId || Number.isNaN(courseId)) {
         return c.json({ error: "Invalid courseId" }, 400);
