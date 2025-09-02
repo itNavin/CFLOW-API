@@ -125,7 +125,9 @@ class GroupModel {
     return prisma.group.findMany({
       where: { courseId },
       include: {
-        members: true,
+        members: {
+          include: { courseMember: { include: { user: true } } },
+        },
         advisors: true,
       },
     });
