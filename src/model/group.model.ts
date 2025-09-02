@@ -128,7 +128,9 @@ class GroupModel {
         members: {
           include: { courseMember: { include: { user: true } } },
         },
-        advisors: true,
+        advisors: {
+          include: { courseMember: { include: { user: true } } },
+        },
       },
     });
   }
