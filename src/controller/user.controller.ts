@@ -71,4 +71,41 @@ export const UserController = {
       return c.json({ message: "Internal server error" }, 500);
     }
   },
+
+  // GET /user/my-project/course/:courseId
+  getMyProjectByCourse: async (c: Context) => {
+    try {
+      const userId = c.get("userId");
+      const role = c.get("role");
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
+
+      const courseId = Number(c.req.param("courseId"));
+      if (!Number.isFinite(courseId)) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+
+      if (role !== "STUDENT") {
+        return c.json({ message: "Forbidden: STUDENT only" }, 403);
+      }
+
+      const result = await UserModel.getStudentProjectByCourse(
+        userId,
+        courseId
+      );
+      return c.json(
+        {
+          group: result.group,
+          projectName: result.group.projectName,
+          productName: result.group.productName,
+          company: result.group.company,
+        },
+        200
+      );
+    } catch (err: any) {
+      const status = err?.status ?? 500;
+      const message = err?.message ?? "Internal server error";
+      if (status >= 500) console.error("getMyProjectByCourse error:", err);
+      return c.json({ message }, status);
+    }
+  },
 };

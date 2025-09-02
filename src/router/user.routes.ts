@@ -9,3 +9,7 @@ userRouter.get("/", UserController.getUserById);
 
 userRouter.get("/users", UserController.getAllUsers);
 
+userRouter.get(
+  "/my-project/course/:courseId",
+  UserController.getMyProjectByCourse
+);
