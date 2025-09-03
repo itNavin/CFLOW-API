@@ -15,7 +15,7 @@ export const getAdvisorMembers = async (courseId: number) => {
   const advisors = await prisma.courseMember.findMany({
     where: {
       courseId,
-      user: { role: Role.ADVISOR },
+      user: { role: Role.LECTURER },
     },
     include: {
       user: true,
@@ -64,7 +64,7 @@ export const getStudentMembers = async (courseId: number) => {
  * Adds a single user to a course, idempotently.
  * Returns { created: boolean, member: CourseMember & { user, course } }
  */
-export const addMember = async (courseId: number, userId: number) => {
+export const addMember = async (courseId: number, userId: string) => {
   // If exists, return it (created=false)
   const existing = await prisma.courseMember.findFirst({
     where: { courseId, userId },
@@ -92,7 +92,6 @@ export const deleteCourseMember = async (courseMemberId: number) => {
             id: true,
             email: true,
             name: true,
-            surname: true,
             role: true,
           },
         },

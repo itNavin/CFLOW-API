@@ -5,7 +5,7 @@ class CourseModel {
     name: string,
     description: string,
     program: "CS" | "DSI",
-    createdById: number
+    createdById: string
   ) {
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.findUnique({
@@ -43,7 +43,7 @@ class CourseModel {
     return prisma.course.findMany();
   }
 
-  static async getUserCourseOverview(userId: number) {
+  static async getUserCourseOverview(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -98,9 +98,7 @@ class CourseModel {
       user: {
         id: user.id,
         email: user.email,
-        prefix: user.prefix,
         name: user.name,
-        surname: user.surname,
         role: user.role,
         createdAt: user.createdAt,
       },

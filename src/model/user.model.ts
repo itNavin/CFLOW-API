@@ -1,44 +1,41 @@
 import { prisma } from "../prisma";
 
 class UserModel {
-  static async createUser(
-    email: string,
-    passwordHash: string,
-    prefix: string,
-    name: string,
-    surname: string,
-    role: "STUDENT" | "ADVISOR" | "ADMIN" | "SUPER_ADMIN"
-  ) {
-    const newUser = await prisma.user.create({
-      data: {
-        email,
-        passwordHash,
-        prefix,
-        name,
-        surname,
-        role,
-      },
-    });
-    return newUser;
-  }
+  // static async createUser(
+  //   email: string,
+  //   passwordHash: string,
+  //   prefix: string,
+  //   name: string,
+  //   surname: string,
+  //   role: "STUDENT" | "LECTURER" | "STAFF" | "SUPER_ADMIN"
+  // ) {
+  //   const newUser = await prisma.user.create({
+  //     data: {
+  //       email,
+  //       name,
+  //       role,
+  //     },
+  //   });
+  //   return newUser;
+  // }
 
-  static async getAllUsers() {
-    const users = await prisma.user.findMany();
-    return users;
-  }
+  // static async getAllUsers() {
+  //   const users = await prisma.user.findMany();
+  //   return users;
+  // }
 
-  static async getUserById(id: number) {
-    const user = await prisma.user.findUnique({
-      where: { id },
-    });
-    return user;
-  }
+  // static async getUserById(id: number) {
+  //   const user = await prisma.user.findUnique({
+  //     where: { id },
+  //   });
+  //   return user;
+  // }
 
   /**
    * Returns the student's project (group) inside a course.
    * Throws with {status, message} for well-defined error cases.
    */
-  static async getStudentProjectByCourse(userId: number, courseId: number) {
+  static async getStudentProjectByCourse(userId: string, courseId: number) {
     // Ensure user is enrolled in the course and fetch their group memberships
     const cm = await prisma.courseMember.findFirst({
       where: { courseId, userId },
@@ -48,9 +45,7 @@ class UserModel {
           select: {
             id: true,
             role: true,
-            prefix: true,
             name: true,
-            surname: true,
             email: true,
           },
         },

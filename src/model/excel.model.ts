@@ -10,14 +10,6 @@ function sOrNull(v: any): string | null {
   const t = s(v);
   return t === "" ? null : t;
 }
-function splitFullName(full?: string) {
-  const str = (full ?? "").trim();
-  if (!str) return { name: "", surname: "" };
-  const parts = str.split(/\s+/);
-  if (parts.length === 1) return { name: parts[0], surname: "" };
-  const surname = parts.pop()!;
-  return { name: parts.join(" "), surname };
-}
 
 export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
   // 0) Determine program (CS | DSI)
@@ -43,8 +35,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
     coAdvisor?: string | null;
     members: Array<{
       studentId: string;
-      name: string;
-      surname: string;
+      name: string; // FULL NAME now
       workRole: string | null; // DSI only
     }>;
   };
@@ -76,7 +67,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
     const rawCoAdv = sOrNull(raw["Co-advisor"]);
 
     const studentId = s(raw["Student ID"]);
-    const fullName = s(raw["Name"]);
+    const fullName = s(raw["Name"]); // full name in a single column now
     const role = s(raw["Role"]); // DSI
 
     // Skip totally empty lines
@@ -117,8 +108,6 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
       throw new Error(`Row ${excelRow}: Missing required fields: Student ID`);
     }
 
-    const { name, surname } = splitFullName(fullName);
-
     // Create/refresh accumulator for this group
     if (!groupsToUpsert.has(groupCode)) {
       groupsToUpsert.set(groupCode, {
@@ -141,8 +130,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
 
     groupsToUpsert.get(groupCode)!.members.push({
       studentId,
-      name,
-      surname,
+      name: fullName, // keep full name as-is
       workRole: course.program === "DSI" ? role || null : null,
     });
   });
@@ -158,15 +146,19 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
       who: "advisor" | "coAdvisor",
       ident: string,
       groupCode: string
-    ): Promise<{ userId: number; courseMemberId: number }> {
+    ): Promise<{ userId: string; courseMemberId: number }> {
       const raw0 = (ident ?? "").trim();
       if (!raw0) throw new Error(`Group ${groupCode}: ${who} is empty`);
 
-      // Accept "id:1" or "user:1" or plain "1"
-      const numericMatch =
-        raw0.match(/^(?:id|user)?\s*:\s*(\d+)$/i) || raw0.match(/^(\d+)$/);
-      if (numericMatch) {
-        const id = Number(numericMatch[1] ?? numericMatch[0]);
+      // Accept "id:<ANY_NONSPACE>" or "user:<ANY_NONSPACE>"
+      const explicitIdMatch = raw0.match(/^(?:id|user)\s*:\s*(\S+)$/i);
+      // Also accept plain UUID-ish or pure digits as literal IDs
+      const looksLikeUuid =
+        /^[0-9a-fA-F-]{16,}$/.test(raw0) || /^[a-f0-9]{24}$/i.test(raw0);
+      const looksLikeDigits = /^\d+$/.test(raw0);
+
+      if (explicitIdMatch || looksLikeUuid || looksLikeDigits) {
+        const id = explicitIdMatch ? explicitIdMatch[1] : raw0;
         const user = await tx.user.findUnique({ where: { id } });
         if (!user)
           throw new Error(
@@ -210,55 +202,30 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
             .join(" ")
         : raw0;
 
-      const tokens = raw.replace(/\s+/g, " ").trim().split(" ");
-      if (tokens.length === 1) {
-        // Single token: try name OR surname prefix
-        const candidates = await tx.user.findMany({
-          where: {
-            OR: [
-              { name: { startsWith: tokens[0], mode: "insensitive" } },
-              { surname: { startsWith: tokens[0], mode: "insensitive" } },
-            ],
-          },
-          select: { id: true, email: true, name: true, surname: true },
-        });
-        return pickCourseMemberOrThrow(candidates, who, raw0, groupCode);
-      }
+      // Name-only matching against User.name
+      const tokens = raw.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
 
-      // Assume first token(s) = given name(s), last token = surname
-      const surname = tokens[tokens.length - 1];
-      const given = tokens.slice(0, -1).join(" ");
-
-      // Pass 1: exact (case-insensitive)
+      // Pass 1: exact, startsWith, contains
       let candidates = await tx.user.findMany({
         where: {
-          name: { equals: given, mode: "insensitive" },
-          surname: { equals: surname, mode: "insensitive" },
+          OR: [
+            { name: { equals: raw, mode: "insensitive" } },
+            { name: { startsWith: raw, mode: "insensitive" } },
+            { name: { contains: raw, mode: "insensitive" } },
+          ],
         },
-        select: { id: true, email: true, name: true, surname: true },
+        select: { id: true, email: true, name: true },
       });
 
-      // Pass 2: startsWith fallback
-      if (candidates.length === 0) {
+      // Pass 2: require all tokens to appear (order-agnostic)
+      if (candidates.length === 0 && tokens.length >= 2) {
         candidates = await tx.user.findMany({
           where: {
-            name: { startsWith: given, mode: "insensitive" },
-            surname: { startsWith: surname, mode: "insensitive" },
+            AND: tokens.map((t) => ({
+              name: { contains: t, mode: "insensitive" },
+            })),
           },
-          select: { id: true, email: true, name: true, surname: true },
-        });
-      }
-
-      // Pass 3: swap segments for names like "John Michael Doe"
-      if (candidates.length === 0 && tokens.length >= 3) {
-        const altGiven = tokens[0];
-        const altSurname = tokens.slice(1).join(" ");
-        candidates = await tx.user.findMany({
-          where: {
-            name: { startsWith: altGiven, mode: "insensitive" },
-            surname: { startsWith: altSurname, mode: "insensitive" },
-          },
-          select: { id: true, email: true, name: true, surname: true },
+          select: { id: true, email: true, name: true },
         });
       }
 
@@ -266,10 +233,9 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
 
       async function pickCourseMemberOrThrow(
         candidates: Array<{
-          id: number;
+          id: string;
           email: string | null;
           name: string;
-          surname: string;
         }>,
         who: "advisor" | "coAdvisor",
         raw: string,
@@ -290,10 +256,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
           const list = candidates
             .slice(0, 5)
             .map(
-              (u) =>
-                `${u.name} ${u.surname} (id:${u.id}${
-                  u.email ? `, ${u.email}` : ""
-                })`
+              (u) => `${u.name} (id:${u.id}${u.email ? `, ${u.email}` : ""})`
             )
             .join("; ");
           throw new Error(
@@ -307,9 +270,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
             .slice(0, 5)
             .map((cm) => {
               const u = byId.get(cm.userId)!;
-              return `${u.name} ${u.surname} (id:${u.id}${
-                u.email ? `, ${u.email}` : ""
-              })`;
+              return `${u.name} (id:${u.id}${u.email ? `, ${u.email}` : ""})`;
             })
             .join("; ");
           throw new Error(
@@ -328,7 +289,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
         where: {
           courseId,
           projectName: payload.projectName,
-          NOT: { codeNumber: groupCode }, // exclude the same group by code
+          NOT: { codeNumber: groupCode },
         },
         select: { id: true, codeNumber: true },
       });
@@ -399,20 +360,18 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
         });
       }
 
-      // (D) Resolve students (Student ID → User.id)
+      // (D) Resolve students (Student ID → User.id STRING)
       const resolvedMembers = await Promise.all(
         payload.members.map(async (m) => {
-          const numericId = Number(m.studentId);
-          const user = Number.isFinite(numericId)
-            ? await tx.user.findUnique({ where: { id: numericId } })
-            : null;
+          // If your system uses Student ID == User.id (string), this works:
+          const user = await tx.user.findUnique({ where: { id: m.studentId } });
           if (!user) {
             throw new Error(
               `Group ${groupCode}: User not found for Student ID "${m.studentId}"`
             );
           }
           return {
-            userId: user.id,
+            userId: user.id as string,
             studentId: m.studentId,
             workRole: m.workRole ?? "STUDENT",
           };
@@ -435,7 +394,9 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
         },
         select: { id: true, userId: true },
       });
-      const cmByUser = new Map(cmRows.map((r) => [r.userId, r.id]));
+      const cmByUser = new Map<string, number>(
+        cmRows.map((r) => [r.userId, r.id])
+      );
 
       // (F) Check if any of these students already belong to ANY group in this course
       const cmIds = cmRows.map((r) => r.id);

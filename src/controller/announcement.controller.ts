@@ -8,9 +8,10 @@ export const AnnouncementController = {
     try {
       const role = c.get("role");
       const userId = c.get("userId");
+      console.log("userId:", userId);
       console.log("User role:", role);
-      if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: ADVISOR and ADMIN only" }, 403);
+      if (role !== "staff" && role !== "lecturer" && role !== "SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: STAFF and LECTURER only" }, 403);
       }
       const courseId = Number(c.req.param("courseId"));
       if (!courseId || Number.isNaN(courseId)) {

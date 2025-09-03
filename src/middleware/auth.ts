@@ -29,7 +29,7 @@ export async function authMiddleware(c: Context, next: Next) {
     const accessTokenPayload = jwt.decode(
       refreshSsoResponse.data.access_token
     ) as { sub: string; description: string };
-    c.set("userId", parseInt(accessTokenPayload.sub, 10));
+    c.set("userId", accessTokenPayload.sub);
     c.set("role", accessTokenPayload.description);
 
     c.header("X-Refresh-Token", refreshSsoResponse.data.refresh_token);

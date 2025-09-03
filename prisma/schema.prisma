@@ -11,8 +11,8 @@ datasource db {
 
 enum Role {
   STUDENT
-  ADVISOR
-  ADMIN
+  LECTURER
+  STAFF
   SUPER_ADMIN
 }
 
@@ -41,12 +41,9 @@ enum EntityType {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
+  id           String   @id
+  name         String   @unique
   email        String   @unique
-  passwordHash String
-  prefix       String
-  name         String
-  surname      String
   role         Role
   createdAt    DateTime @default(now())
 
@@ -61,7 +58,7 @@ model Course {
   name        String
   description String
   program     ClassProgram
-  createdById Int
+  createdById String
   createdAt   DateTime     @default(now())
 
   createdBy     User                @relation("CreatedByUser", fields: [createdById], references: [id])
@@ -76,7 +73,7 @@ model Course {
 model CourseMember {
   id       Int @id @default(autoincrement())
   courseId Int
-  userId   Int
+  userId   String
 
   course        Course              @relation(fields: [courseId], references: [id])
   user          User                @relation(fields: [userId], references: [id])
@@ -107,7 +104,7 @@ model Group {
 
 model GroupMember {
   id             Int    @id @default(autoincrement())
-  workRole       String
+  workRole       String?
   courseMemberId Int
   groupId        Int
 
@@ -132,9 +129,9 @@ model GroupAdvisor {
 model Assignment {
   id          Int      @id @default(autoincrement())
   name        String
-  description String
+  description String?
   endDate     DateTime
-  schedule    DateTime
+  schedule    DateTime?
   courseId    Int
 
   course             Course              @relation(fields: [courseId], references: [id], name: "CourseAssignments")
@@ -171,7 +168,7 @@ model Deliverable {
 
 model AllowedFileType {
   id            Int    @id @default(autoincrement())
-  mime          String? // e.g. "application/pdf"
+  mime          String // e.g. "application/pdf"
   type          String // e.g. "PDF" or "Word Document"
   deliverableId Int
 
@@ -185,7 +182,7 @@ model AllowedFileType {
 
 model Submission {
   id           Int              @id @default(autoincrement())
-  submittedAt  DateTime?
+  submittedAt  DateTime         @default(now())
   assignmentId Int
   groupId      Int
   comment      String?
@@ -212,7 +209,7 @@ model SubmissionFile {
 model Feedback {
   id           Int      @id @default(autoincrement())
   submissionId Int
-  comment      String
+  comment      String?
   createdAt    DateTime @default(now())
 
   submission    Submission     @relation(fields: [submissionId], references: [id])
@@ -236,10 +233,10 @@ model Announcement {
   id          Int      @id @default(autoincrement())
   courseId    Int
   name        String
-  description String
+  description String?
   createdAt   DateTime @default(now())
   schedule    DateTime?
-  createById  Int
+  createById  String
 
   createdBy User   @relation(fields: [createById], references: [id])
   course    Course @relation(fields: [courseId], references: [id])
@@ -251,7 +248,7 @@ model File {
   name           String
   filepath       String
   uploadAt       DateTime @default(now())
-  createdById     Int
+  createdById    String
   courseId       Int                  
   announcementId Int?
 

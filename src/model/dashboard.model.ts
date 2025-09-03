@@ -124,10 +124,9 @@ class DashboardModel {
         createdBy: {
           select: {
             id: true,
-            prefix: true,
             name: true,
-            surname: true,
             email: true,
+            role: true,
           },
         },
       },
@@ -145,7 +144,7 @@ class DashboardModel {
         where: { courseId, user: { role: "STUDENT" } },
       }),
       prisma.courseMember.count({
-        where: { courseId, user: { role: "ADVISOR" } },
+        where: { courseId, user: { role: "LECTURER" } },
       }),
       prisma.group.count({ where: { courseId } }),
       prisma.assignment.count({ where: { courseId } }),
@@ -161,9 +160,9 @@ class DashboardModel {
         createdAt: course.createdAt,
         createdBy: {
           id: course.createdBy.id,
-          fullName:
-            `${course.createdBy.prefix} ${course.createdBy.name} ${course.createdBy.surname}`.trim(),
+          name: course.createdBy.name,
           email: course.createdBy.email,
+          role: course.createdBy.role,
         },
       },
       totals: {
@@ -200,10 +199,9 @@ class DashboardModel {
         createdBy: {
           select: {
             id: true,
-            prefix: true,
             name: true,
-            surname: true,
             email: true,
+            role: true,
           },
         },
       },
@@ -221,7 +219,7 @@ class DashboardModel {
         where: { courseId, user: { role: "STUDENT" } },
       }),
       prisma.courseMember.count({
-        where: { courseId, user: { role: "ADVISOR" } },
+        where: { courseId, user: { role: "LECTURER" } },
       }),
       prisma.group.count({ where: { courseId } }),
       prisma.assignment.count({ where: { courseId } }),
@@ -237,9 +235,9 @@ class DashboardModel {
         createdAt: base.createdAt,
         createdBy: {
           id: base.createdBy.id,
-          fullName:
-            `${base.createdBy.prefix} ${base.createdBy.name} ${base.createdBy.surname}`.trim(),
+          name: base.createdBy.name,
           email: base.createdBy.email,
+          role: base.createdBy.role,
         },
       },
       totals: {
