@@ -1,5 +1,6 @@
 import type { Context, Next } from "hono";
 import * as jwt from "jsonwebtoken";
+import { refreshSSOToken } from "src/lib/sso";
 
 type AuthPayload = { userId: number; role: string };
 
@@ -21,14 +22,17 @@ export async function authMiddleware(c: Context, next: Next) {
   const token = AuthorizationHeader.split(" ")[1];
 
   try {
-    // 2) Verify with explicit algorithms
-    const payload = jwt.verify(token, getJwtSecret(), {
-      algorithms: ["HS256"],
-    }) as AuthPayload;
+    const refreshSsoResponse = await refreshSSOToken(token);
+    if (!refreshSsoResponse.success || !refreshSsoResponse.data) {
+      return c.json({ message: "Unauthorized : invalid token" }, 401);
+    }
+    const accessTokenPayload = jwt.decode(
+      refreshSsoResponse.data.access_token
+    ) as { sub: string; description: string };
+    c.set("userId", parseInt(accessTokenPayload.sub, 10));
+    c.set("role", accessTokenPayload.description);
 
-    // 3) Attach to context
-    c.set("userId", payload.userId);
-    c.set("role", payload.role);
+    c.header("X-Refresh-Token", refreshSsoResponse.data.refresh_token);
 
     await next();
   } catch (err: any) {
