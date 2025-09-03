@@ -7,6 +7,7 @@ export const AnnouncementController = {
   createAnnouncement: async (c: Context) => {
     try {
       const role = c.get("role");
+      const userId = c.get("userId");
       console.log("User role:", role);
       if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
         return c.json({ error: "Forbidden: ADVISOR and ADMIN only" }, 403);
@@ -35,13 +36,13 @@ export const AnnouncementController = {
         );
       }
 
-      const createById = body.createById;
-      if (!createById || Number.isNaN(createById)) {
-        return c.json(
-          { error: "createById is required and must be a number" },
-          400
-        );
-      }
+      // const createById = body.createById;
+      // if (!createById || Number.isNaN(createById)) {
+      //   return c.json(
+      //     { error: "createById is required and must be a number" },
+      //     400
+      //   );
+      // }
 
       const files = Array.isArray(body.files)
         ? body.files.map(
@@ -58,8 +59,8 @@ export const AnnouncementController = {
         name,
         description,
         schedule,
-        createById,
-        files,
+        userId,
+        // files,
       });
 
       return c.json(created, 201);

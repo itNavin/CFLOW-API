@@ -4,8 +4,15 @@ import { StorageController } from "../controller/storage.controller";
 export const storageRouter = new Hono();
 
 storageRouter.post(
-  "/presign-upload/course/:courseId",
-  StorageController.presignUpload
+  "/upload/course/:courseId",
+  StorageController.uploadCourseFile
 );
-storageRouter.post("/confirm", StorageController.confirmUpload);
-storageRouter.get("/presign-download", StorageController.presignDownload);
+
+storageRouter.post(
+  "/upload/submission/course/:courseId",
+  StorageController.UploadSubmissionFile
+);
+storageRouter.post(
+  "/upload/feedback/course/:courseId",
+  StorageController.UploadFeedbackFile
+);

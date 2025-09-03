@@ -12,8 +12,8 @@ class AnnouncementModel {
     name: string;
     description: string;
     schedule?: Date | null; 
-    createById: number;
-    files?: NewFileInput[];
+    userId: number;
+    // files?: NewFileInput[];
   }) {
     return prisma.$transaction(async (tx) => {
       const course = await tx.course.findUnique({
@@ -32,22 +32,22 @@ class AnnouncementModel {
           name: data.name,
           description: data.description,
           schedule: data.schedule ?? null, 
-          createById: data.createById,
+          createById: data.userId,
         },
         select: { id: true, courseId: true },
       });
 
-      if (data.files?.length) {
-        await tx.file.createMany({
-          data: data.files.map((f) => ({
-            name: f.name,
-            filepath: f.filepath,
-            createdById: f.createdById ?? data.createById, 
-            courseId: ann.courseId,                         
-            announcementId: ann.id,                         
-          })),
-        });
-      }
+      // if (data.files?.length) {
+      //   await tx.file.createMany({
+      //     data: data.files.map((f) => ({
+      //       name: f.name,
+      //       filepath: f.filepath,
+      //       createdById: f.createdById ?? data.userId, 
+      //       courseId: ann.courseId,                         
+      //       announcementId: ann.id,                         
+      //     })),
+      //   });
+      // }
 
       return tx.announcement.findUnique({
         where: { id: ann.id },

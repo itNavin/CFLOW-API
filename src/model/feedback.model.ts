@@ -5,14 +5,14 @@ import { Prisma } from "@prisma/client";
 export type CreateFeedbackInput = {
   submissionId: number;
   comment: string;
-  files: Array<{ deliverableId: number; fileUrls: string[] }>;
+  //files: Array<{ deliverableId: number; fileUrls: string[] }>;
   newDueDate: Date;
   newStatus: "REJECTED" | "APPROVED_WITH_FEEDBACK" | "FINAL";
 };
 
 class FeedbackModel {
   static async createFeedback(input: CreateFeedbackInput) {
-    const { submissionId, comment, files, newDueDate, newStatus } = input;
+    const { submissionId, comment, newDueDate, newStatus } = input;
 
     return prisma
       .$transaction(async (tx) => {
@@ -55,34 +55,34 @@ class FeedbackModel {
         const validDeliverableIds = new Set(
           submission.assignment.deliverables.map((d) => d.id)
         );
-        for (const f of files ?? []) {
-          if (!validDeliverableIds.has(f.deliverableId)) {
-            throw new Error(
-              `deliverableId ${f.deliverableId} does not belong to assignment ${submission.assignmentId}`
-            );
-          }
-        }
+        // for (const f of files ?? []) {
+        //   if (!validDeliverableIds.has(f.deliverableId)) {
+        //     throw new Error(
+        //       `deliverableId ${f.deliverableId} does not belong to assignment ${submission.assignmentId}`
+        //     );
+        //   }
+        // }
 
         // 3) Create feedback (+ files)
         const feedback = await tx.feedback.create({
           data: {
             submissionId: submission.id,
             comment,
-            feedbackFiles: files?.length
-              ? {
-                  create: files.map((f) => ({
-                    deliverableId: f.deliverableId,
-                    fileUrl: f.fileUrls,
-                  })),
-                }
-              : undefined,
+            // feedbackFiles: files?.length
+            //   ? {
+            //       create: files.map((f) => ({
+            //         deliverableId: f.deliverableId,
+            //         fileUrl: f.fileUrls,
+            //       })),
+            //     }
+            //   : undefined,
           },
-          include: {
-            feedbackFiles: {
-              include: { deliverable: true },
-              orderBy: { id: "asc" },
-            },
-          },
+          // include: {
+          //   feedbackFiles: {
+          //     include: { deliverable: true },
+          //     orderBy: { id: "asc" },
+          //   },
+          // },
         });
 
         // 4) Update AssignmentDueDate for this group (upsert in case missing)
@@ -132,6 +132,22 @@ class FeedbackModel {
         }
         throw err;
       });
+  }
+
+  static async createFeedbackFile(data: {
+    feedbackId: number;
+    
+    deliverableId: number;
+    fileUrl: string;
+  }) {
+    return prisma.feedbackFile.create({
+      data: {
+        feedbackId: data.feedbackId,
+        
+        deliverableId: data.deliverableId,
+        fileUrl: [data.fileUrl],
+      },
+    });
   }
 }
 
