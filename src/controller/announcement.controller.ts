@@ -44,15 +44,15 @@ export const AnnouncementController = {
       //   );
       // }
 
-      const files = Array.isArray(body.files)
-        ? body.files.map(
-            (f) => ({
-              name: f.name.trim(),
-              filepath: f.filepath.trim(),
-              uploadById: f.uploadById,
-            })
-          )
-        : undefined;
+      // const files = Array.isArray(body.files)
+      //   ? body.files.map(
+      //       (f) => ({
+      //         name: f.name.trim(),
+      //         filepath: f.filepath.trim(),
+      //         uploadById: f.uploadById,
+      //       })
+      //     )
+      //   : undefined;
 
       const created = await AnnouncementModel.createAnnouncement({
         courseId,
