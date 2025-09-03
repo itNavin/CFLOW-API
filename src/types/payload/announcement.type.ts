@@ -3,13 +3,13 @@ export namespace AnnouncementPayload {
     name: string;
     description: string;
     schedule: string;
-    createById: number;
-    files?: FilePayload[];
+    // createById: number;
+    // files?: FilePayload[];
   };
 }
 
-type FilePayload = {
-  name: string;
-  filepath: string;
-  uploadById: number;
-};
+// type FilePayload = {
+//   name: string;
+//   filepath: string;
+//   uploadById: number;
+// };
