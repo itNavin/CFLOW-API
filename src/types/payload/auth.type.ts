@@ -1,6 +1,6 @@
 export namespace AuthPayload {
     export type Auth = {
-        userId: number;
-        role: "ADMIN" | "ADVISOR" | "STUDENT" | "SUPER_ADMIN";
+        userId: string;
+        role: "STAFF" | "LECTURER" | "STUDENT" | "SUPER_ADMIN";
     }
 }

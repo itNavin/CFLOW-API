@@ -12,7 +12,7 @@ class AnnouncementModel {
     name: string;
     description: string;
     schedule?: Date | null; 
-    userId: number;
+    userId: string;
     // files?: NewFileInput[];
   }) {
     return prisma.$transaction(async (tx) => {
@@ -51,8 +51,7 @@ class AnnouncementModel {
 
       return tx.announcement.findUnique({
         where: { id: ann.id },
-        include: {
-          files: true,      
+        include: {      
           createdBy: true,
         },
       });

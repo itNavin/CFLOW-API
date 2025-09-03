@@ -5,7 +5,7 @@ import {
   getAdvisorMembers,
   getStudentMembers,
   deleteCourseMember as deleteCourseMemberModel,
-  addMember as addMemberModel,
+  addMember as addMemberModel, // <-- make sure this now accepts (courseId: number, userId: string)
 } from "../model/courseMember.model";
 
 export const CourseMemberController = {
@@ -38,43 +38,46 @@ export const CourseMemberController = {
     const students = await getStudentMembers(courseId);
     return c.json(students);
   },
+
   // DELETE /courseMember/delete/:courseMemberId
   deleteMember: async (c: Context) => {
-  try {
-    const role = c.get("role");
-    if (role !== "ADMIN") {
-      return c.json({ message: "Forbidden: ADMIN only" }, 403);
-    }
+    try {
+      const role = c.get("role");
+      if (role !== "ADMIN") {
+        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      }
 
-    const courseMemberId = Number(c.req.param("courseMemberId"));
-    if (!Number.isFinite(courseMemberId)) {
-      return c.json({ message: "Invalid courseMemberId" }, 400);
-    }
+      const courseMemberId = Number(c.req.param("courseMemberId"));
+      if (!Number.isFinite(courseMemberId)) {
+        return c.json({ message: "Invalid courseMemberId" }, 400);
+      }
 
-    const result = await deleteCourseMemberModel(courseMemberId);
-    return c.json({ message: "Course member deleted", result }, 200);
-  } catch (e: any) {
-    const status = e?.status ?? 500;
-    if (status === 404) {
-      return c.json({ message: "Course member not found" }, 404);
-    }
-    if (status === 409) {
-      // include which groups are blocking the delete
+      const result = await deleteCourseMemberModel(courseMemberId);
+      return c.json({ message: "Course member deleted", result }, 200);
+    } catch (e: any) {
+      const status = e?.status ?? 500;
+      if (status === 404) {
+        return c.json({ message: "Course member not found" }, 404);
+      }
+      if (status === 409) {
+        return c.json(
+          {
+            message:
+              "Cannot delete: member is linked to groups or activity logs",
+            details: e?.details ?? null,
+          },
+          409
+        );
+      }
       return c.json(
         {
-          message:
-            "Cannot delete: member is linked to groups or activity logs",
-          details: e?.details ?? null, // contains memberOfGroups / advisorOfGroups with names & codes
+          message: "Failed to delete course member",
+          error: String(e?.message ?? e),
         },
-        409
+        500
       );
     }
-    return c.json(
-      { message: "Failed to delete course member", error: String(e?.message ?? e) },
-      500
-    );
-  }
-},
+  },
 
   // POST /courseMember/:courseId/members
   addMember: async (c: Context) => {
@@ -84,15 +87,20 @@ export const CourseMemberController = {
         return c.json({ message: "Invalid courseId" }, 400);
       }
 
-      const body = await c.req.json<{ userIds: number[] }>();
-      if (!Array.isArray(body?.userIds) || body.userIds.length === 0) {
+      // Accept strings or numbers, coerce to string[]
+      const body = await c.req.json<{ userIds: Array<string | number> }>();
+      const raw = body?.userIds;
+      if (!Array.isArray(raw) || raw.length === 0) {
         return c.json({ message: "userIds must be a non-empty array" }, 400);
       }
 
-      // normalize/unique + numeric
-      const userIds = [
+      // Normalize to trimmed, non-empty strings, and uniq
+      const userIds: string[] = [
         ...new Set(
-          body.userIds.map((id) => Number(id)).filter(Number.isFinite)
+          raw
+            .map((v) => String(v)) // coerce numbers to strings if present
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0)
         ),
       ];
       if (userIds.length === 0) {
@@ -106,7 +114,7 @@ export const CourseMemberController = {
       });
       if (!course) return c.json({ message: "Course not found" }, 404);
 
-      // ensure all users exist (keep your current behavior)
+      // ensure all users exist (User.id is STRING)
       const existingUsers = await prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true },
@@ -120,9 +128,9 @@ export const CourseMemberController = {
         );
       }
 
-      // use MODEL addMember for each user to avoid duplicates & keep logic in one place
+      // add via model (avoid duplicates there)
       const results = await Promise.all(
-        userIds.map((uid) => addMemberModel(courseId, uid))
+        userIds.map((uid) => addMemberModel(courseId, uid)) // uid is string
       );
 
       const insertedCount = results.filter((r) => r.created).length;
@@ -134,19 +142,17 @@ export const CourseMemberController = {
           requestedCount: userIds.length,
           insertedCount,
           skippedAsDuplicates,
-          // return the records (all), and which were newly created
           members: results.map((r) => r.member),
           createdUserIds: results
             .filter((r) => r.created)
-            .map((r) => r.member.userId),
+            .map((r) => r.member.userId as string),
           existingUserIds: results
             .filter((r) => !r.created)
-            .map((r) => r.member.userId),
+            .map((r) => r.member.userId as string),
         },
         201
       );
     } catch (e: any) {
-      // prisma P2002 sanity (shouldn't happen because model guards, but just in case)
       if (e?.code === "P2002") {
         return c.json(
           { message: "Some users are already members of this course" },

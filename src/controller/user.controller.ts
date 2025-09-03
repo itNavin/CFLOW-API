@@ -4,73 +4,73 @@ import { decodeToken, getTokenFromHeader } from "../util/jwt";
 
 export const UserController = {
   // POST /user/createUser
-  createUser: async (c: Context) => {
-    try {
-      const body = await c.req.json();
-      const { email, passwordHash, prefix, name, surname, role } = body;
+  // createUser: async (c: Context) => {
+  //   try {
+  //     const body = await c.req.json();
+  //     const { email, passwordHash, prefix, name, surname, role } = body;
 
-      if (!email || !passwordHash || !prefix || !name || !surname || !role) {
-        return c.json({ message: "Missing required fields" }, 400);
-      }
+  //     if (!email || !passwordHash || !prefix || !name || !surname || !role) {
+  //       return c.json({ message: "Missing required fields" }, 400);
+  //     }
 
-      const user = await UserModel.createUser(
-        email,
-        passwordHash,
-        prefix,
-        name,
-        surname,
-        role
-      );
+  //     const user = await UserModel.createUser(
+  //       email,
+  //       passwordHash,
+  //       prefix,
+  //       name,
+  //       surname,
+  //       role
+  //     );
 
-      return c.json(user, 201);
-    } catch (error) {
-      console.error("Error creating user:", error);
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
+  //     return c.json(user, 201);
+  //   } catch (error) {
+  //     console.error("Error creating user:", error);
+  //     return c.json({ message: "Internal server error" }, 500);
+  //   }
+  // },
 
   // GET /user/users
-  getAllUsers: async (c: Context) => {
-    try {
-      const users = await UserModel.getAllUsers();
-      return c.json(users);
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
+  // getAllUsers: async (c: Context) => {
+  //   try {
+  //     const users = await UserModel.getAllUsers();
+  //     return c.json(users);
+  //   } catch (error) {
+  //     console.error("Error fetching users:", error);
+  //     return c.json({ message: "Internal server error" }, 500);
+  //   }
+  // },
 
   // GET /user/
-  getUserById: async (c: Context) => {
-    try {
-      const token = getTokenFromHeader(c.req.header("Authorization"));
-      if (!token) {
-        return c.json({ message: "Unauthorized: missing token" }, 401);
-      }
+  // getUserById: async (c: Context) => {
+  //   try {
+  //     const token = getTokenFromHeader(c.req.header("Authorization"));
+  //     if (!token) {
+  //       return c.json({ message: "Unauthorized: missing token" }, 401);
+  //     }
 
-      const payload = decodeToken(token);
-      const userId = payload.userId;
+  //     const payload = decodeToken(token);
+  //     const userId = payload.userId;
 
-      const user = await UserModel.getUserById(userId);
-      if (!user) {
-        return c.json({ message: "User not found" }, 404);
-      }
+  //     const user = await UserModel.getUserById(userId);
+  //     if (!user) {
+  //       return c.json({ message: "User not found" }, 404);
+  //     }
 
-      return c.json(user, 200);
-    } catch (error: any) {
-      console.error("Error fetching user from token:", error);
-      if (
-        error.name === "JsonWebTokenError" ||
-        error.name === "TokenExpiredError"
-      ) {
-        return c.json(
-          { message: "Unauthorized: invalid or expired token" },
-          401
-        );
-      }
-      return c.json({ message: "Internal server error" }, 500);
-    }
-  },
+  //     return c.json(user, 200);
+  //   } catch (error: any) {
+  //     console.error("Error fetching user from token:", error);
+  //     if (
+  //       error.name === "JsonWebTokenError" ||
+  //       error.name === "TokenExpiredError"
+  //     ) {
+  //       return c.json(
+  //         { message: "Unauthorized: invalid or expired token" },
+  //         401
+  //       );
+  //     }
+  //     return c.json({ message: "Internal server error" }, 500);
+  //   }
+  // },
 
   // GET /user/my-project/course/:courseId
   getMyProjectByCourse: async (c: Context) => {

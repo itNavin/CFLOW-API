@@ -1,8 +1,11 @@
+import { Role } from "@prisma/client";
+import { prisma } from "../prisma";
 import "dotenv/config";
 import type { Context } from "hono";
 import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
+import { AuthModel } from "src/model/auth.model";
 
 export const AuthController = {
   login: async (c: Context) => {
@@ -23,6 +26,17 @@ export const AuthController = {
       const accessTokenPayload = jwt.decode(
         ssoResponse.data.access_token
       ) as SsoAccessTokenPayload;
+      
+      try {
+        AuthModel.createUser({
+          id: accessTokenPayload.sub,
+          email: accessTokenPayload.email,
+          role: accessTokenPayload.description as Role,
+          name: accessTokenPayload.name,
+        });
+      } catch (e) {
+        console.log("User already exists, skipping creation.");
+      }
 
       return c.json({
         message: "Login successful",

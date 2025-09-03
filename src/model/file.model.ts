@@ -20,7 +20,7 @@ class FileModel {
   static async createFile(data: {
     name: string;
     filepath: string;
-    createdById: number;
+    createdById: string;
     courseId?: number; 
     announcementId?: number | null; 
   }) {
