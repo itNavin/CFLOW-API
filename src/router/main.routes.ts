@@ -13,6 +13,7 @@ import { submissionRouter } from "./submission.routes";
 import { feedbackRouter } from "./feedback.routes";
 import { filenameRouter } from "./filename.routes";
 import { importRouter } from "./excel.routes";
+import { storageRouter } from "./storage.routes";
 
 const mainRouter = new Hono();
 
@@ -31,6 +32,6 @@ mainRouter.route("/submission", submissionRouter);
 mainRouter.route("/feedback", feedbackRouter); 
 mainRouter.route("/filename", filenameRouter); 
 mainRouter.route("/import", importRouter);
-
+mainRouter.route("/storage", storageRouter);
 
 export { mainRouter };

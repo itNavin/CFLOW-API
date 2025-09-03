@@ -118,24 +118,23 @@ class SubmissionModel {
           version: nextVersion,
           submittedAt: now,
           comment,
-          submissionFiles: files?.length
-            ? {
-                create: files.map((f) => ({
-                  deliverableId: f.deliverableId,
-                  fileUrl: f.fileUrls,
-                })),
-              }
-            : undefined,
-        },
-        include: {
-          submissionFiles: {
-            include: { deliverable: true },
-            orderBy: { id: "asc" },
-          },
         },
       });
 
       return created;
+    });
+  }
+  static async createSubmissionFile(data: {
+    submissionId: number;
+    deliverableId: number;
+    fileUrl: string;
+  }) {
+    return prisma.submissionFile.create({
+      data: {
+        submissionId: data.submissionId,
+        deliverableId: data.deliverableId,
+        fileUrl: [data.fileUrl],
+      },
     });
   }
 }

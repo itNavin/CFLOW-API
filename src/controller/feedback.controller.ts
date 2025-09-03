@@ -48,25 +48,25 @@ export const FeedbackController = {
           400
         );
 
-      const filesRaw = body.files
-      const files =
-        filesRaw.map((f) => ({
-          deliverableId: f.deliverableId,
-          fileUrls: Array.isArray(f.fileUrls)
-            ? f.fileUrls.map((u: any) => String(u ?? "").trim()).filter(Boolean)
-            : [],
-        }));
-      if (files.some((f) => !(f.deliverableId))) {
-        return c.json(
-          { error: "Each file must include a valid deliverableId" },
-          400
-        );
-      }
+      // const filesRaw = body.files
+      // const files =
+      //   filesRaw.map((f) => ({
+      //     deliverableId: f.deliverableId,
+      //     fileUrls: Array.isArray(f.fileUrls)
+      //       ? f.fileUrls.map((u: any) => String(u ?? "").trim()).filter(Boolean)
+      //       : [],
+      //   }));
+      // if (files.some((f) => !(f.deliverableId))) {
+      //   return c.json(
+      //     { error: "Each file must include a valid deliverableId" },
+      //     400
+      //   );
+      // }
 
       const result = await FeedbackModel.createFeedback({
         submissionId,
         comment,
-        files,
+        // files,
         newDueDate,
         newStatus: newStatus as any,
       });
