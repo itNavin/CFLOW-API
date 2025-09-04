@@ -63,6 +63,7 @@ export const CourseController = {
   getCourseByUser: async (c: Context) => {
     try {
       const userId = c.get("userId");
+      console.log("userId:", userId);
       if (!userId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
