@@ -4,7 +4,7 @@ export namespace CoursePayload {
         name: string;
         description: string;
         program : "DSI" | "CS"
-        createdById: number;
+        createdById: string;
     };
 }
 
