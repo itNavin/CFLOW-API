@@ -84,7 +84,7 @@ export const UserController = {
         return c.json({ message: "Invalid courseId" }, 400);
       }
 
-      if (role !== "STUDENT") {
+      if (role !== "student") {
         return c.json({ message: "Forbidden: STUDENT only" }, 403);
       }
 
