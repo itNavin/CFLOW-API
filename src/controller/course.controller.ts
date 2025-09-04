@@ -12,8 +12,8 @@ export const CourseController = {
       if (!userId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
-      if (role !== "ADMIN") {
-        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
       const body = await c.req.json<CoursePayload.CreateCourse>();
@@ -36,7 +36,7 @@ export const CourseController = {
       const status = error?.status ?? 500;
       const message =
         status === 403
-          ? "Forbidden: ADMIN only"
+          ? "Forbidden: staff only"
           : error?.message ?? "Internal server error";
       return c.json({ message }, status);
     }
@@ -46,8 +46,9 @@ export const CourseController = {
   getAllCourses: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "ADMIN") {
-        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      console.log("role:", role);
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
       const courses = await CourseModel.getAllCourses();
