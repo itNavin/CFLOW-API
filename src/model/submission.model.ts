@@ -10,12 +10,11 @@ export type CreateSubmissionInput = {
   assignmentId: number;
   groupId: number;
   comment: string;
-  files: Array<{ deliverableId: number; fileUrls: string[] }>;
 };
 
 class SubmissionModel {
   static async createSubmission(input: CreateSubmissionInput) {
-    const { assignmentId, groupId, comment, files } = input;
+    const { assignmentId, groupId, comment } = input;
 
     return prisma.$transaction(async (tx) => {
       // 0) Due date check
@@ -52,58 +51,58 @@ class SubmissionModel {
 
       // 3) Build a map of submitted extensions per deliverable
       const submittedByDeliverable = new Map<number, Set<string>>();
-      for (const f of files ?? []) {
-        if (!submittedByDeliverable.has(f.deliverableId)) {
-          submittedByDeliverable.set(f.deliverableId, new Set());
-        }
-        const bucket = submittedByDeliverable.get(f.deliverableId)!;
-        for (const url of f.fileUrls ?? []) {
-          const ext = extFromUrl(url);
-          if (ext) bucket.add(ext);
-        }
-      }
+      // for (const f of files ?? []) {
+      //   if (!submittedByDeliverable.has(f.deliverableId)) {
+      //     submittedByDeliverable.set(f.deliverableId, new Set());
+      //   }
+      //   const bucket = submittedByDeliverable.get(f.deliverableId)!;
+      //   for (const url of f.fileUrls ?? []) {
+      //     const ext = extFromUrl(url);
+      //     if (ext) bucket.add(ext);
+      //   }
+      // }
 
       // 4) Validate: each deliverable must include all required types (by extension)
-      for (const d of deliverables) {
-        const requiredExts = d.allowedFileTypes
-          .map((t) => {
-            if (!t.mime) return null;
-            const key = t.mime.toLowerCase();
-            return MIME_TO_EXT[key] || null;
-          })
-          .filter((x): x is string => !!x);
+      // for (const d of deliverables) {
+      //   const requiredExts = d.allowedFileTypes
+      //     .map((t) => {
+      //       if (!t.mime) return null;
+      //       const key = t.mime.toLowerCase();
+      //       return MIME_TO_EXT[key] || null;
+      //     })
+      //     .filter((x): x is string => !!x);
 
-        // if some MIME has no mapping, you can choose to reject:
-        const unmapped = d.allowedFileTypes.filter(
-          (t) => !t.mime || !MIME_TO_EXT[t.mime.toLowerCase?.() ?? ""]
-        );
-        if (unmapped.length > 0) {
-          throw new Error(
-            `Deliverable "${d.name}" (id: ${
-              d.id
-            }) has unsupported or missing MIME(s): ${unmapped
-              .map((t) => t.mime ?? "null")
-              .join(", ")}`
-          );
-        }
+      //   // if some MIME has no mapping, you can choose to reject:
+      //   const unmapped = d.allowedFileTypes.filter(
+      //     (t) => !t.mime || !MIME_TO_EXT[t.mime.toLowerCase?.() ?? ""]
+      //   );
+      //   if (unmapped.length > 0) {
+      //     throw new Error(
+      //       `Deliverable "${d.name}" (id: ${
+      //         d.id
+      //       }) has unsupported or missing MIME(s): ${unmapped
+      //         .map((t) => t.mime ?? "null")
+      //         .join(", ")}`
+      //     );
+      //   }
 
-        if (requiredExts.length === 0) continue;
+      //   if (requiredExts.length === 0) continue;
 
-        const submitted = submittedByDeliverable.get(d.id) ?? new Set<string>();
-        const missing = requiredExts.filter((req) => !submitted.has(req));
+      //   const submitted = submittedByDeliverable.get(d.id) ?? new Set<string>();
+      //   const missing = requiredExts.filter((req) => !submitted.has(req));
 
-        if (missing.length > 0) {
-          throw new Error(
-            `Deliverable "${d.name}" (id: ${
-              d.id
-            }) is missing required file types: ${missing.join(
-              ", "
-            )}. Submitted: [${Array.from(submitted).join(
-              ", "
-            )}], Required (by ext): [${requiredExts.join(", ")}]`
-          );
-        }
-      }
+      //   if (missing.length > 0) {
+      //     throw new Error(
+      //       `Deliverable "${d.name}" (id: ${
+      //         d.id
+      //       }) is missing required file types: ${missing.join(
+      //         ", "
+      //       )}. Submitted: [${Array.from(submitted).join(
+      //         ", "
+      //       )}], Required (by ext): [${requiredExts.join(", ")}]`
+      //     );
+      //   }
+      // }
 
       // 5) missed flag
       const missed = now > due.dueDate;

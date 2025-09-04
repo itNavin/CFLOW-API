@@ -8,8 +8,6 @@ export const AnnouncementController = {
     try {
       const role = c.get("role");
       const userId = c.get("userId");
-      console.log("userId:", userId);
-      console.log("User role:", role);
       if (role !== "staff" && role !== "lecturer" && role !== "SUPER_ADMIN") {
         return c.json({ error: "Forbidden: STAFF and LECTURER only" }, 403);
       }

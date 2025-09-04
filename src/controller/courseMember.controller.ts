@@ -5,7 +5,7 @@ import {
   getAdvisorMembers,
   getStudentMembers,
   deleteCourseMember as deleteCourseMemberModel,
-  addMember as addMemberModel, // <-- make sure this now accepts (courseId: number, userId: string)
+  addMember as addMemberModel, 
 } from "../model/courseMember.model";
 
 export const CourseMemberController = {
@@ -19,22 +19,34 @@ export const CourseMemberController = {
     return c.json(members);
   },
 
-  // GET /courseMember/:courseId/advisors
+  // GET /advisors/course/:courseId
   getAdvisorMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     if (!Number.isFinite(courseId)) {
       return c.json({ message: "Invalid courseId" }, 400);
     }
+
+    const role = c.get("role");
+    if (role !== "staff") {
+      return c.json({ message: "Forbidden: STAFF only" }, 403);
+    }
+
     const advisors = await getAdvisorMembers(courseId);
     return c.json(advisors);
   },
 
-  // GET /courseMember/:courseId/students
+  // GET /students/course/:courseId
   getStudentMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     if (!Number.isFinite(courseId)) {
       return c.json({ message: "Invalid courseId" }, 400);
     }
+
+    const role = c.get("role");
+    if (role !== "staff") {
+      return c.json({ message: "Forbidden: STAFF only" }, 403);
+    }
+
     const students = await getStudentMembers(courseId);
     return c.json(students);
   },
@@ -43,8 +55,8 @@ export const CourseMemberController = {
   deleteMember: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "ADMIN") {
-        return c.json({ message: "Forbidden: ADMIN only" }, 403);
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
       const courseMemberId = Number(c.req.param("courseMemberId"));
@@ -87,18 +99,21 @@ export const CourseMemberController = {
         return c.json({ message: "Invalid courseId" }, 400);
       }
 
-      // Accept strings or numbers, coerce to string[]
-      const body = await c.req.json<{ userIds: Array<string | number> }>();
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<{ userIds: Array<string> }>();
       const raw = body?.userIds;
       if (!Array.isArray(raw) || raw.length === 0) {
         return c.json({ message: "userIds must be a non-empty array" }, 400);
       }
 
-      // Normalize to trimmed, non-empty strings, and uniq
       const userIds: string[] = [
         ...new Set(
           raw
-            .map((v) => String(v)) // coerce numbers to strings if present
+            .map((v) => String(v)) 
             .map((s) => s.trim())
             .filter((s) => s.length > 0)
         ),
@@ -107,14 +122,12 @@ export const CourseMemberController = {
         return c.json({ message: "No valid userIds provided" }, 400);
       }
 
-      // ensure course exists
       const course = await prisma.course.findUnique({
         where: { id: courseId },
         select: { id: true },
       });
       if (!course) return c.json({ message: "Course not found" }, 404);
 
-      // ensure all users exist (User.id is STRING)
       const existingUsers = await prisma.user.findMany({
         where: { id: { in: userIds } },
         select: { id: true },
@@ -128,7 +141,6 @@ export const CourseMemberController = {
         );
       }
 
-      // add via model (avoid duplicates there)
       const results = await Promise.all(
         userIds.map((uid) => addMemberModel(courseId, uid)) // uid is string
       );
@@ -143,9 +155,6 @@ export const CourseMemberController = {
           insertedCount,
           skippedAsDuplicates,
           members: results.map((r) => r.member),
-          createdUserIds: results
-            .filter((r) => r.created)
-            .map((r) => r.member.userId as string),
           existingUserIds: results
             .filter((r) => !r.created)
             .map((r) => r.member.userId as string),

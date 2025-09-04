@@ -18,12 +18,10 @@ class CourseModel {
         throw err;
       }
 
-      // 1) Create course
       const course = await tx.course.create({
         data: { name, description, program, createdById },
       });
 
-      // 2) Add creator as CourseMember (ignore if already exists)
       try {
         await tx.courseMember.create({
           data: {

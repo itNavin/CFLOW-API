@@ -1,4 +1,3 @@
-// src/controller/import.controller.ts
 import type { Context } from "hono";
 import { prisma } from "../prisma";
 import fs from "node:fs";
@@ -9,6 +8,10 @@ export const ImportController = {
   downloadTemplate: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
     if (!Number.isFinite(courseId)) return c.text("Invalid courseId", 400);
+
+    const role = c.get("role");
+    if (role !== "lecturer" && role !== "staff")
+      return c.text("Forbidden: only lecturers and staff can download templates", 403);
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
@@ -21,7 +24,6 @@ export const ImportController = {
         ? "C-flow CS template.xlsx"
         : "C-flow DSI template.xlsx";
 
-    // store templates under src/assets/templates
     const filePath = path.join(
       process.cwd(),
       "src",
@@ -46,17 +48,18 @@ export const ImportController = {
     if (!Number.isFinite(courseId))
       return c.json({ message: "Invalid courseId" }, 400);
 
-    // Expect multipart with field "file"
+    const role = c.get("role");
+    if (role !== "staff")
+      return c.json(
+        { message: "Forbidden: only staff can import enrollments" },
+        403
+      );
     const form = await c.req.formData();
     const file = form.get("file") as File | null;
     if (!file) return c.json({ message: "file is required" }, 400);
 
-    // Read file into Buffer
     const arrayBuf = await file.arrayBuffer();
     const buf = Buffer.from(arrayBuf);
-
-    // Optional: archive the uploaded file to MinIO/S3 here if you want an audit trail.
-    // Otherwise just process in-memory.
 
     try {
       const result = await enrollFromWorkbook(courseId, buf);

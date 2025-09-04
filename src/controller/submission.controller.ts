@@ -7,7 +7,7 @@ export const SubmissionController = {
   createSubmission: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "STUDENT") {
+      if (role !== "student") {
         return c.json({ error: "Forbidden: STUDENT only" }, 403);
       }
 
@@ -21,31 +21,30 @@ export const SubmissionController = {
 
       const body = await c.req.json<SubmissionPayload.CreateSubmission>();
       const comment = body?.comment.trim();
-      const filesRaw = Array.isArray(body?.files) ? body.files : [];
-      const files =
-        filesRaw.map((f) => ({
-          deliverableId: f.deliverableId,
-          fileUrls: Array.isArray(f.fileUrls)
-            ? f.fileUrls.map((u) => (u).trim()).filter(Boolean)
-            : [],
-        }));
+      // const filesRaw = Array.isArray(body?.files) ? body.files : [];
+      // const files =
+      //   filesRaw.map((f) => ({
+      //     deliverableId: f.deliverableId,
+      //     fileUrls: Array.isArray(f.fileUrls)
+      //       ? f.fileUrls.map((u) => (u).trim()).filter(Boolean)
+      //       : [],
+      //   }));
 
       //Require at least one file
-      if (files.length === 0) {
-        return c.json({ error: "files are required" }, 400);
-      }
-      if (files.some((f) => !Number.isFinite(f.deliverableId))) {
-        return c.json(
-          { error: "Each file must include a valid deliverableId" },
-          400
-        );
-      }
+      // if (files.length === 0) {
+      //   return c.json({ error: "files are required" }, 400);
+      // }
+      // if (files.some((f) => !Number.isFinite(f.deliverableId))) {
+      //   return c.json(
+      //     { error: "Each file must include a valid deliverableId" },
+      //     400
+      //   );
+      // }
 
       const created = await SubmissionModel.createSubmission({
         assignmentId,
         groupId,
         comment,
-        files,
       });
 
       c.header("Location", `/submission/${created.id}`);
