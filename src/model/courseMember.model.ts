@@ -60,12 +60,7 @@ export const getStudentMembers = async (courseId: number) => {
   });
 };
 
-/**
- * Adds a single user to a course, idempotently.
- * Returns { created: boolean, member: CourseMember & { user, course } }
- */
 export const addMember = async (courseId: number, userId: string) => {
-  // If exists, return it (created=false)
   const existing = await prisma.courseMember.findFirst({
     where: { courseId, userId },
     include: { user: true, course: true },
@@ -74,7 +69,6 @@ export const addMember = async (courseId: number, userId: string) => {
     return { created: false, member: existing };
   }
 
-  // Else create and return (created=true)
   const created = await prisma.courseMember.create({
     data: { courseId, userId },
     include: { user: true, course: true },
@@ -96,7 +90,6 @@ export const deleteCourseMember = async (courseMemberId: number) => {
           },
         },
         course: { select: { id: true, name: true } },
-        // Pull detailed relations so we can show which groups are blocking deletion
         groupMembers: {
           include: {
             group: {
@@ -166,13 +159,12 @@ export const deleteCourseMember = async (courseMemberId: number) => {
           projectName: ga.group.projectName,
           productName: ga.group.productName,
           company: ga.group.company,
-          advisorRole: "ADVISOR", // or ga.advisorRole if you include it in select
+          advisorRole: "ADVISOR", 
         })),
       };
       throw err;
     }
 
-    // Safe to delete
     await tx.courseMember.delete({ where: { id: courseMemberId } });
 
     return {

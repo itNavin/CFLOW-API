@@ -46,7 +46,7 @@ export const CourseController = {
   getAllCourses: async (c: Context) => {
     try {
       const role = c.get("role");
-      console.log("role:", role);
+  
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
       }

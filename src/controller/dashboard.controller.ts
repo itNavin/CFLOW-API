@@ -32,11 +32,13 @@ export const DashboardController = {
       }
 
       const assignmentId = readOptionalId(c, "assignmentId");
+      console.log("assignmentId", assignmentId);
       if (assignmentId === "INVALID") {
         return c.json({ message: "Invalid assignmentId" }, 400);
       }
 
       const groupId = readOptionalId(c, "groupId");
+      console.log("groupId", groupId);
       if (groupId === "INVALID") {
         return c.json({ message: "Invalid groupId" }, 400);
       }

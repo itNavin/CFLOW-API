@@ -48,7 +48,7 @@ export const AuthController = {
       
       try {
         await AuthModel.createUser({
-          id: accessTokenPayload.sub,
+          id: accessTokenPayload.preferred_username,
           email: accessTokenPayload.email,
           name: accessTokenPayload.name,
           role,
@@ -62,7 +62,7 @@ export const AuthController = {
         message: "Login successful",
         token: ssoResponse.data.refresh_token,
         user: {
-          id: accessTokenPayload.sub,
+          id: accessTokenPayload.preferred_username,
           email: accessTokenPayload.email,
           role: accessTokenPayload.description,
           name: accessTokenPayload.name,

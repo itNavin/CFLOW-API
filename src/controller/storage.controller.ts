@@ -10,8 +10,8 @@ export const StorageController = {
     try {
       const userId = c.get("userId");
       const role = c.get("role");
-      if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: ADVISOR and ADMIN only" }, 403);
+      if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: lecturer and staff only" }, 403);
       }
 
       const courseId = Number(c.req.param("courseId"));
@@ -38,7 +38,7 @@ export const StorageController = {
         Buffer.from(fileBuffer)
       );
 
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
+      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
 
       const newFile = await FileModel.createFile({
         name: file.name,
@@ -63,7 +63,7 @@ export const StorageController = {
       const groupId = Number(c.req.query("groupId"));
       const submissionId = Number(c.req.query("submissionId"));
 
-      if (role !== "STUDENT") {
+      if (role !== "student") {
         return c.json({ error: "Forbidden: STUDENT only" }, 403);
       }
 
@@ -84,7 +84,7 @@ export const StorageController = {
         Buffer.from(fileBuffer)
       );
 
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
+      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
 
       const newFile = await SubmissionModel.createSubmissionFile({
         submissionId: submissionId,
@@ -107,8 +107,8 @@ export const StorageController = {
       const feedbackId = Number(c.req.query("feedbackId"));
       const submissionId = Number(c.req.query("submissionId"));
 
-      if (role !== "ADVISOR") {
-        return c.json({ error: "Forbidden: ADVISOR only" }, 403);
+      if (role !== "lecturer") {
+        return c.json({ error: "Forbidden: LECTURER only" }, 403);
       }
 
       const formData = await c.req.formData();
