@@ -102,4 +102,27 @@ export const AssignmentController = {
       return c.json({ error: "Failed to fetch assignment details" }, 500);
     }
   },
+
+  getAssignmentsByGroup: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      const groupId = Number(c.req.param("groupId"));
+
+      if (!Number.isFinite(courseId)) {
+        return c.json({ error: "Invalid courseId" }, 400);
+      }
+      if (!Number.isFinite(groupId)) {
+        return c.json({ error: "Invalid groupId" }, 400);
+      }
+
+      const data = await AssignmentModel.getAssignmentsForGroup(
+        courseId,
+        groupId
+      );
+      return c.json(data, 200);
+    } catch (err) {
+      console.error("Error fetching assignments by group:", err);
+      return c.json({ error: "Failed to fetch assignments" }, 500);
+    }
+  },
 };

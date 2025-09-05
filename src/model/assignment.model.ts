@@ -1,6 +1,29 @@
 import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
 
+export type AssignmentsByGroupLite = {
+  courseId: number;
+  groupId: number;
+  counts: { open: number; submitted: number };
+  openTasks: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    endDate: Date; // will serialize to ISO in JSON
+    schedule: Date | null;
+    dueDate: Date | null; // per-group due date
+  }>;
+  submitted: Array<{
+    id: number;
+    name: string;
+    description: string | null;
+    endDate: Date;
+    schedule: Date | null;
+    dueDate: Date | null;
+  }>;
+};
+
+
 export type CreateAssignmentInput = {
   courseId: number;
   name: string;
@@ -197,6 +220,66 @@ class AssignmentModel {
         },
       },
     });
+  }
+
+  static async getAssignmentsForGroup(
+    courseId: number,
+    groupId: number
+  ): Promise<AssignmentsByGroupLite> {
+    const now = new Date();
+
+    const assignments = await prisma.assignment.findMany({
+      where: { courseId, schedule: { lte: now } }, // only released
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        endDate: true,
+        schedule: true,
+        assignmentDueDates: {
+          where: { groupId },
+          select: { dueDate: true },
+          take: 1,
+        },
+        // Pull just one submission id to know if the group has submitted
+        submissions: {
+          where: { groupId },
+          select: { id: true },
+          take: 1,
+          orderBy: { id: "desc" },
+        },
+      },
+      orderBy: { id: "asc" },
+    });
+
+    const openTasks: AssignmentsByGroupLite["openTasks"] = [];
+    const submitted: AssignmentsByGroupLite["submitted"] = [];
+
+    for (const a of assignments) {
+      const dueDate = a.assignmentDueDates[0]?.dueDate ?? null;
+      const base = {
+        id: a.id,
+        name: a.name,
+        description: a.description ?? null,
+        endDate: a.endDate,
+        schedule: a.schedule ?? null,
+        dueDate,
+      };
+
+      if (a.submissions.length === 0) {
+        openTasks.push(base);
+      } else {
+        submitted.push(base);
+      }
+    }
+
+    return {
+      courseId,
+      groupId,
+      counts: { open: openTasks.length, submitted: submitted.length },
+      openTasks,
+      submitted,
+    };
   }
 }
 
