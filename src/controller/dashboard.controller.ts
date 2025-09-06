@@ -24,9 +24,23 @@ function readOptionalId(
 }
 
 export const DashboardController = {
+  getGroupInformationDashboard: async (c: Context) => {
+    try {
+      const userId = c.get("userId");
+      const role = c.get("role");
+      const courseId = Number(c.req.param("courseId"));
+
+      const groupInformation = await DashboardModel.getGroupInformation(userId, courseId);
+      return c.json(groupInformation, 200);
+    } catch (e) {
+      return c.json({ error: "Failed to fetch groups", e }, 500);
+    }
+  },
+
   getCourseSummaryUnified: async (c: Context) => {
     try {
       const courseId = Number(c.req.param("courseId"));
+      const userId = c.get("userId");
       if (!Number.isFinite(courseId)) {
         return c.json({ message: "Invalid courseId" }, 400);
       }
