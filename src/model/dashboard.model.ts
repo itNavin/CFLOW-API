@@ -125,8 +125,8 @@ class DashboardModel {
         projectName: true,
         productName: true,
         company: true,
-        members: true,
-        advisors: true,
+        members: {include: { courseMember: { include: { user: true } } }},
+        advisors: {include: { courseMember: { include: { user: true } } }},
       },
     });
     return groupInfo;
@@ -144,8 +144,8 @@ class DashboardModel {
         projectName: true,
         productName: true,
         company: true,
-        members: true,
-        advisors: true,
+        members: {include: { courseMember: { include: { user: true } } }},
+        advisors: {include: { courseMember: { include: { user: true } } }},
   }}    );
     return groupInfo;
   }
