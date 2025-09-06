@@ -41,47 +41,50 @@ enum EntityType {
 }
 
 model User {
-  id           String   @id
-  name         String   @unique
-  email        String   @unique
-  role         Role
-  createdAt    DateTime @default(now())
+  id                 String         @id
+  name               String         @unique
+  email              String         @unique
+  role               Role
+  createdAt          DateTime       @default(now())
 
   createdClasses       Course[]       @relation("CreatedByUser")
-  classMemberships     CourseMember[]
+  classMemberships     CourseMember[] @relation("UserCourseMemberships") 
   createdAnnouncements Announcement[]
   uploadedFiles        File[]
 }
 
 model Course {
-  id          Int          @id @default(autoincrement())
-  name        String
-  description String
-  program     ClassProgram
-  createdById String
-  createdAt   DateTime     @default(now())
+  id            Int            @id @default(autoincrement())
+  name          String
+  description   String
+  program       ClassProgram
+  createdById   String
+  createdAt     DateTime       @default(now())
 
-  createdBy     User                @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdBy     User           @relation("CreatedByUser", fields: [createdById], references: [id])
   members       CourseMember[]
   groups        Group[]
-  assignments   Assignment[]        @relation(name: "CourseAssignments")
+  assignments   Assignment[]   @relation(name: "CourseAssignments")
   announcements Announcement[]
   activityLogs  CourseActivityLog[]
-  files        File[]
+  files         File[]
 }
 
 model CourseMember {
-  id       Int @id @default(autoincrement())
-  courseId Int
-  userId   String
+  id             Int    @id @default(autoincrement())
+  courseId       Int
+  userId         String
 
-  course        Course              @relation(fields: [courseId], references: [id])
-  user          User                @relation(fields: [userId], references: [id])
-  groupMembers  GroupMember[]
-  groupAdvisors GroupAdvisor[]
-  activityLogs  CourseActivityLog[]
+  course         Course @relation(fields: [courseId], references: [id])
+  user           User   @relation("UserCourseMemberships", fields: [userId], references: [id]) // <—
+
+  groupMembers   GroupMember[]
+  groupAdvisors  GroupAdvisor[]
+  activityLogs   CourseActivityLog[]
 
   @@unique([courseId, userId])
+  @@index([userId])
+  @@index([courseId])
 }
 
 model Group {

@@ -4,9 +4,12 @@ import {
   getAllCourseMembers,
   getAdvisorMembers,
   getStudentMembers,
-  deleteCourseMember as deleteCourseMemberModel,
+  getAdvisorNotInCourse,
+  getStudentsNotInCourse,
+  deleteCourseMembersBulk,
   addMember as addMemberModel, 
 } from "../model/courseMember.model";
+import { get } from "http";
 
 export const CourseMemberController = {
   // GET /courseMember/:courseId
@@ -35,6 +38,32 @@ export const CourseMemberController = {
     return c.json(advisors);
   },
 
+  getAdvisorNotInCourse: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+
+      const advisorsNotInCourse = await getAdvisorNotInCourse(courseId);
+      return c.json(advisorsNotInCourse, 200);
+    } catch (e) {
+      return c.json({ message: "Failed to fetch advisors" }, 500);
+    }
+  },
+
+  getStudentNotInCourse: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+
+      const students = await getStudentsNotInCourse(courseId);
+      return c.json(students, 200);
+    } catch (e) {
+      console.error("getStudentNotInCourse error:", e);
+      return c.json({ message: "Failed to fetch students" }, 500);
+    }
+  },
+
   // GET /students/course/:courseId
   getStudentMembers: async (c: Context) => {
     const courseId = Number(c.req.param("courseId"));
@@ -52,41 +81,60 @@ export const CourseMemberController = {
   },
 
   // DELETE /courseMember/delete/:courseMemberId
-  deleteMember: async (c: Context) => {
+  deleteMembersBulk: async (c: Context) => {
     try {
       const role = c.get("role");
+      // keep your original rule ("staff" literal). Adjust if needed.
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
-      const courseMemberId = Number(c.req.param("courseMemberId"));
-      if (!Number.isFinite(courseMemberId)) {
-        return c.json({ message: "Invalid courseMemberId" }, 400);
-      }
+      const body = await c.req.json<any>();
+      const courseMemberIds = Array.isArray(body?.courseMemberIds)
+        ? body.courseMemberIds
+        : null;
 
-      const result = await deleteCourseMemberModel(courseMemberId);
-      return c.json({ message: "Course member deleted", result }, 200);
-    } catch (e: any) {
-      const status = e?.status ?? 500;
-      if (status === 404) {
-        return c.json({ message: "Course member not found" }, 404);
-      }
-      if (status === 409) {
+      if (!courseMemberIds) {
         return c.json(
-          {
-            message:
-              "Cannot delete: member is linked to groups or activity logs",
-            details: e?.details ?? null,
-          },
-          409
+          { message: "Body must be { courseMemberIds: number[] }" },
+          400
         );
       }
+
+      const result = await deleteCourseMembersBulk(courseMemberIds);
+
+      // Build a friendly message for blocked users
+      const blockedNames = result.blocked.map((b) => b.userName);
+      const message =
+        blockedNames.length > 0
+          ? `Cannot delete these users because they are linked to groups or logs: ${blockedNames.join(
+              ", "
+            )}`
+          : `Deleted ${result.deletedIds.length} course member(s).`;
+
+      // If anything blocked, use 409, else 200
+      const status = blockedNames.length > 0 ? 409 : 200;
+
       return c.json(
         {
-          message: "Failed to delete course member",
-          error: String(e?.message ?? e),
+          message,
+          summary: {
+            requestedCount: result.requestedIds.length,
+            deletedCount: result.deletedIds.length,
+            notFoundCount: result.notFoundIds.length,
+            blockedCount: result.blocked.length,
+          },
+          deletedIds: result.deletedIds,
+          notFoundIds: result.notFoundIds,
+          blocked: result.blocked, // contains reasons counts; names are in blocked[].userName
         },
-        500
+        status
+      );
+    } catch (e: any) {
+      const status = e?.status ?? 500;
+      return c.json(
+        { message: e?.message ?? "Failed to delete course members" },
+        status
       );
     }
   },
@@ -113,7 +161,7 @@ export const CourseMemberController = {
       const userIds: string[] = [
         ...new Set(
           raw
-            .map((v) => String(v)) 
+            .map((v) => String(v))
             .map((s) => s.trim())
             .filter((s) => s.length > 0)
         ),
