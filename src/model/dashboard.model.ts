@@ -1,3 +1,4 @@
+import { group } from "console";
 import { prisma } from "../prisma";
 
 export type SubmissionRollup = {
@@ -208,6 +209,26 @@ class DashboardModel {
     });
     if (!base) return null;
 
+    const group = await prisma.group.findUnique({
+      where: {
+        id: opts?.groupId,
+        courseId,
+      },
+      select: {
+      id: true,
+      codeNumber: true,
+      projectName: true,
+      productName: true,
+      company: true,
+      _count: {
+        select: {
+          members: true,   // GroupMember[]
+          advisors: true,  // GroupAdvisor[]
+        },
+      },
+    },
+    });
+
     const [
       totalStudents,
       totalAdvisors,
@@ -240,6 +261,7 @@ class DashboardModel {
           role: base.createdBy.role,
         },
       },
+
       totals: {
         students: totalStudents,
         advisors: totalAdvisors,
@@ -255,8 +277,13 @@ class DashboardModel {
           APPROVED_WITH_FEEDBACK: rollup.APPROVED_WITH_FEEDBACK,
           FINAL: rollup.FINAL,
         },
-        
+        filters: {
+          assignmentId: opts?.assignmentId,
+          groupId: opts?.groupId,
+          asOf: opts?.asOf?.toISOString(),
+        },
       },
+      group,
     };
   }
 }

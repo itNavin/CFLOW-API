@@ -111,6 +111,29 @@ function normalizeAllowedFileTypes(
 }
 
 class AssignmentModel {
+  
+  static async getGroupsByLecturerId(userId: string, courseId: number) {
+    return prisma.group.findMany({
+      where: {
+        courseId,
+        // at least one advisor whose courseMember.user.id === uid
+        advisors: {
+          some: {
+            courseMember: {
+              user: {
+                id: userId,
+              },
+              // OR slightly faster (uses the FK on CourseMember):
+              // userId: uid
+            },
+          },
+        },
+      },
+      
+      orderBy: { id: "asc" },
+    });
+  }
+
   static async createAssignment(data: CreateAssignmentInput) {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // 1) Create assignment (we’ll add deliverables afterward so we can normalize types)
@@ -182,10 +205,6 @@ class AssignmentModel {
     const now = new Date();
     return prisma.assignment.findMany({
       where: { courseId, schedule: { lte: now } },
-      include: {
-        deliverables: { include: { allowedFileTypes: true } },
-        assignmentDueDates: true,
-      },
       orderBy: { id: "asc" },
     });
   }

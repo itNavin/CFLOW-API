@@ -3,6 +3,26 @@ import AssignmentModel from "../model/assignment.model";
 import { AssignmentPayload } from "src/types/payload/assignment.types";
 
 export const AssignmentController = {
+  getGroupByLecturerId: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      const userId = c.get("userId");
+      const courseId = Number(c.req.param("courseId"));
+      console.log("userId", userId);
+      console.log("courseId", courseId);
+
+      const groups = await AssignmentModel.getGroupsByLecturerId(
+        userId,
+        courseId
+      );
+      return c.json(groups, 200);
+
+    } catch (e) {
+      return c.json({ error: "Failed to fetch groups" }, 500);
+    }
+  },
+
+
   // POST /assignment/create/:courseId
   createAssignment: async (c: Context) => {
     try {

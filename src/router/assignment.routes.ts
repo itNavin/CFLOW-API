@@ -22,3 +22,5 @@ assignmentRouter.get(
   "/course/:courseId/group/:groupId/summary",
   AssignmentController.getAssignmentsByGroup
 );
+
+assignmentRouter.get("/course/:courseId/groupAdvisor", AssignmentController.getGroupByLecturerId)
