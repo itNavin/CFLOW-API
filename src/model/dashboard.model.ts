@@ -113,6 +113,32 @@ async function computeSubmissionRollup(
 }
 
 class DashboardModel {
+  static async getGroupInformation(
+    userId: string,
+    courseId: number,
+    ){
+      const group = await prisma.courseMember.findFirst({
+        where: {
+          userId,
+          courseId,
+        },
+        select: {
+          groupMembers: { include: { group: true }
+        }
+        }
+      })
+      return {
+        group: {
+          id: group?.groupMembers[0]?.group.id,
+          codeNumber: group?.groupMembers[0]?.group.codeNumber,
+          projectName: group?.groupMembers[0]?.group.projectName,
+          productName: group?.groupMembers[0]?.group.productName,
+          company: group?.groupMembers[0]?.group.company,
+        }
+      };
+    }
+    
+
   static async getCourseSummary(courseId: number, asOf?: Date) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
