@@ -43,6 +43,48 @@ export const getAdvisorMembers = async (courseId: number) => {
   }));
 };
 
+export const getAdvisorNotInCourse = async (courseId: number) => {
+  if (!Number.isFinite(courseId)) throw new Error("Invalid courseId");
+
+  return prisma.user.findMany({
+    where: {
+      role: Role.LECTURER, 
+      classMemberships: {
+        none: { courseId }, 
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+    },
+    orderBy: { name: "asc" },
+  });
+};
+
+export const getStudentsNotInCourse = async (courseId: number) => {
+  if (!Number.isFinite(courseId)) throw new Error("Invalid courseId");
+
+  return prisma.user.findMany({
+    where: {
+      role: Role.STUDENT, 
+      classMemberships: {
+        none: { courseId }, 
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      createdAt: true,
+    },
+    orderBy: { name: "asc" },
+  });
+};
+
 export const getStudentMembers = async (courseId: number) => {
   return prisma.courseMember.findMany({
     where: {
@@ -76,102 +118,106 @@ export const addMember = async (courseId: number, userId: string) => {
   return { created: true, member: created };
 };
 
-export const deleteCourseMember = async (courseMemberId: number) => {
-  return prisma.$transaction(async (tx) => {
-    const cm = await tx.courseMember.findUnique({
-      where: { id: courseMemberId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-          },
-        },
-        course: { select: { id: true, name: true } },
-        groupMembers: {
-          include: {
-            group: {
-              select: {
-                id: true,
-                codeNumber: true,
-                projectName: true,
-                productName: true,
-                company: true,
-              },
-            },
-          },
-        },
-        groupAdvisors: {
-          include: {
-            group: {
-              select: {
-                id: true,
-                codeNumber: true,
-                projectName: true,
-                productName: true,
-                company: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            groupMembers: true,
-            groupAdvisors: true,
-            activityLogs: true,
-          },
+export type BulkDeleteCMResult = {
+  requestedIds: number[];
+  deletedIds: number[];
+  notFoundIds: number[];
+  blocked: Array<{
+    courseMemberId: number;
+    userId: string;
+    userName: string;
+    reasons: {
+      groupMembers: number;
+      groupAdvisors: number;
+      activityLogs: number;
+    };
+  }>;
+};
+
+export const deleteCourseMembersBulk = async (
+  courseMemberIdsInput: number[]
+): Promise<BulkDeleteCMResult> => {
+  // Validate
+  if (
+    !Array.isArray(courseMemberIdsInput) ||
+    courseMemberIdsInput.length === 0
+  ) {
+    const err: any = new Error("courseMemberIds must be a non-empty array");
+    err.status = 400;
+    throw err;
+  }
+  const courseMemberIds = [
+    ...new Set(
+      courseMemberIdsInput
+        .map((n) => Number(n))
+        .filter((n) => Number.isFinite(n) && n > 0)
+    ),
+  ];
+  if (courseMemberIds.length === 0) {
+    const err: any = new Error("No valid courseMemberIds provided");
+    err.status = 400;
+    throw err;
+  }
+
+  // Load members + linkage counts
+  const cms = await prisma.courseMember.findMany({
+    where: { id: { in: courseMemberIds } },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
         },
       },
-    });
-
-    if (!cm) {
-      const err: any = new Error("Course member not found");
-      err.status = 404;
-      throw err;
-    }
-
-    const deps = cm._count;
-    if (
-      deps.groupMembers > 0 ||
-      deps.groupAdvisors > 0 ||
-      deps.activityLogs > 0
-    ) {
-      const err: any = new Error(
-        "Cannot delete course member because there are related records"
-      );
-      err.status = 409;
-      err.details = {
-        groupMembers: deps.groupMembers,
-        groupAdvisors: deps.groupAdvisors,
-        activityLogs: deps.activityLogs,
-        memberOfGroups: cm.groupMembers.map((gm) => ({
-          id: gm.group.id,
-          codeNumber: gm.group.codeNumber,
-          projectName: gm.group.projectName,
-          productName: gm.group.productName,
-          company: gm.group.company,
-        })),
-        advisorOfGroups: cm.groupAdvisors.map((ga) => ({
-          id: ga.group.id,
-          codeNumber: ga.group.codeNumber,
-          projectName: ga.group.projectName,
-          productName: ga.group.productName,
-          company: ga.group.company,
-          advisorRole: "ADVISOR", 
-        })),
-      };
-      throw err;
-    }
-
-    await tx.courseMember.delete({ where: { id: courseMemberId } });
-
-    return {
-      deleted: true,
-      courseMemberId,
-      user: cm.user,
-      course: cm.course,
-    };
+      _count: {
+        select: {
+          groupMembers: true,
+          groupAdvisors: true,
+          activityLogs: true,
+        },
+      },
+    },
   });
+
+  const foundIds = new Set(cms.map((cm) => cm.id));
+  const notFoundIds = courseMemberIds.filter((id) => !foundIds.has(id));
+
+  const deletableIds: number[] = [];
+  const blocked: BulkDeleteCMResult["blocked"] = [];
+
+  for (const cm of cms) {
+    const deps = cm._count;
+    const hasLinks =
+      deps.groupMembers > 0 || deps.groupAdvisors > 0 || deps.activityLogs > 0;
+
+    if (hasLinks) {
+      blocked.push({
+        courseMemberId: cm.id,
+        userId: cm.user.id,
+        userName: cm.user.name,
+        reasons: {
+          groupMembers: deps.groupMembers,
+          groupAdvisors: deps.groupAdvisors,
+          activityLogs: deps.activityLogs,
+        },
+      });
+    } else {
+      deletableIds.push(cm.id);
+    }
+  }
+
+  if (deletableIds.length > 0) {
+    await prisma.courseMember.deleteMany({
+      where: { id: { in: deletableIds } },
+    });
+  }
+
+  return {
+    requestedIds: courseMemberIds,
+    deletedIds: deletableIds,
+    notFoundIds,
+    blocked,
+  };
 };
