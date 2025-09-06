@@ -45,10 +45,10 @@ model User {
   name               String         @unique
   email              String         @unique
   role               Role
-  createdAt          DateTime       @default(now())
+  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
 
   createdClasses       Course[]       @relation("CreatedByUser")
-  classMemberships     CourseMember[] @relation("UserCourseMemberships") 
+  classMemberships     CourseMember[] @relation("UserCourseMemberships")
   createdAnnouncements Announcement[]
   uploadedFiles        File[]
 }
@@ -59,7 +59,7 @@ model Course {
   description   String
   program       ClassProgram
   createdById   String
-  createdAt     DateTime       @default(now())
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
 
   createdBy     User           @relation("CreatedByUser", fields: [createdById], references: [id])
   members       CourseMember[]
@@ -76,7 +76,7 @@ model CourseMember {
   userId         String
 
   course         Course @relation(fields: [courseId], references: [id])
-  user           User   @relation("UserCourseMemberships", fields: [userId], references: [id]) // <—
+  user           User   @relation("UserCourseMemberships", fields: [userId], references: [id])
 
   groupMembers   GroupMember[]
   groupAdvisors  GroupAdvisor[]
@@ -90,7 +90,7 @@ model CourseMember {
 model Group {
   id          Int     @id @default(autoincrement())
   courseId    Int
-  codeNumber  String? // admin can type "0001" manually
+  codeNumber  String?
   projectName String
   productName String?
   company     String?
@@ -114,7 +114,7 @@ model GroupMember {
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
   group        Group        @relation(fields: [groupId], references: [id])
 
-   @@unique([groupId, courseMemberId])
+  @@unique([groupId, courseMemberId])
 }
 
 model GroupAdvisor {
@@ -133,8 +133,8 @@ model Assignment {
   id          Int      @id @default(autoincrement())
   name        String
   description String?
-  endDate     DateTime
-  schedule    DateTime?
+  endDate     DateTime  @db.Timestamptz(3)
+  schedule    DateTime? @db.Timestamptz(3)
   courseId    Int
 
   course             Course              @relation(fields: [courseId], references: [id], name: "CourseAssignments")
@@ -147,8 +147,8 @@ model AssignmentDueDate {
   id           Int      @id @default(autoincrement())
   assignmentId Int
   groupId      Int
-  dueDate      DateTime
-  createdAt    DateTime @default(now())
+  dueDate      DateTime @db.Timestamptz(3)
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
   assignment Assignment @relation(fields: [assignmentId], references: [id])
   group      Group      @relation(fields: [groupId], references: [id])
@@ -171,8 +171,8 @@ model Deliverable {
 
 model AllowedFileType {
   id            Int    @id @default(autoincrement())
-  mime          String // e.g. "application/pdf"
-  type          String // e.g. "PDF" or "Word Document"
+  mime          String
+  type          String
   deliverableId Int
 
   deliverable Deliverable @relation(fields: [deliverableId], references: [id])
@@ -181,11 +181,9 @@ model AllowedFileType {
   @@index([deliverableId])
 }
 
-
-
 model Submission {
   id           Int              @id @default(autoincrement())
-  submittedAt  DateTime         @default(now())
+  submittedAt  DateTime         @default(now()) @db.Timestamptz(3)
   assignmentId Int
   groupId      Int
   comment      String?
@@ -213,7 +211,7 @@ model Feedback {
   id           Int      @id @default(autoincrement())
   submissionId Int
   comment      String?
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
   submission    Submission     @relation(fields: [submissionId], references: [id])
   feedbackFiles FeedbackFile[]
@@ -237,8 +235,8 @@ model Announcement {
   courseId    Int
   name        String
   description String?
-  createdAt   DateTime @default(now())
-  schedule    DateTime?
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  schedule    DateTime? @db.Timestamptz(3)
   createById  String
 
   createdBy User   @relation(fields: [createById], references: [id])
@@ -250,19 +248,18 @@ model File {
   id             Int      @id @default(autoincrement())
   name           String
   filepath       String
-  uploadAt       DateTime @default(now())
+  uploadAt       DateTime @default(now()) @db.Timestamptz(3)
   createdById    String
-  courseId       Int                  
+  courseId       Int
   announcementId Int?
 
-  createdBy     User     @relation(fields: [createdById], references: [id])
-  course       Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  createdBy    User        @relation(fields: [createdById], references: [id])
+  course       Course      @relation(fields: [courseId], references: [id], onDelete: Restrict)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
 
   @@index([courseId])
   @@index([announcementId])
 }
-
 
 model CourseActivityLog {
   id             Int        @id @default(autoincrement())
@@ -271,7 +268,7 @@ model CourseActivityLog {
   action         String
   entityType     EntityType
   entityId       Int
-  createdAt      DateTime   @default(now())
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
 
   course       Course       @relation(fields: [courseId], references: [id])
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
