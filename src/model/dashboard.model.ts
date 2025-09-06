@@ -223,34 +223,44 @@ class DashboardModel {
   }
 
   static async getCourseSummaryFiltered(
-    courseId: number,
-    opts?: { assignmentId?: number; groupId?: number; asOf?: Date }
-  ) {
-    const base = await prisma.course.findUnique({
-      where: { id: courseId },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        program: true,
-        createdAt: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
+  courseId: number,
+  opts?: { assignmentId?: number; groupId?: number; asOf?: Date }
+) {
+  const base = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      program: true,
+      createdAt: true,
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
         },
       },
-    });
-    if (!base) return null;
+    },
+  });
+  if (!base) return null;
 
-    const group = await prisma.group.findUnique({
-      where: {
-        id: opts?.groupId,
-        courseId,
-      },
+  // ✅ Only fetch group if groupId is provided
+  let group:
+    | {
+        id: number;
+        codeNumber: string | null;
+        projectName: string;
+        productName: string | null;
+        company: string | null;
+        _count: { members: number; advisors: number };
+      }
+    | null = null;
+
+  if (typeof opts?.groupId === "number") {
+    group = await prisma.group.findFirst({
+      where: { id: opts.groupId, courseId }, // findFirst accepts multiple conditions
       select: {
         id: true,
         codeNumber: true,
@@ -259,24 +269,22 @@ class DashboardModel {
         company: true,
         _count: {
           select: {
-            members: true, // GroupMember[]
-            advisors: true, // GroupAdvisor[]
+            members: true,
+            advisors: true,
           },
         },
       },
     });
+    // If you prefer 404 when group not found in this course, you could throw here.
+  }
 
-    const [
-      totalStudents,
-      totalAdvisors,
-      totalGroups,
-      totalAssignments,
-      rollup,
-    ] = await Promise.all([
+  const [totalStudents, totalAdvisors, totalGroups, totalAssignments, rollup] =
+    await Promise.all([
       prisma.courseMember.count({
         where: { courseId, user: { role: "STUDENT" } },
       }),
       prisma.courseMember.count({
+        // If your enum is ADVISOR (not LECTURER), change accordingly
         where: { courseId, user: { role: "LECTURER" } },
       }),
       prisma.group.count({ where: { courseId } }),
@@ -284,45 +292,44 @@ class DashboardModel {
       computeSubmissionRollup(courseId, opts),
     ]);
 
-    return {
-      course: {
-        id: base.id,
-        name: base.name,
-        description: base.description,
-        program: base.program,
-        createdAt: base.createdAt,
-        createdBy: {
-          id: base.createdBy.id,
-          name: base.createdBy.name,
-          email: base.createdBy.email,
-          role: base.createdBy.role,
-        },
+  return {
+    course: {
+      id: base.id,
+      name: base.name,
+      description: base.description,
+      program: base.program,
+      createdAt: base.createdAt,
+      createdBy: {
+        id: base.createdBy.id,
+        name: base.createdBy.name,
+        email: base.createdBy.email,
+        role: base.createdBy.role,
       },
-
-      totals: {
-        students: totalStudents,
-        advisors: totalAdvisors,
-        groups: totalGroups,
-        assignments: totalAssignments,
+    },
+    totals: {
+      students: totalStudents,
+      advisors: totalAdvisors,
+      groups: totalGroups,
+      assignments: totalAssignments,
+    },
+    submissions: {
+      totalPairs: rollup.totalPairs,
+      statusCounts: {
+        NOT_SUBMITTED: rollup.NOT_SUBMITTED,
+        SUBMITTED: rollup.SUBMITTED,
+        REJECTED: rollup.REJECTED,
+        APPROVED_WITH_FEEDBACK: rollup.APPROVED_WITH_FEEDBACK,
+        FINAL: rollup.FINAL,
       },
-      submissions: {
-        totalPairs: rollup.totalPairs,
-        statusCounts: {
-          NOT_SUBMITTED: rollup.NOT_SUBMITTED,
-          SUBMITTED: rollup.SUBMITTED,
-          REJECTED: rollup.REJECTED,
-          APPROVED_WITH_FEEDBACK: rollup.APPROVED_WITH_FEEDBACK,
-          FINAL: rollup.FINAL,
-        },
-        filters: {
-          assignmentId: opts?.assignmentId,
-          groupId: opts?.groupId,
-          asOf: opts?.asOf?.toISOString(),
-        },
+      filters: {
+        assignmentId: opts?.assignmentId,
+        groupId: opts?.groupId,
+        asOf: opts?.asOf?.toISOString(),
       },
-      group,
-    };
-  }
+    },
+    group, // will be null if no groupId provided
+  };
+}
 }
 
 export default DashboardModel;
