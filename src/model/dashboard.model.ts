@@ -113,31 +113,42 @@ async function computeSubmissionRollup(
 }
 
 class DashboardModel {
-  static async getGroupInformation(
-    userId: string,
-    courseId: number,
-    ){
-      const group = await prisma.courseMember.findFirst({
-        where: {
-          userId,
-          courseId,
-        },
-        select: {
-          groupMembers: { include: { group: true }
-        }
-        }
-      })
-      return {
-        group: {
-          id: group?.groupMembers[0]?.group.id,
-          codeNumber: group?.groupMembers[0]?.group.codeNumber,
-          projectName: group?.groupMembers[0]?.group.projectName,
-          productName: group?.groupMembers[0]?.group.productName,
-          company: group?.groupMembers[0]?.group.company,
-        }
-      };
-    }
-    
+  static async getGroupInformation(userId: string, courseId: number) {
+    const groupInfo = await prisma.group.findMany({
+      where: {
+        members: { some: { courseMember: { userId } } },
+        courseId,
+      },
+      select: {
+        id: true,
+        codeNumber: true,
+        projectName: true,
+        productName: true,
+        company: true,
+        members: true,
+        advisors: true,
+      },
+    });
+    return groupInfo;
+  }
+
+  static async getGroupInformationforAdvisor(userId: string, courseId: number) {
+    const groupInfo = await prisma.group.findMany({
+      where: {
+        advisors: { some: { courseMember: { userId } } },
+        courseId,
+    },
+      select: {
+        id: true,
+        codeNumber: true,
+        projectName: true,
+        productName: true,
+        company: true,
+        members: true,
+        advisors: true,
+  }}    );
+    return groupInfo;
+  }
 
   static async getCourseSummary(courseId: number, asOf?: Date) {
     const course = await prisma.course.findUnique({
@@ -241,18 +252,18 @@ class DashboardModel {
         courseId,
       },
       select: {
-      id: true,
-      codeNumber: true,
-      projectName: true,
-      productName: true,
-      company: true,
-      _count: {
-        select: {
-          members: true,   // GroupMember[]
-          advisors: true,  // GroupAdvisor[]
+        id: true,
+        codeNumber: true,
+        projectName: true,
+        productName: true,
+        company: true,
+        _count: {
+          select: {
+            members: true, // GroupMember[]
+            advisors: true, // GroupAdvisor[]
+          },
         },
       },
-    },
     });
 
     const [

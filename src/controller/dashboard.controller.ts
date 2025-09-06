@@ -29,9 +29,19 @@ export const DashboardController = {
       const userId = c.get("userId");
       const role = c.get("role");
       const courseId = Number(c.req.param("courseId"));
-
-      const groupInformation = await DashboardModel.getGroupInformation(userId, courseId);
-      return c.json(groupInformation, 200);
+      if (role === "student") {
+        const groupInformation = await DashboardModel.getGroupInformation(
+          userId,
+          courseId
+        );
+        return c.json(groupInformation, 200);
+      } else {
+        const groupInformation = await DashboardModel.getGroupInformationforAdvisor(
+          userId,
+          courseId
+        );
+        return c.json(groupInformation, 200);
+      }
     } catch (e) {
       return c.json({ error: "Failed to fetch groups", e }, 500);
     }
