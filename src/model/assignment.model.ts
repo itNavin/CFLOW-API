@@ -111,7 +111,6 @@ function normalizeAllowedFileTypes(
 }
 
 class AssignmentModel {
-  
   static async getGroupsByLecturerId(userId: string, courseId: number) {
     return prisma.group.findMany({
       where: {
@@ -129,7 +128,7 @@ class AssignmentModel {
           },
         },
       },
-      
+
       orderBy: { id: "asc" },
     });
   }
@@ -216,8 +215,16 @@ class AssignmentModel {
     return prisma.assignment.findUnique({
       where: { id: assignmentId },
       include: {
-        deliverables: { include: { allowedFileTypes: true } },
-        assignmentDueDates: { where: { groupId } },
+        deliverables: {
+          include: {
+            allowedFileTypes: true,
+          },
+          orderBy: { id: "asc" },
+        },
+        assignmentDueDates: {
+          where: { groupId },
+          orderBy: { id: "asc" },
+        },
         submissions: {
           where: { groupId },
           include: {

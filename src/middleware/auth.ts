@@ -28,8 +28,8 @@ export async function authMiddleware(c: Context, next: Next) {
     }
     const accessTokenPayload = jwt.decode(
       refreshSsoResponse.data.access_token
-    ) as { sub: string; description: string };
-    c.set("userId", accessTokenPayload.sub);
+    ) as { preferred_username: string; description: string };
+    c.set("userId", accessTokenPayload.preferred_username);
     c.set("role", accessTokenPayload.description);
 
     c.header("X-Refresh-Token", refreshSsoResponse.data.refresh_token);
