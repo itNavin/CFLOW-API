@@ -27,6 +27,8 @@ export const DashboardController = {
   getGroupInformationDashboard: async (c: Context) => {
     try {
       const userId = c.get("userId");
+      console.log("userId", userId);
+      
       const role = c.get("role");
       const courseId = Number(c.req.param("courseId"));
       if (role === "student") {

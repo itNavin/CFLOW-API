@@ -3,7 +3,7 @@ import SubmissionModel from "../model/submission.model";
 import { SubmissionPayload } from "src/types/payload/submission.type";
 
 export const SubmissionController = {
-  // POST /submission/assignment/:assignmentId/group/:groupId
+  // POST /submission/course/:courseId/assignment/:assignmentId
   createSubmission: async (c: Context) => {
     try {
       const role = c.get("role");
@@ -12,38 +12,23 @@ export const SubmissionController = {
       }
 
       const assignmentId = Number(c.req.param("assignmentId"));
-      const groupId = Number(c.req.param("groupId"));
+      const courseId = Number(c.req.param("courseId"));
+      const userId = c.get("userId");
+      console.log("userId", userId);
+      console.log("courseId", courseId);
+      console.log("assignmentId", assignmentId);
+      
 
       if (!Number.isFinite(assignmentId))
         return c.json({ error: "Invalid assignmentId" }, 400);
-      if (!Number.isFinite(groupId))
-        return c.json({ error: "Invalid groupId" }, 400);
 
       const body = await c.req.json<SubmissionPayload.CreateSubmission>();
       const comment = body?.comment.trim();
-      // const filesRaw = Array.isArray(body?.files) ? body.files : [];
-      // const files =
-      //   filesRaw.map((f) => ({
-      //     deliverableId: f.deliverableId,
-      //     fileUrls: Array.isArray(f.fileUrls)
-      //       ? f.fileUrls.map((u) => (u).trim()).filter(Boolean)
-      //       : [],
-      //   }));
-
-      //Require at least one file
-      // if (files.length === 0) {
-      //   return c.json({ error: "files are required" }, 400);
-      // }
-      // if (files.some((f) => !Number.isFinite(f.deliverableId))) {
-      //   return c.json(
-      //     { error: "Each file must include a valid deliverableId" },
-      //     400
-      //   );
-      // }
 
       const created = await SubmissionModel.createSubmission({
+        userId,
+        courseId,
         assignmentId,
-        groupId,
         comment,
       });
 

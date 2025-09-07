@@ -13,11 +13,15 @@ export const FeedbackController = {
   createFeedback: async (c: Context) => {
     try {
       const role = c.get("role");
+      console.log("role", role);
+      
       if (role !== "lecturer") {
         return c.json({ error: "Forbidden: LECTURER only" }, 403);
       }
 
       const submissionId = Number(c.req.param("submissionId"));
+      console.log("submissionId", submissionId);
+      
       if (!Number.isFinite(submissionId)) {
         return c.json({ error: "Invalid submissionId" }, 400);
       }

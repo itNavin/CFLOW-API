@@ -7,26 +7,61 @@ function extFromUrl(u: string): string | null {
 }
 
 export type CreateSubmissionInput = {
-  assignmentId: number;
-  groupId: number;
+  userId: string;
+  courseId: number;
+  assignmentId: number; 
   comment: string;
 };
 
 class SubmissionModel {
   static async createSubmission(input: CreateSubmissionInput) {
-    const { assignmentId, groupId, comment } = input;
+    const { userId, courseId, assignmentId, comment } = input;
 
     return prisma.$transaction(async (tx) => {
-      // 0) Due date check
+      const assignment = await tx.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { id: true, courseId: true },
+      });
+      if (!assignment) {
+        throw new Error("Assignment not found");
+      }
+      if (assignment.courseId !== courseId) {
+        throw new Error("Assignment does not belong to the specified course");
+      }
+
+      const cm = await tx.courseMember.findUnique({
+        where: { courseId_userId: { courseId, userId } },
+        select: { id: true },
+      });
+      if (!cm) {
+        throw new Error("You are not a member of this course");
+      }
+
+      const memberships = await tx.groupMember.findMany({
+        where: { courseMemberId: cm.id },
+        select: { groupId: true },
+        orderBy: { groupId: "asc" },
+      });
+      if (memberships.length === 0) {
+        throw new Error("You are not in any group for this course");
+      }
+      if (memberships.length > 1) {
+        throw new Error(
+          "You belong to multiple groups in this course; please specify a group explicitly"
+        );
+      }
+      const groupId = memberships[0].groupId;
+
       const due = await tx.assignmentDueDate.findUnique({
         where: { assignmentId_groupId: { assignmentId, groupId } },
         select: { dueDate: true },
       });
-      if (!due)
+      if (!due) {
         throw new Error("No due date found for this assignment and group.");
+      }
+
       const now = new Date();
 
-      // 1) latest submission for version/status
       const last = await tx.submission.findFirst({
         where: { assignmentId, groupId },
         orderBy: { version: "desc" },
@@ -41,73 +76,8 @@ class SubmissionModel {
       const nextStatus =
         last?.status === "APPROVED_WITH_FEEDBACK" ? "FINAL" : "SUBMITTED";
 
-      // 2) Fetch deliverables + allowed MIME types
-      const deliverables = await tx.deliverable.findMany({
-        where: { assignmentId },
-        include: {
-          allowedFileTypes: { select: { mime: true, type: true } }, // mime + label
-        },
-      });
-
-      // 3) Build a map of submitted extensions per deliverable
-      const submittedByDeliverable = new Map<number, Set<string>>();
-      // for (const f of files ?? []) {
-      //   if (!submittedByDeliverable.has(f.deliverableId)) {
-      //     submittedByDeliverable.set(f.deliverableId, new Set());
-      //   }
-      //   const bucket = submittedByDeliverable.get(f.deliverableId)!;
-      //   for (const url of f.fileUrls ?? []) {
-      //     const ext = extFromUrl(url);
-      //     if (ext) bucket.add(ext);
-      //   }
-      // }
-
-      // 4) Validate: each deliverable must include all required types (by extension)
-      // for (const d of deliverables) {
-      //   const requiredExts = d.allowedFileTypes
-      //     .map((t) => {
-      //       if (!t.mime) return null;
-      //       const key = t.mime.toLowerCase();
-      //       return MIME_TO_EXT[key] || null;
-      //     })
-      //     .filter((x): x is string => !!x);
-
-      //   // if some MIME has no mapping, you can choose to reject:
-      //   const unmapped = d.allowedFileTypes.filter(
-      //     (t) => !t.mime || !MIME_TO_EXT[t.mime.toLowerCase?.() ?? ""]
-      //   );
-      //   if (unmapped.length > 0) {
-      //     throw new Error(
-      //       `Deliverable "${d.name}" (id: ${
-      //         d.id
-      //       }) has unsupported or missing MIME(s): ${unmapped
-      //         .map((t) => t.mime ?? "null")
-      //         .join(", ")}`
-      //     );
-      //   }
-
-      //   if (requiredExts.length === 0) continue;
-
-      //   const submitted = submittedByDeliverable.get(d.id) ?? new Set<string>();
-      //   const missing = requiredExts.filter((req) => !submitted.has(req));
-
-      //   if (missing.length > 0) {
-      //     throw new Error(
-      //       `Deliverable "${d.name}" (id: ${
-      //         d.id
-      //       }) is missing required file types: ${missing.join(
-      //         ", "
-      //       )}. Submitted: [${Array.from(submitted).join(
-      //         ", "
-      //       )}], Required (by ext): [${requiredExts.join(", ")}]`
-      //     );
-      //   }
-      // }
-
-      // 5) missed flag
       const missed = now > due.dueDate;
 
-      // 6) Create submission
       const created = await tx.submission.create({
         data: {
           assignmentId,
@@ -116,7 +86,7 @@ class SubmissionModel {
           missed,
           version: nextVersion,
           submittedAt: now,
-          comment,
+          comment: comment?.trim() || null,
         },
       });
 

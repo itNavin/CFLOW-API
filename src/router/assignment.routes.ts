@@ -14,7 +14,7 @@ assignmentRouter.get(
 );
 
 assignmentRouter.get(
-  "/:assignmentId/group/:groupId",
+  "/course/:courseId/assignment/:assignmentId",
   AssignmentController.getAssignmentWithSubmissions
 );
 
