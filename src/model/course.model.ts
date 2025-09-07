@@ -108,6 +108,12 @@ class CourseModel {
       },
     };
   }
+
+  static async getCourseById(courseId: number) {
+    return prisma.course.findUnique({
+      where: { id: courseId },
+    });
+  }
 }
 
 export default CourseModel;

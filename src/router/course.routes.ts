@@ -8,3 +8,5 @@ courseRouter.post("/createCourse", CourseController.createCourse);
 courseRouter.get("/getAllCourse", CourseController.getAllCourses);
 
 courseRouter.get("/my-courses", CourseController.getCourseByUser);
+
+courseRouter.get("/course/:courseId", CourseController.getCoursenameById);

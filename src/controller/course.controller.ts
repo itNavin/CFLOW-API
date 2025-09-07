@@ -79,4 +79,21 @@ export const CourseController = {
       return c.json({ message: "Internal server error" }, 500);
     }
   },
+
+  getCoursenameById: async (c: Context) => {
+    try {
+      const courseId = Number(c.req.param("courseId"));
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      const course = await CourseModel.getCourseById(courseId);
+      if (!course) {
+        return c.json({ message: "Course not found" }, 404);
+      }
+      return c.json({ name: course.name }, 200);
+    } catch (error: any) {
+      console.error("Error fetching course name by ID:", error);
+      return c.json({ message: "Internal server error" }, 500);
+    }
+  },
 };
