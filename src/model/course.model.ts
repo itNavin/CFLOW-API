@@ -1,5 +1,6 @@
 import { prisma } from "../prisma";
 import type { CoursePayload } from "../types/payload/course.type";
+import { ClassProgram, Program } from "../types/program";
 
 class CourseModel {
   static async createCourse(
@@ -38,90 +39,55 @@ class CourseModel {
     });
   }
 
-  static async getAllCourses() {
-    return prisma.course.findMany();
-  }
-
-  static async getUserCourseOverview(userId: string) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        classMemberships: {
-          include: {
-            course: true,
-            groupMembers: {
-              include: {
-                group: true,
-              },
-            },
-            groupAdvisors: {
-              include: {
-                group: true,
-              },
-            },
-          },
-        },
-        createdClasses: true,
-        createdAnnouncements: true,
-        uploadedFiles: true,
-      },
-    });
-
-    if (!user) return null;
-
-    const courses = user.classMemberships.map((cm) => {
-      const groupsAsMember = cm.groupMembers.map((gm) => ({
-        id: gm.group.id,
-        projectName: gm.group.projectName,
-        productName: gm.group.productName,
-        company: gm.group.company,
-        workRole: gm.workRole,
-      }));
-
-      const groupsAsAdvisor = cm.groupAdvisors.map((ga) => ({
-        id: ga.group.id,
-        projectName: ga.group.projectName,
-        productName: ga.group.productName,
-        company: ga.group.company,
-        advisorRole: ga.advisorRole,
-      }));
-
-      return {
-        course: cm.course,
-        groupsAsMember,
-        groupsAsAdvisor,
-      };
-    });
-
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        createdAt: user.createdAt,
-      },
-      courses,
-      extras: {
-        createdClasses: user.createdClasses,
-        createdAnnouncements: user.createdAnnouncements,
-        uploadedFiles: user.uploadedFiles,
-      },
-    };
-  }
-
-  static async getCourseById(courseId: number) {
-    return prisma.course.findUnique({
-      where: { id: courseId },
-    });
-  }
-
   static async updateCourseById(body: CoursePayload.updateCourseBody) {
     const course = await prisma.course.update({
       where: { id: body.courseId },
       data: { name: body.name, description: body.description },
-    })
+    });
     return course;
+  }
+
+  static async getStaffCourses(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { program: true },
+    });
+    if (!user) throw new Error("AUTHENTICATION_ERROR: user not found");
+
+    const where =
+      user.program === ClassProgram.BOTH
+        ? {}
+        : { program: { in: [user.program, ClassProgram.BOTH] } };
+
+    return prisma.course.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        program: true,
+      },
+    });
+  }
+
+  static async getCourseByUser(userId: string) {
+    const rows = await prisma.courseMember.findMany({
+      where: { userId },
+      select: {
+        course: {
+          select: { id: true, name: true, description: true, program: true },
+        },
+      },
+      orderBy: { course: { createdAt: "desc" } },
+    });
+    return rows.map((r) => r.course);
+  }
+
+  static async getCourseById(courseId: string) {
+    return prisma.course.findUnique({
+      where: { id: courseId },
+    });
   }
 }
 
