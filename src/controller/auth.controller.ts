@@ -46,17 +46,17 @@ export const AuthController = {
         (accessTokenPayload as any).role ?? accessTokenPayload.description
       );
       
-      try {
-        await AuthModel.createUser({
-          id: accessTokenPayload.preferred_username,
-          email: accessTokenPayload.email,
-          name: accessTokenPayload.name,
-          role,
-        });
-      } catch (e) {
-        if ((e as any)?.code !== "P2002") throw e;
-        console.log("User already exists, skipping creation");
-      }
+      // try {
+      //   await AuthModel.createUser({
+      //     id: accessTokenPayload.preferred_username,
+      //     email: accessTokenPayload.email,
+      //     name: accessTokenPayload.name,
+      //     role,
+      //   });
+      // } catch (e) {
+      //   if ((e as any)?.code !== "P2002") throw e;
+      //   console.log("User already exists, skipping creation");
+      // }
 
       return c.json({
         message: "Login successful",

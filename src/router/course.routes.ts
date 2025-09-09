@@ -4,9 +4,9 @@ import { CourseController } from "../controller/course.controller";
 export const courseRouter = new Hono();
 
 courseRouter.post("/createCourse", CourseController.createCourse);
-
-courseRouter.get("/getAllCourse", CourseController.getAllCourses);
-
-courseRouter.get("/my-courses", CourseController.getCourseByUser);
-
+courseRouter.put("/updateCourseById", CourseController.updateCourseById);
+courseRouter.get("/getStaffCourse", CourseController.getStaffCourses);
+courseRouter.get("/getCourseByUser", CourseController.getCourseByUser);
 courseRouter.get("/course/:courseId", CourseController.getCoursenameById);
+
+

@@ -3,59 +3,139 @@ import CourseModel from "../model/course.model";
 import type { CoursePayload } from "../types/payload/course.type";
 
 export const CourseController = {
-  // POST /course/createCourse  
+  // POST /course/createCourse
   createCourse: async (c: Context) => {
     try {
-      const role = c.get("role");
       const userId = c.get("userId");
-
       if (!userId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
+
+      const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
-      const body = await c.req.json<CoursePayload.CreateCourse>();
-      const { name, description, program } = body; 
+      const body = await c.req.json<CoursePayload.createCourse>();
+      const { name, description, program } = body;
 
-      if (!name || !description || !program) {
+      if (!name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
+      }
+      if (name.length > 100) {
+        return c.json({ message: "Course name too long" }, 400);
+      }
+      if (description.length > 500) {
+        return c.json({ message: "Course description too long" }, 400);
       }
 
       const course = await CourseModel.createCourse(
         name,
         description,
         program,
-        userId 
+        userId
       );
 
-      return c.json(course, 201);
+      return c.json(
+        {
+          message: "Course created successfully",
+          course: course,
+        },
+        201
+      );
     } catch (error: any) {
-      console.error("Error creating course:", error);
-      const status = error?.status ?? 500;
-      const message =
-        status === 403
-          ? "Forbidden: staff only"
-          : error?.message ?? "Internal server error";
-      return c.json({ message }, status);
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // GET /course/getAllCourses
-  getAllCourses: async (c: Context) => {
+  updateCourseById: async (c: Context) => {
     try {
       const role = c.get("role");
-  
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<CoursePayload.updateCourseBody>();
+      console.log("body", body);
+
+      const courseId = body.courseId;
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      const courseName = String(body.name);
+      if (!courseName) {
+        return c.json({ message: "Invalid course name" }, 400);
+      }
+      if (courseName.length > 100) {
+        return c.json({ message: "Course name too long" }, 400);
+      }
+      if (courseName === " ") {
+        return c.json({ message: "Course name cannot be empty" }, 400);
+      }
+      const courseDescription = String(body.description);
+      if (courseDescription.length > 500) {
+        return c.json({ message: "Course description too long" }, 400);
+      }
+
+      const updatedCourse = await CourseModel.updateCourseById(body);
+      return c.json(
+        {
+          message: "The course has been updated successfully",
+          course: updatedCourse,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "updateCourseById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  // GET /course/getStaffCourses
+  getStaffCourses: async (c: Context) => {
+    try {
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+      const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
-      const courses = await CourseModel.getAllCourses();
-      return c.json(courses, 200);
+      const courses = await CourseModel.getStaffCourses(userId);
+      return c.json(
+        {
+          message: "get staff courses successfully",
+          course: courses,
+        },
+        200
+      );
     } catch (error) {
-      console.error("Error fetching courses:", error);
-      return c.json({ message: "Internal server error" }, 500);
+      console.error({
+        context: "updateCourseById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
@@ -63,29 +143,44 @@ export const CourseController = {
   getCourseByUser: async (c: Context) => {
     try {
       const userId = c.get("userId");
-      console.log("userId:", userId);
       if (!userId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
 
-      const overview = await CourseModel.getUserCourseOverview(userId);
-      if (!overview) {
-        return c.json({ message: "User not found" }, 404);
+      const role = c.get("role");
+      if (role !== "student" && role !== "lecturer") {
+        return c.json({ message: "Forbidden: student, lecturer only" }, 403);
       }
 
-      return c.json(overview, 200);
+      const course = await CourseModel.getCourseByUser(userId);
+
+      return c.json(
+        {
+          message: "get user course successfully",
+          course: course,
+        },
+        200
+      );
     } catch (error: any) {
-      console.error("Error fetching user course overview:", error);
-      return c.json({ message: "Internal server error" }, 500);
+      console.error({
+        context: "updateCourseById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
   getCoursenameById: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!Number.isFinite(courseId) || courseId <= 0) {
-        return c.json({ message: "Invalid courseId" }, 400);
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
       }
+      
       const course = await CourseModel.getCourseById(courseId);
       if (!course) {
         return c.json({ message: "Course not found" }, 404);

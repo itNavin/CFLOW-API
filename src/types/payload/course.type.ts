@@ -1,10 +1,15 @@
 export namespace CoursePayload {
 
-    export type CreateCourse = {
+    export type createCourse = {
         name: string;
         description: string;
         program : "DSI" | "CS"
-        createdById: string;
     };
+
+    export type updateCourseBody = {
+        courseId: string;
+        name: string;
+        description: string;
+    }
 }
 

@@ -13,3 +13,8 @@ userRouter.get(
   "/my-project/course/:courseId",
   UserController.getMyProjectByCourse
 );
+
+userRouter.post(
+  "/upload-userData",
+  UserController.uploadUserDataByExcel
+);
