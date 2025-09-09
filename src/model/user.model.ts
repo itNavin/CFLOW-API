@@ -1,42 +1,21 @@
 import { prisma } from "../prisma";
 
+type UploadRow = {
+  rowNumber: number;
+  id: string; 
+  email: string; 
+  name: string; 
+};
+
+type UploadArgs = {
+  rows: UploadRow[];
+  role: "STUDENT" | "LECTURER" | "STAFF" | "SUPER_ADMIN";
+  program: "CS" | "DSI" | "BOTH"; 
+};
+
 class UserModel {
-  // static async createUser(
-  //   email: string,
-  //   passwordHash: string,
-  //   prefix: string,
-  //   name: string,
-  //   surname: string,
-  //   role: "STUDENT" | "LECTURER" | "STAFF" | "SUPER_ADMIN"
-  // ) {
-  //   const newUser = await prisma.user.create({
-  //     data: {
-  //       email,
-  //       name,
-  //       role,
-  //     },
-  //   });
-  //   return newUser;
-  // }
 
-  // static async getAllUsers() {
-  //   const users = await prisma.user.findMany();
-  //   return users;
-  // }
-
-  // static async getUserById(id: number) {
-  //   const user = await prisma.user.findUnique({
-  //     where: { id },
-  //   });
-  //   return user;
-  // }
-
-  /**
-   * Returns the student's project (group) inside a course.
-   * Throws with {status, message} for well-defined error cases.
-   */
-  static async getStudentProjectByCourse(userId: string, courseId: number) {
-    // Ensure user is enrolled in the course and fetch their group memberships
+  static async getStudentProjectByCourse(userId: string, courseId: string) {
     const cm = await prisma.courseMember.findFirst({
       where: { courseId, userId },
       select: {
@@ -106,6 +85,64 @@ class UserModel {
         productName: g.productName, // CS only
         company: g.company, // DSI only
       },
+    };
+  }
+
+  static async uploadStudentDataByExcel({ rows, role, program }: UploadArgs) {
+    const errors: Array<{ row: number; id: string; reason: string }> = [];
+    let created = 0;
+    let updated = 0;
+
+    await prisma.$transaction(
+      async (tx) => {
+        for (const r of rows) {
+          try {
+            const res = await tx.user.upsert({
+              where: { id: r.id },
+              create: {
+                id: r.id,
+                email: r.email,
+                name: r.name,
+                role,     
+                program, 
+              },
+              update: {
+                email: r.email,
+                name: r.name,
+                role,
+                program,
+              },
+              select: { id: true }, 
+            });
+          } catch (e: any) {
+            errors.push({
+              row: r.rowNumber,
+              id: r.id,
+              reason: e?.message ?? "Unknown error",
+            });
+          }
+        }
+      },
+      { timeout: 120_000 }
+    );
+
+    const ids = rows.map((r) => r.id);
+    const existing = await prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true },
+    });
+    const existingSet = new Set(existing.map((u) => u.id));
+    created = rows.filter((r) => !existingSet.has(r.id)).length;
+    updated = rows.length - created - errors.length;
+    if (updated < 0) updated = 0;
+    return {
+      summary: {
+        totalRows: rows.length,
+        created,
+        updated,
+        failed: errors.length,
+      },
+      errors,
     };
   }
 }
