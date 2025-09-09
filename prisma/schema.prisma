@@ -24,6 +24,7 @@ enum AdvisorRole {
 enum ClassProgram {
   CS
   DSI
+  BOTH
 }
 
 enum SubmissionStatus {
