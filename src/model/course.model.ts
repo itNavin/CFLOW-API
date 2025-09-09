@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import type { CoursePayload } from "../types/payload/course.type";
 
 class CourseModel {
   static async createCourse(
@@ -113,6 +114,14 @@ class CourseModel {
     return prisma.course.findUnique({
       where: { id: courseId },
     });
+  }
+
+  static async updateCourseById(body: CoursePayload.updateCourseBody) {
+    const course = await prisma.course.update({
+      where: { id: body.courseId },
+      data: { name: body.name, description: body.description },
+    })
+    return course;
   }
 }
 

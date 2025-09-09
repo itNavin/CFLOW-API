@@ -10,3 +10,5 @@ courseRouter.get("/getAllCourse", CourseController.getAllCourses);
 courseRouter.get("/my-courses", CourseController.getCourseByUser);
 
 courseRouter.get("/course/:courseId", CourseController.getCoursenameById);
+
+courseRouter.put("/updateCourse", CourseController.updateCourseById);

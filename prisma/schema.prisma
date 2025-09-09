@@ -41,11 +41,11 @@ enum EntityType {
 }
 
 model User {
-  id                 String         @id
-  name               String         @unique
-  email              String         @unique
-  role               Role
-  createdAt          DateTime       @default(now()) @db.Timestamptz(3)
+  id                   String         @id
+  name                 String         @unique
+  email                String         @unique
+  role                 Role
+  createdAt            DateTime       @default(now()) @db.Timestamptz(3)
 
   createdClasses       Course[]       @relation("CreatedByUser")
   classMemberships     CourseMember[] @relation("UserCourseMemberships")
@@ -54,29 +54,29 @@ model User {
 }
 
 model Course {
-  id            Int            @id @default(autoincrement())
+  id            String          @id @default(uuid()) @db.Uuid
   name          String
-  description   String
+  description   String?
   program       ClassProgram
   createdById   String
-  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime        @default(now()) @db.Timestamptz(3)
 
-  createdBy     User           @relation("CreatedByUser", fields: [createdById], references: [id])
+  createdBy     User            @relation("CreatedByUser", fields: [createdById], references: [id])
   members       CourseMember[]
   groups        Group[]
-  assignments   Assignment[]   @relation(name: "CourseAssignments")
+  assignments   Assignment[]    @relation(name: "CourseAssignments")
   announcements Announcement[]
   activityLogs  CourseActivityLog[]
   files         File[]
 }
 
 model CourseMember {
-  id             Int    @id @default(autoincrement())
-  courseId       Int
+  id             String  @id @default(uuid()) @db.Uuid
+  courseId       String  @db.Uuid
   userId         String
 
-  course         Course @relation(fields: [courseId], references: [id])
-  user           User   @relation("UserCourseMemberships", fields: [userId], references: [id])
+  course         Course  @relation(fields: [courseId], references: [id])
+  user           User    @relation("UserCourseMemberships", fields: [userId], references: [id])
 
   groupMembers   GroupMember[]
   groupAdvisors  GroupAdvisor[]
@@ -88,8 +88,8 @@ model CourseMember {
 }
 
 model Group {
-  id          Int     @id @default(autoincrement())
-  courseId    Int
+  id          String  @id @default(uuid()) @db.Uuid
+  courseId    String  @db.Uuid
   codeNumber  String?
   projectName String
   productName String?
@@ -106,10 +106,10 @@ model Group {
 }
 
 model GroupMember {
-  id             Int    @id @default(autoincrement())
+  id             String @id @default(uuid()) @db.Uuid
   workRole       String?
-  courseMemberId Int
-  groupId        Int
+  courseMemberId String @db.Uuid
+  groupId        String @db.Uuid
 
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
   group        Group        @relation(fields: [groupId], references: [id])
@@ -118,10 +118,10 @@ model GroupMember {
 }
 
 model GroupAdvisor {
-  id             Int         @id @default(autoincrement())
-  courseMemberId Int
+  id             String      @id @default(uuid()) @db.Uuid
+  courseMemberId String      @db.Uuid
   advisorRole    AdvisorRole
-  groupId        Int
+  groupId        String      @db.Uuid
 
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])
   group        Group        @relation(fields: [groupId], references: [id])
@@ -130,12 +130,12 @@ model GroupAdvisor {
 }
 
 model Assignment {
-  id          Int      @id @default(autoincrement())
+  id          String    @id @default(uuid()) @db.Uuid
   name        String
   description String?
   endDate     DateTime  @db.Timestamptz(3)
-  schedule    DateTime? @db.Timestamptz(3)
-  courseId    Int
+  schedule    DateTime @db.Timestamptz(3)
+  courseId    String    @db.Uuid
 
   course             Course              @relation(fields: [courseId], references: [id], name: "CourseAssignments")
   deliverables       Deliverable[]
@@ -144,9 +144,9 @@ model Assignment {
 }
 
 model AssignmentDueDate {
-  id           Int      @id @default(autoincrement())
-  assignmentId Int
-  groupId      Int
+  id           String   @id @default(uuid()) @db.Uuid
+  assignmentId String   @db.Uuid
+  groupId      String   @db.Uuid
   dueDate      DateTime @db.Timestamptz(3)
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
@@ -159,9 +159,9 @@ model AssignmentDueDate {
 }
 
 model Deliverable {
-  id           Int    @id @default(autoincrement())
+  id           String  @id @default(uuid()) @db.Uuid
   name         String
-  assignmentId Int
+  assignmentId String  @db.Uuid
 
   assignment       Assignment        @relation(fields: [assignmentId], references: [id])
   allowedFileTypes AllowedFileType[]
@@ -170,10 +170,10 @@ model Deliverable {
 }
 
 model AllowedFileType {
-  id            Int    @id @default(autoincrement())
+  id            String @id @default(uuid()) @db.Uuid
   mime          String
   type          String
-  deliverableId Int
+  deliverableId String @db.Uuid
 
   deliverable Deliverable @relation(fields: [deliverableId], references: [id])
 
@@ -182,25 +182,25 @@ model AllowedFileType {
 }
 
 model Submission {
-  id           Int              @id @default(autoincrement())
+  id           String           @id @default(uuid()) @db.Uuid
   submittedAt  DateTime         @default(now()) @db.Timestamptz(3)
-  assignmentId Int
-  groupId      Int
+  assignmentId String           @db.Uuid
+  groupId      String           @db.Uuid
   comment      String?
-  status       SubmissionStatus @default(SUBMITTED)
-  missed       Boolean          @default(false)
-  version      Int              @default(1)
+  status       SubmissionStatus  @default(SUBMITTED)
+  missed       Boolean           @default(false)
+  version      Int               @default(1)
 
-  assignment      Assignment       @relation(fields: [assignmentId], references: [id])
-  group           Group            @relation(fields: [groupId], references: [id], name: "GroupSubmissions")
+  assignment      Assignment   @relation(fields: [assignmentId], references: [id])
+  group           Group        @relation(fields: [groupId], references: [id], name: "GroupSubmissions")
   feedbacks       Feedback[]
   submissionFiles SubmissionFile[]
 }
 
 model SubmissionFile {
-  id            Int      @id @default(autoincrement())
-  submissionId  Int
-  deliverableId Int
+  id            String   @id @default(uuid()) @db.Uuid
+  submissionId  String   @db.Uuid
+  deliverableId String   @db.Uuid
   fileUrl       String[]
 
   submission  Submission  @relation(fields: [submissionId], references: [id])
@@ -208,8 +208,8 @@ model SubmissionFile {
 }
 
 model Feedback {
-  id           Int      @id @default(autoincrement())
-  submissionId Int
+  id           String   @id @default(uuid()) @db.Uuid
+  submissionId String   @db.Uuid
   comment      String?
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
@@ -218,9 +218,9 @@ model Feedback {
 }
 
 model FeedbackFile {
-  id            Int      @id @default(autoincrement())
-  feedbackId    Int
-  deliverableId Int
+  id            String   @id @default(uuid()) @db.Uuid
+  feedbackId    String   @db.Uuid
+  deliverableId String   @db.Uuid
   fileUrl       String[]
 
   feedback    Feedback    @relation(fields: [feedbackId], references: [id])
@@ -231,12 +231,12 @@ model FeedbackFile {
 }
 
 model Announcement {
-  id          Int      @id @default(autoincrement())
-  courseId    Int
+  id          String    @id @default(uuid()) @db.Uuid
+  courseId    String    @db.Uuid
   name        String
   description String?
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  schedule    DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  schedule    DateTime @db.Timestamptz(3)
   createById  String
 
   createdBy User   @relation(fields: [createById], references: [id])
@@ -245,16 +245,16 @@ model Announcement {
 }
 
 model File {
-  id             Int      @id @default(autoincrement())
+  id             String   @id @default(uuid()) @db.Uuid
   name           String
   filepath       String
   uploadAt       DateTime @default(now()) @db.Timestamptz(3)
   createdById    String
-  courseId       Int
-  announcementId Int?
+  courseId       String   @db.Uuid
+  announcementId String?  @db.Uuid
 
-  createdBy    User        @relation(fields: [createdById], references: [id])
-  course       Course      @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  createdBy    User         @relation(fields: [createdById], references: [id])
+  course       Course       @relation(fields: [courseId], references: [id], onDelete: Restrict)
   announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: SetNull)
 
   @@index([courseId])
@@ -262,13 +262,13 @@ model File {
 }
 
 model CourseActivityLog {
-  id             Int        @id @default(autoincrement())
-  courseId       Int
-  courseMemberId Int
+  id             String      @id @default(uuid()) @db.Uuid
+  courseId       String      @db.Uuid
+  courseMemberId String      @db.Uuid
   action         String
   entityType     EntityType
-  entityId       Int
-  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  entityId       String      @db.Uuid
+  createdAt      DateTime    @default(now()) @db.Timestamptz(3)
 
   course       Course       @relation(fields: [courseId], references: [id])
   courseMember CourseMember @relation(fields: [courseMemberId], references: [id])

@@ -6,5 +6,11 @@ export namespace CoursePayload {
         program : "DSI" | "CS"
         createdById: string;
     };
+
+    export type updateCourseBody = {
+        courseId: number;
+        name: string;
+        description: string;
+    }
 }
 

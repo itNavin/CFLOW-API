@@ -96,4 +96,47 @@ export const CourseController = {
       return c.json({ message: "Internal server error" }, 500);
     }
   },
+
+  updateCourseById: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<CoursePayload.updateCourseBody>();
+      console.log("body", body);
+      
+      const courseId = Number(body.courseId);
+      if (!Number.isFinite(courseId) || courseId <= 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      const courseName = String(body.name);
+      if(!courseName) {
+        return c.json({ message: "Invalid course name" }, 400);
+      }
+      if(courseName.length > 100) {
+        return c.json({ message: "Course name too long" }, 400);
+      }
+      if(courseName === " ") {
+        return c.json({ message: "Course name cannot be empty" }, 400);
+      }
+      const courseDescription = String(body.description);
+      if(courseDescription.length > 500) {
+        return c.json({ message: "Course description too long" }, 400);
+      }
+
+      const updatedCourse = await CourseModel.updateCourseById(body);
+      return c.json(
+        {
+          message: "The course has been updated successfully",
+          course: updatedCourse,
+        },
+        200
+      );
+    } catch (error) {
+      console.error("Error updating course by ID:", error);
+      return c.json({ message: "Internal server error" }, 500);
+    }
+  }
 };
