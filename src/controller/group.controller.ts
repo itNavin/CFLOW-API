@@ -18,7 +18,7 @@ export const GroupController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
-      if(isValidUUID(courseId) === false) {
+      if(!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
@@ -86,7 +86,7 @@ export const GroupController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
-      if(isValidUUID(courseId) === false) {
+      if(!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
@@ -121,12 +121,12 @@ export const GroupController = {
       const body = await c.req.json<GroupPayload.updateGroup>();
 
       const courseId = String(body.courseId ?? "").trim();
-      if(isValidUUID(courseId) === false) {
+      if(!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const groupId = String(body.groupId ?? "").trim();
-      if(isValidUUID(groupId) === false) {
+      if(!isValidUUID(groupId)) {
         return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
       }
 
