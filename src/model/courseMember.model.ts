@@ -1,17 +1,10 @@
 import { prisma } from "../prisma";
 import { Role } from "@prisma/client";
 
-export const getAllCourseMembers = async (courseId: number) => {
-  return await prisma.courseMember.findMany({
-    where: { courseId },
-    include: {
-      user: true,
-      course: true,
-    },
-  });
-};
+import { CourseMemberPayload } from "src/types/payload/courseMember.type";
+import { ClassProgram } from "src/types/program";
 
-export const getAdvisorMembers = async (courseId: number) => {
+export const getAdvisorMembers = async (courseId: string) => {
   const advisors = await prisma.courseMember.findMany({
     where: {
       courseId,
@@ -43,14 +36,24 @@ export const getAdvisorMembers = async (courseId: number) => {
   }));
 };
 
-export const getAdvisorNotInCourse = async (courseId: number) => {
-  if (!Number.isFinite(courseId)) throw new Error("Invalid courseId");
+export const getAdvisorNotInCourse = async (courseId: string) => {
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { program: true },
+  });
+  if (!course) throw new Error("COURSE_NOT_FOUND");
+
+  const whereProgram =
+    course.program === ClassProgram.BOTH
+      ? undefined
+      : { in: [course.program, ClassProgram.BOTH] };
 
   return prisma.user.findMany({
     where: {
-      role: Role.LECTURER, 
+      role: Role.LECTURER,
+      ...(whereProgram ? { program: whereProgram } : {}), 
       classMemberships: {
-        none: { courseId }, 
+        none: { courseId },
       },
     },
     select: {
@@ -58,34 +61,14 @@ export const getAdvisorNotInCourse = async (courseId: number) => {
       name: true,
       email: true,
       role: true,
+      program: true, 
       createdAt: true,
     },
     orderBy: { name: "asc" },
   });
 };
 
-export const getStudentsNotInCourse = async (courseId: number) => {
-  if (!Number.isFinite(courseId)) throw new Error("Invalid courseId");
-
-  return prisma.user.findMany({
-    where: {
-      role: Role.STUDENT, 
-      classMemberships: {
-        none: { courseId }, 
-      },
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      createdAt: true,
-    },
-    orderBy: { name: "asc" },
-  });
-};
-
-export const getStudentMembers = async (courseId: number) => {
+export const getStudentMembers = async (courseId: string) => {
   return prisma.courseMember.findMany({
     where: {
       courseId,
@@ -102,7 +85,39 @@ export const getStudentMembers = async (courseId: number) => {
   });
 };
 
-export const addMember = async (courseId: number, userId: string) => {
+export const getStudentsNotInCourse = async (courseId: string) => {
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { program: true },
+  });
+  if (!course) throw new Error("COURSE_NOT_FOUND");
+
+  const whereProgram =
+    course.program === ClassProgram.BOTH
+      ? undefined
+      : { in: [course.program, ClassProgram.BOTH] };
+
+  return prisma.user.findMany({
+    where: {
+      role: Role.STUDENT,
+      ...(whereProgram ? { program: whereProgram } : {}),
+      classMemberships: {
+        none: { courseId }, 
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      program: true, 
+      createdAt: true,
+    },
+    orderBy: { name: "asc" },
+  });
+};
+
+export const addMembers = async (courseId: string, userId: string) => {
   const existing = await prisma.courseMember.findFirst({
     where: { courseId, userId },
     include: { user: true, course: true },
@@ -118,105 +133,60 @@ export const addMember = async (courseId: number, userId: string) => {
   return { created: true, member: created };
 };
 
-export type BulkDeleteCMResult = {
-  requestedIds: number[];
-  deletedIds: number[];
-  notFoundIds: number[];
-  blocked: Array<{
-    courseMemberId: number;
-    userId: string;
-    userName: string;
-    reasons: {
-      groupMembers: number;
-      groupAdvisors: number;
-      activityLogs: number;
-    };
-  }>;
-};
+export const deleteCourseMembers = async (
+  courseMemberIds: string[]
+): Promise<CourseMemberPayload.BulkDeleteCMResult> => {
+  const deletedIds: string[] = [];
+  const notFoundIds: string[] = [];
+  const blocked: CourseMemberPayload.BulkDeleteCMResult["blocked"] = [];
 
-export const deleteCourseMembersBulk = async (
-  courseMemberIdsInput: number[]
-): Promise<BulkDeleteCMResult> => {
-  // Validate
-  if (
-    !Array.isArray(courseMemberIdsInput) ||
-    courseMemberIdsInput.length === 0
-  ) {
-    const err: any = new Error("courseMemberIds must be a non-empty array");
-    err.status = 400;
-    throw err;
-  }
-  const courseMemberIds = [
-    ...new Set(
-      courseMemberIdsInput
-        .map((n) => Number(n))
-        .filter((n) => Number.isFinite(n) && n > 0)
-    ),
-  ];
-  if (courseMemberIds.length === 0) {
-    const err: any = new Error("No valid courseMemberIds provided");
-    err.status = 400;
-    throw err;
-  }
-
-  // Load members + linkage counts
-  const cms = await prisma.courseMember.findMany({
-    where: { id: { in: courseMemberIds } },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          role: true,
-        },
-      },
-      _count: {
-        select: {
-          groupMembers: true,
-          groupAdvisors: true,
-          activityLogs: true,
-        },
-      },
-    },
-  });
-
-  const foundIds = new Set(cms.map((cm) => cm.id));
-  const notFoundIds = courseMemberIds.filter((id) => !foundIds.has(id));
-
-  const deletableIds: number[] = [];
-  const blocked: BulkDeleteCMResult["blocked"] = [];
-
-  for (const cm of cms) {
-    const deps = cm._count;
-    const hasLinks =
-      deps.groupMembers > 0 || deps.groupAdvisors > 0 || deps.activityLogs > 0;
-
-    if (hasLinks) {
-      blocked.push({
-        courseMemberId: cm.id,
-        userId: cm.user.id,
-        userName: cm.user.name,
-        reasons: {
-          groupMembers: deps.groupMembers,
-          groupAdvisors: deps.groupAdvisors,
-          activityLogs: deps.activityLogs,
+  await prisma.$transaction(async (tx) => {
+    for (const id of courseMemberIds) {
+      const cm = await tx.courseMember.findUnique({
+        where: { id },
+        include: {
+          user: { select: { id: true, name: true } },
+          _count: {
+            select: {
+              groupMembers: true,
+              groupAdvisors: true,
+            },
+          },
         },
       });
-    } else {
-      deletableIds.push(cm.id);
-    }
-  }
 
-  if (deletableIds.length > 0) {
-    await prisma.courseMember.deleteMany({
-      where: { id: { in: deletableIds } },
-    });
-  }
+      if (!cm) {
+        notFoundIds.push(id);
+        continue;
+      }
+
+      await tx.groupMember.deleteMany({ where: { courseMemberId: id } });
+      await tx.groupAdvisor.deleteMany({ where: { courseMemberId: id } });
+
+      try {
+        await tx.courseMember.delete({ where: { id } });
+        deletedIds.push(id);
+      } catch (e: any) {
+        if (e?.code === "P2003") {
+          blocked.push({
+            courseMemberId: cm.id,
+            userId: cm.user.id,
+            userName: cm.user.name,
+            reasons: {
+              groupMembers: cm._count.groupMembers,
+              groupAdvisors: cm._count.groupAdvisors,
+            },
+          });
+        } else {
+          throw e;
+        }
+      }
+    }
+  });
 
   return {
     requestedIds: courseMemberIds,
-    deletedIds: deletableIds,
+    deletedIds,
     notFoundIds,
     blocked,
   };

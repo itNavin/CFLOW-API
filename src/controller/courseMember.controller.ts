@@ -1,159 +1,185 @@
 import { Context } from "hono";
 import { prisma } from "../prisma";
+
 import {
-  getAllCourseMembers,
   getAdvisorMembers,
   getStudentMembers,
   getAdvisorNotInCourse,
   getStudentsNotInCourse,
-  deleteCourseMembersBulk,
-  addMember as addMemberModel, 
+  deleteCourseMembers,
+  addMembers,
 } from "../model/courseMember.model";
-import { get } from "http";
+
+import { CourseMemberPayload } from "src/types/payload/courseMember.type";
+import { isValidUUID } from "src/types/uuid";
 
 export const CourseMemberController = {
-  // GET /courseMember/:courseId
-  getAllCourseMembers: async (c: Context) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isFinite(courseId)) {
-      return c.json({ message: "Invalid courseId" }, 400);
-    }
-    const members = await getAllCourseMembers(courseId);
-    return c.json(members);
-  },
-
-  // GET /advisors/course/:courseId
   getAdvisorMembers: async (c: Context) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isFinite(courseId)) {
-      return c.json({ message: "Invalid courseId" }, 400);
-    }
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
 
-    const role = c.get("role");
-    if (role !== "staff") {
-      return c.json({ message: "Forbidden: STAFF only" }, 403);
-    }
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
 
-    const advisors = await getAdvisorMembers(courseId);
-    return c.json(advisors);
+      const advisors = await getAdvisorMembers(courseId);
+
+      return c.json(
+        {
+          message: "Advisors fetched successfully",
+          advisors: advisors,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
   },
 
   getAdvisorNotInCourse: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
 
       const advisorsNotInCourse = await getAdvisorNotInCourse(courseId);
-      return c.json(advisorsNotInCourse, 200);
-    } catch (e) {
-      return c.json({ message: "Failed to fetch advisors" }, 500);
+
+      return c.json(
+        {
+          message: "Advisors not in course fetched successfully",
+          advisors: advisorsNotInCourse,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
   getStudentNotInCourse: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!Number.isFinite(courseId) || courseId <= 0) {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
         return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
       }
 
       const students = await getStudentsNotInCourse(courseId);
-      return c.json(students, 200);
-    } catch (e) {
-      console.error("getStudentNotInCourse error:", e);
-      return c.json({ message: "Failed to fetch students" }, 500);
+
+      return c.json(
+        {
+          message: "Students not in course fetched successfully",
+          students: students,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
   // GET /students/course/:courseId
   getStudentMembers: async (c: Context) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isFinite(courseId)) {
-      return c.json({ message: "Invalid courseId" }, 400);
-    }
-
-    const role = c.get("role");
-    if (role !== "staff") {
-      return c.json({ message: "Forbidden: STAFF only" }, 403);
-    }
-
-    const students = await getStudentMembers(courseId);
-    return c.json(students);
-  },
-
-  // DELETE /courseMember/delete/:courseMemberId
-  deleteMembersBulk: async (c: Context) => {
     try {
       const role = c.get("role");
-      // keep your original rule ("staff" literal). Adjust if needed.
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
-      const body = await c.req.json<any>();
-      const courseMemberIds = Array.isArray(body?.courseMemberIds)
-        ? body.courseMemberIds
-        : null;
-
-      if (!courseMemberIds) {
-        return c.json(
-          { message: "Body must be { courseMemberIds: number[] }" },
-          400
-        );
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
       }
 
-      const result = await deleteCourseMembersBulk(courseMemberIds);
-
-      // Build a friendly message for blocked users
-      const blockedNames = result.blocked.map((b) => b.userName);
-      const message =
-        blockedNames.length > 0
-          ? `Cannot delete these users because they are linked to groups or logs: ${blockedNames.join(
-              ", "
-            )}`
-          : `Deleted ${result.deletedIds.length} course member(s).`;
-
-      // If anything blocked, use 409, else 200
-      const status = blockedNames.length > 0 ? 409 : 200;
+      const students = await getStudentMembers(courseId);
 
       return c.json(
         {
-          message,
-          summary: {
-            requestedCount: result.requestedIds.length,
-            deletedCount: result.deletedIds.length,
-            notFoundCount: result.notFoundIds.length,
-            blockedCount: result.blocked.length,
-          },
-          deletedIds: result.deletedIds,
-          notFoundIds: result.notFoundIds,
-          blocked: result.blocked, // contains reasons counts; names are in blocked[].userName
+          message: "Student members fetched successfully",
+          students: students,
         },
-        status
+        200
       );
-    } catch (e: any) {
-      const status = e?.status ?? 500;
+    } catch (error) {
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return c.json(
-        { message: e?.message ?? "Failed to delete course members" },
-        status
+        { message: "Internal server error. Please try again later." },
+        500
       );
     }
   },
 
-  // POST /courseMember/:courseId/members
-  addMember: async (c: Context) => {
+  addMembers: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!Number.isFinite(courseId)) {
-        return c.json({ message: "Invalid courseId" }, 400);
-      }
-
       const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
-      const body = await c.req.json<{ userIds: Array<string> }>();
-      const raw = body?.userIds;
+      const body = await c.req.json<CourseMemberPayload.AddMember>();
+      const courseId = body.courseId;
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
+
+      const raw = body.userIds;
       if (!Array.isArray(raw) || raw.length === 0) {
         return c.json({ message: "userIds must be a non-empty array" }, 400);
       }
@@ -168,6 +194,16 @@ export const CourseMemberController = {
       ];
       if (userIds.length === 0) {
         return c.json({ message: "No valid userIds provided" }, 400);
+      }
+      const invalidIds = userIds.filter((id) => !isValidUUID(id));
+      if (invalidIds.length > 0) {
+        return c.json(
+          {
+            message: "Invalid UUID(s) in userIds",
+            invalidIds,
+          },
+          400
+        );
       }
 
       const course = await prisma.course.findUnique({
@@ -190,7 +226,7 @@ export const CourseMemberController = {
       }
 
       const results = await Promise.all(
-        userIds.map((uid) => addMemberModel(courseId, uid)) // uid is string
+        userIds.map((uid) => addMembers(courseId, uid))
       );
 
       const insertedCount = results.filter((r) => r.created).length;
@@ -219,6 +255,70 @@ export const CourseMemberController = {
       return c.json(
         { message: "Failed to add member(s)", error: String(e?.message ?? e) },
         500
+      );
+    }
+  },
+
+  deleteCourseMembers: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<CourseMemberPayload.deleteMember>();
+      const rawIds = body.courseMemberIds;
+
+      if (!Array.isArray(rawIds) || rawIds.length === 0) {
+        return c.json(
+          { message: "Body must be { courseMemberIds: string[] }" },
+          400
+        );
+      }
+
+      const courseMemberIds = [
+        ...new Set(
+          rawIds
+            .map(String)
+            .map((s) => s.trim())
+            .filter(Boolean)
+        ),
+      ];
+      if (courseMemberIds.length === 0) {
+        return c.json({ message: "No valid courseMemberIds provided" }, 400);
+      }
+      const invalidIds = courseMemberIds.filter((id) => !isValidUUID(id));
+      if (invalidIds.length > 0) {
+        return c.json(
+          {
+            message: "Invalid UUID(s) in courseMemberIds",
+            invalidIds,
+          },
+          400
+        );
+      }
+
+      const result = await deleteCourseMembers(courseMemberIds);
+
+      const status =
+        result.blocked.length > 0 || result.notFoundIds.length > 0 ? 207 : 200;
+
+      return c.json(
+        {
+          message: "Course member deletion processed",
+          result,
+        },
+        status
+      );
+    } catch (e: any) {
+      console.error({
+        context: "deleteMemberForce",
+        error: e instanceof Error ? e.message : String(e),
+        stack: e instanceof Error ? e.stack : undefined,
+      });
+      return c.json(
+        { message: e?.message ?? "Failed to delete course member(s)" },
+        e?.status ?? 500
       );
     }
   },
