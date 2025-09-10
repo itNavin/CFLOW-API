@@ -1,19 +1,19 @@
 import type { Context } from "hono";
 import CourseModel from "../model/course.model";
 import type { CoursePayload } from "../types/payload/course.type";
+import { isValidUUID } from "../types/uuid";
 
 export const CourseController = {
-  // POST /course/createCourse
   createCourse: async (c: Context) => {
     try {
-      const userId = c.get("userId");
-      if (!userId) {
-        return c.json({ message: "Unauthorized" }, 401);
-      }
-
       const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
+      }
+
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
       }
 
       const body = await c.req.json<CoursePayload.createCourse>();
@@ -64,12 +64,15 @@ export const CourseController = {
       }
 
       const body = await c.req.json<CoursePayload.updateCourseBody>();
-      console.log("body", body);
 
       const courseId = body.courseId;
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
+
       const courseName = String(body.name);
       if (!courseName) {
         return c.json({ message: "Invalid course name" }, 400);
@@ -80,12 +83,14 @@ export const CourseController = {
       if (courseName === " ") {
         return c.json({ message: "Course name cannot be empty" }, 400);
       }
+
       const courseDescription = String(body.description);
       if (courseDescription.length > 500) {
         return c.json({ message: "Course description too long" }, 400);
       }
 
       const updatedCourse = await CourseModel.updateCourseById(body);
+
       return c.json(
         {
           message: "The course has been updated successfully",
@@ -106,19 +111,20 @@ export const CourseController = {
     }
   },
 
-  // GET /course/getStaffCourses
   getStaffCourses: async (c: Context) => {
     try {
-      const userId = c.get("userId");
-      if (!userId) {
-        return c.json({ message: "Unauthorized" }, 401);
-      }
       const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+   
       const courses = await CourseModel.getStaffCourses(userId);
+
       return c.json(
         {
           message: "get staff courses successfully",
@@ -142,14 +148,14 @@ export const CourseController = {
   // GET /course/my-courses
   getCourseByUser: async (c: Context) => {
     try {
-      const userId = c.get("userId");
-      if (!userId) {
-        return c.json({ message: "Unauthorized" }, 401);
-      }
-
       const role = c.get("role");
       if (role !== "student" && role !== "lecturer") {
         return c.json({ message: "Forbidden: student, lecturer only" }, 403);
+      }
+
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
       }
 
       const course = await CourseModel.getCourseByUser(userId);
@@ -180,12 +186,22 @@ export const CourseController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
       
       const course = await CourseModel.getCourseById(courseId);
       if (!course) {
         return c.json({ message: "Course not found" }, 404);
       }
-      return c.json({ name: course.name }, 200);
+      
+      return c.json(
+        {
+          message: "Get course name by ID successfully",
+          coursename: course.name,
+        },
+        200
+      );
     } catch (error: any) {
       console.error("Error fetching course name by ID:", error);
       return c.json({ message: "Internal server error" }, 500);
