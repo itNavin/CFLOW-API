@@ -3,17 +3,16 @@ import type { Prisma } from "@prisma/client";
 
 class GroupModel {
   static async createGroup(data: {
-    courseId: number;
+    courseId: string;
     codeNumber?: string | null;
     projectName: string;
     productName?: string | null;
     company?: string | null;
-    memberIds?: { id: number; workRole: string }[];
-    advisorIds?: number[];
-    coAdvisorIds?: number[];
+    memberIds?: { id: string; workRole: string | null }[];
+    advisorIds?: string[];
+    coAdvisorIds?: string[];
   }) {
     return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1) Create the group first
       const newGroup = await tx.group.create({
         data: {
           courseId: data.courseId,
@@ -24,10 +23,9 @@ class GroupModel {
         },
       });
 
-      // Helper to validate CourseMember IDs for this course
-      const validateCourseMembers = async (ids: number[]) => {
+      const validateCourseMembers = async (ids: string[]) => {
         if (!ids.length)
-          return { existingIds: new Set<number>(), missing: [] as number[] };
+          return { existingIds: new Set<string>(), missing: [] as string[] };
 
         const rows = await tx.courseMember.findMany({
           where: { courseId: data.courseId, id: { in: ids } },
@@ -38,7 +36,6 @@ class GroupModel {
         return { existingIds, missing };
       };
 
-      // 2) Validate members
       const memberIds = data.memberIds?.map((m) => m.id) ?? [];
       const { existingIds: memberExisting, missing: memberMissing } =
         await validateCourseMembers(memberIds);
@@ -52,7 +49,6 @@ class GroupModel {
         throw err;
       }
 
-      // 3) Validate advisors
       const advisorIds = data.advisorIds ?? [];
       const { existingIds: advisorExisting, missing: advisorMissing } =
         await validateCourseMembers(advisorIds);
@@ -66,7 +62,6 @@ class GroupModel {
         throw err;
       }
 
-      // 4) Validate co-advisors
       const coAdvisorIds = data.coAdvisorIds ?? [];
       const { existingIds: coAdvisorExisting, missing: coAdvisorMissing } =
         await validateCourseMembers(coAdvisorIds);
@@ -80,14 +75,13 @@ class GroupModel {
         throw err;
       }
 
-      // 5) Create members (only valid)
       if (data.memberIds?.length) {
         const rows = data.memberIds
           .filter((m) => memberExisting.has(m.id))
           .map(({ id, workRole }) => ({
-            courseMemberId: id,
-            groupId: newGroup.id,
-            workRole,
+            courseMemberId: id, 
+            groupId: newGroup.id, 
+            workRole: workRole ?? undefined, 
           }));
 
         if (rows.length) {
@@ -95,22 +89,20 @@ class GroupModel {
         }
       }
 
-      // 6) Create advisors
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({
-            courseMemberId,
+            courseMemberId, 
             groupId: newGroup.id,
             advisorRole: "ADVISOR",
           })),
         });
       }
 
-      // 7) Create co-advisors
       if (coAdvisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...coAdvisorExisting].map((courseMemberId) => ({
-            courseMemberId,
+            courseMemberId, 
             groupId: newGroup.id,
             advisorRole: "CO_ADVISOR",
           })),
@@ -121,7 +113,7 @@ class GroupModel {
     });
   }
 
-  static async getAllGroups(courseId: number) {
+  static async getAllGroups(courseId: string) {
     return prisma.group.findMany({
       where: { courseId },
       include: {
@@ -136,20 +128,19 @@ class GroupModel {
   }
 
   static async updateGroup(
-    groupId: number,
-    courseId: number,
+    groupId: string,
+    courseId: string,
     data: {
       codeNumber?: string | null;
       projectName?: string;
       productName?: string | null;
       company?: string | null;
-      memberIds?: { id: number; workRole: string }[];
-      advisorIds?: number[];
-      coAdvisorIds?: number[];
+      memberIds?: { id: string; workRole?: string | null }[];
+      advisorIds?: string[];
+      coAdvisorIds?: string[];
     }
   ) {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 0) Find group & verify it belongs to course
       const group = await tx.group.findUnique({
         where: { id: groupId },
         select: { id: true, courseId: true },
@@ -160,7 +151,6 @@ class GroupModel {
         throw err;
       }
 
-      // 1) Update core fields (patch only what's provided)
       const toUpdate: Prisma.GroupUpdateInput = {};
       if (data.codeNumber !== undefined) toUpdate.codeNumber = data.codeNumber;
       if (data.projectName !== undefined)
@@ -176,10 +166,9 @@ class GroupModel {
         });
       }
 
-      // Helper to validate CourseMember IDs for this course
-      const validateCourseMembers = async (ids: number[]) => {
+      const validateCourseMembers = async (ids: string[]) => {
         if (!ids?.length)
-          return { existingIds: new Set<number>(), missing: [] as number[] };
+          return { existingIds: new Set<string>(), missing: [] as string[] };
         const rows = await tx.courseMember.findMany({
           where: { courseId, id: { in: ids } },
           select: { id: true },
@@ -189,7 +178,6 @@ class GroupModel {
         return { existingIds, missing };
       };
 
-      // 2) Replace members if provided
       if (data.memberIds) {
         const memberIds = data.memberIds.map((m) => m.id);
         const { existingIds, missing } = await validateCourseMembers(memberIds);
@@ -201,24 +189,22 @@ class GroupModel {
           throw err;
         }
 
-        // remove all current members of this group
         await tx.groupMember.deleteMany({ where: { groupId } });
 
         if (existingIds.size) {
           const rows = data.memberIds
             .filter((m) => existingIds.has(m.id))
             .map(({ id, workRole }) => ({
-              courseMemberId: id,
+              courseMemberId: id, 
               groupId,
-              workRole: String(workRole ?? "").trim() || "STUDENT",
+              workRole: String(workRole ?? "").trim(),
             }));
           if (rows.length) await tx.groupMember.createMany({ data: rows });
         }
       }
 
-      // 3) Replace advisors/co-advisors if provided
       const replaceAdvisors = async (
-        ids: number[] | undefined,
+        ids: string[] | undefined,
         role: "ADVISOR" | "CO_ADVISOR"
       ) => {
         if (ids === undefined) return;
@@ -239,7 +225,7 @@ class GroupModel {
         if (existingIds.size) {
           await tx.groupAdvisor.createMany({
             data: [...existingIds].map((courseMemberId) => ({
-              courseMemberId,
+              courseMemberId, 
               groupId,
               advisorRole: role,
             })),
@@ -250,21 +236,16 @@ class GroupModel {
       await replaceAdvisors(data.advisorIds, "ADVISOR");
       await replaceAdvisors(data.coAdvisorIds, "CO_ADVISOR");
 
-      // 4) Return fresh group with relations
       const updated = await tx.group.findUnique({
         where: { id: groupId },
         include: {
           members: true,
           advisors: true,
-          submissions: true,
-          course: true,
         },
       });
       return updated!;
     });
   }
 }
-
-
 
 export default GroupModel;

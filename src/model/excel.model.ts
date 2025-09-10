@@ -11,7 +11,7 @@ function sOrNull(v: any): string | null {
   return t === "" ? null : t;
 }
 
-export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
+export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
   // 0) Determine program (CS | DSI)
   const course = await prisma.course.findUnique({
     where: { id: courseId },
@@ -146,7 +146,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
       who: "advisor" | "coAdvisor",
       ident: string,
       groupCode: string
-    ): Promise<{ userId: string; courseMemberId: number }> {
+    ): Promise<{ userId: string; courseMemberId: string }> {
       const raw0 = (ident ?? "").trim();
       if (!raw0) throw new Error(`Group ${groupCode}: ${who} is empty`);
 
@@ -323,8 +323,8 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
 
       // (C) Resolve & link advisors (idempotent)
       const advisorRefs: Array<{
-        courseMemberId: number;
-        groupId: number;
+        courseMemberId: string;
+        groupId: string;
         advisorRole: "ADVISOR" | "CO_ADVISOR";
       }> = [];
 
@@ -394,7 +394,7 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
         },
         select: { id: true, userId: true },
       });
-      const cmByUser = new Map<string, number>(
+      const cmByUser = new Map<string, string>(
         cmRows.map((r) => [r.userId, r.id])
       );
 
@@ -416,9 +416,9 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
 
       // Build lookup by courseMemberId
       const membershipByCmId = new Map<
-        number,
+        string,
         {
-          groupId: number;
+          groupId: string;
           codeNumber: string | null;
           projectName: string | null;
         }
@@ -460,8 +460,8 @@ export async function enrollFromWorkbook(courseId: number, fileBuffer: Buffer) {
           return { courseMemberId: cmId, groupId: group.id, workRole };
         })
         .filter(Boolean) as Array<{
-        courseMemberId: number;
-        groupId: number;
+        courseMemberId: string;
+        groupId: string;
         workRole: string;
       }>;
 

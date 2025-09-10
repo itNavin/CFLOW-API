@@ -1,6 +1,6 @@
 import { prisma } from "../prisma";
 import type { CoursePayload } from "../types/payload/course.type";
-import { ClassProgram, Program } from "../types/program";
+import { ClassProgram } from "../types/program";
 
 class CourseModel {
   static async createCourse(

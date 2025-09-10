@@ -6,12 +6,14 @@ import { enrollFromWorkbook } from "../model/excel.model";
 
 export const ImportController = {
   downloadTemplate: async (c: Context) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isFinite(courseId)) return c.text("Invalid courseId", 400);
-
     const role = c.get("role");
-    if (role !== "lecturer" && role !== "staff")
-      return c.text("Forbidden: only lecturers and staff can download templates", 403);
+    if (role !== "staff") {
+      return c.json({ message: "Forbidden: staff only" }, 403);
+    }
+    const courseId = c.req.param("courseId");
+    if (!courseId) {
+      return c.json({ message: "courseId is required" }, 400);
+    }
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
@@ -44,16 +46,16 @@ export const ImportController = {
   },
 
   uploadAndEnroll: async (c: Context) => {
-    const courseId = Number(c.req.param("courseId"));
-    if (!Number.isFinite(courseId))
-      return c.json({ message: "Invalid courseId" }, 400);
-
     const role = c.get("role");
     if (role !== "staff")
       return c.json(
         { message: "Forbidden: only staff can import enrollments" },
         403
       );
+      
+    const courseId = c.req.param("courseId");
+    if (!courseId) return c.json({ message: "courseId is required" }, 400);
+
     const form = await c.req.formData();
     const file = form.get("file") as File | null;
     if (!file) return c.json({ message: "file is required" }, 400);

@@ -1,25 +1,27 @@
 import { Context } from "hono";
-import GroupModel from "../model/group.model";
-import { GroupPayload } from "../types/payload/group.type";
 
-function toNumberArray(maybeArray: any): number[] {
-  if (!Array.isArray(maybeArray)) return [];
-  return maybeArray
-    .map((v: any) => (typeof v === "object" && v !== null ? v.id : v))
-    .map((x: any) => Number(x))
-    .filter((n) => Number.isFinite(n));
-}
+import GroupModel from "../model/group.model";
+
+import { GroupPayload } from "../types/payload/group.type";
+import { isValidUUID } from "../types/uuid";
 
 export const GroupController = {
-  // POST /group/createGroup/:courseId
   createGroup: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      const body = await c.req.json<GroupPayload.Group>();
-
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
       }
+      const body = await c.req.json<GroupPayload.createGroup>();
+
+      const courseId = body.courseId;
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if(!isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+      }
+
       if (!body?.projectName) {
         return c.json({ error: "projectName is required" }, 400);
       }
@@ -33,24 +35,27 @@ export const GroupController = {
         projectName: body.projectName,
         productName: body.productName ?? null,
         company: body.company ?? null,
-        //members
         memberIds: Array.isArray(body.memberIds)
           ? body.memberIds.map((m) => ({
               id: m.id,
               workRole: m.workRole,
             }))
           : [],
-        //advisors
         advisorIds: Array.isArray(body.advisorIds)
           ? body.advisorIds.map((ad) => ad.id)
           : [],
-        //coAdvisors
         coAdvisorIds: Array.isArray(body.coAdvisorIds)
           ? body.coAdvisorIds.map((ad) => ad.id)
           : [],
       });
 
-      return c.json(newGroup, 201);
+      return c.json(
+        {
+          message: "Group created successfully",
+          group: newGroup,
+        },
+        201
+      );
     } catch (error: any) {
       if (error?.status === 400) {
         return c.json({ error: error.message }, 400);
@@ -58,40 +63,72 @@ export const GroupController = {
       if (error?.code === "P2002") {
         return c.json({ error: "Duplicate codeNumber in this course" }, 409);
       }
-      console.error("Error creating group:", error);
-      return c.json({ error: "Failed to create group" }, 500);
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // GET /group/:courseId
   getAllGroups: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
       }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if(!isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+      }
+
       const groups = await GroupModel.getAllGroups(courseId);
-      return c.json(groups, 200);
+      return c.json(
+        {
+          message: "Groups retrieved successfully",
+          groups: groups,
+        },
+        200
+      );
     } catch (error) {
-      console.error("Error fetching groups:", error);
-      return c.json({ error: "Failed to fetch groups" }, 500);
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // PATCH /group/:courseId/:groupId
   updateGroup: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      const groupId = Number(c.req.param("groupId"));
-
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
-      }
-      if (!groupId || Number.isNaN(groupId)) {
-        return c.json({ error: "Invalid groupId" }, 400);
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
       }
 
-      const body = await c.req.json<GroupPayload.Group>();
+      const body = await c.req.json<GroupPayload.updateGroup>();
+
+      const courseId = String(body.courseId ?? "").trim();
+      if(!isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+      }
+
+      const groupId = String(body.groupId ?? "").trim();
+      if(!isValidUUID(groupId)) {
+        return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
+      }
 
       const payload = {
         codeNumber:
@@ -101,50 +138,70 @@ export const GroupController = {
             ? body.codeNumber.trim()
             : undefined,
 
-        projectName: body.projectName,
+        projectName:
+          typeof body.projectName === "string"
+            ? body.projectName.trim()
+            : undefined,
 
         productName:
           body.productName === null
             ? null
-            : body.productName
+            : typeof body.productName === "string" && body.productName.trim()
             ? body.productName.trim()
             : undefined,
 
         company:
           body.company === null
             ? null
-            : body.company
+            : typeof body.company === "string" && body.company.trim()
             ? body.company.trim()
             : undefined,
 
         memberIds: Array.isArray(body.memberIds)
-          ? body.memberIds.map((m) => ({
-              id: Number(m.id),
-              workRole: m.workRole.trim() || "STUDENT",
-            }))
+          ? body.memberIds
+              .map((m) => ({
+                id: String(m.id ?? "").trim(),
+                workRole: String(m.workRole ?? "").trim() || "STUDENT",
+              }))
+              .filter((m) => isValidUUID(m.id))
           : undefined,
 
-        advisorIds:
-          body.advisorIds !== undefined
-            ? toNumberArray(body.advisorIds)
-            : undefined,
+        advisorIds: Array.isArray(body.advisorIds)
+          ? body.advisorIds
+              .map((a) => String(a.id ?? "").trim())
+              .filter((id) => isValidUUID(id))
+          : undefined,
 
-        coAdvisorIds:
-          body.coAdvisorIds !== undefined
-            ? toNumberArray(body.coAdvisorIds)
-            : undefined,
+        coAdvisorIds: Array.isArray(body.coAdvisorIds)
+          ? body.coAdvisorIds
+              .map((a) => String(a.id ?? "").trim())
+              .filter((id) => isValidUUID(id))
+          : undefined,
       } as const;
 
       const updated = await GroupModel.updateGroup(groupId, courseId, payload);
-      return c.json(updated, 200);
+      return c.json(
+        {
+          message: "Group updated successfully",
+          group: updated,
+        },
+        200
+      );
     } catch (error: any) {
       if (error?.status === 404) return c.json({ error: error.message }, 404);
       if (error?.status === 400) return c.json({ error: error.message }, 400);
       if (error?.code === "P2002") {
         return c.json({ error: "Duplicate codeNumber in this course" }, 409);
       }
-      console.error("Error updating group:", error);
-      return c.json({ error: "Failed to update group" }, 500);
+      console.error({
+        context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 };

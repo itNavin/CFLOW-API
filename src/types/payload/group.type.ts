@@ -1,5 +1,6 @@
 export namespace GroupPayload {
-  export type Group = {
+  export type createGroup = {
+    courseId: string;
     projectName: string;
     codeNumber?: string;
     productName?: string;
@@ -8,17 +9,29 @@ export namespace GroupPayload {
     advisorIds?: AdvisorId[];
     coAdvisorIds?: CoAdvisorId[];
   };
+  export type updateGroup = {
+    courseId: string;
+    groupId: string;
+    projectName: string;
+    codeNumber?: string;
+    productName?: string;
+    company?: string;
+    memberIds: MemberPayload[];
+    advisorIds?: AdvisorId[];
+    coAdvisorIds?: CoAdvisorId[];
+  };
+  
 }
 
 type MemberPayload = {
-  id: number;
+  id: string;
   workRole: string;
 };
 
 type AdvisorId = {
-  id: number;
+  id: string;
 };
 
 type CoAdvisorId = {
-  id: number;
+  id: string;
 };
