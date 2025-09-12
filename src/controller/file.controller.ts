@@ -16,37 +16,27 @@ export const FileController = {
       const userId = c.get("userId");
       if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-      const courseId = Number(c.req.param("courseId"));
-      if (!Number.isFinite(courseId) || courseId <= 0) {
-        return c.json({ error: "Invalid courseId" }, 400);
-      }
-
       const body = await c.req.json<any>();
+      const courseId = body.courseId;
       const name = String(body.name ?? "").trim();
       const filepath = String(body.filepath ?? "").trim();
       const announcementId =
         body.announcementId !== undefined && body.announcementId !== null
-          ? Number(body.announcementId)
+          ? String(body.announcementId)
           : undefined;
 
       if (!name) return c.json({ error: "name is required" }, 400);
       if (!filepath) return c.json({ error: "filepath is required" }, 400);
-      if (
-        announcementId !== undefined &&
-        (Number.isNaN(announcementId) || announcementId <= 0)
-      ) {
-        return c.json(
-          { error: "announcementId must be a positive number" },
-          400
-        );
+      if (announcementId !== undefined) {
+        return c.json({ error: "announcementId must be a valid UUID" }, 400);
       }
 
       const file = await FileModel.createFile({
         name,
         filepath,
-        createdById: userId, 
-        courseId, 
-        announcementId, 
+        createdById: userId,
+        courseId,
+        announcementId,
       });
 
       return c.json(file, 201);

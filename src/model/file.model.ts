@@ -21,8 +21,8 @@ class FileModel {
     name: string;
     filepath: string;
     createdById: string;
-    courseId?: number; 
-    announcementId?: number | null; 
+    courseId?: string; 
+    announcementId?: string | null; 
   }) {
 
     const creator = await prisma.user.findUnique({
