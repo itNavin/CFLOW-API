@@ -8,8 +8,8 @@ function extFromUrl(u: string): string | null {
 
 export type CreateSubmissionInput = {
   userId: string;
-  courseId: number;
-  assignmentId: number; 
+  courseId: string;
+  assignmentId: string;
   comment: string;
 };
 
@@ -94,8 +94,8 @@ class SubmissionModel {
     });
   }
   static async createSubmissionFile(data: {
-    submissionId: number;
-    deliverableId: number;
+    submissionId: string;
+    deliverableId: string;
     fileUrl: string;
   }) {
     return prisma.submissionFile.create({

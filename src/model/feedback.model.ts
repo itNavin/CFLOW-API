@@ -1,14 +1,13 @@
-// src/model/feedback.model.ts
 import { prisma } from "../prisma";
 import { Prisma } from "@prisma/client";
 
 export type CreateFeedbackInput = {
-  submissionId: number;
-  comment: string;
-  //files: Array<{ deliverableId: number; fileUrls: string[] }>;
-  newDueDate: Date;
+  submissionId: string;
+  comment?: string | null;
   newStatus: "REJECTED" | "APPROVED_WITH_FEEDBACK" | "FINAL";
+  newDueDate?: Date | null; 
 };
+
 
 class FeedbackModel {
   static async createFeedback(input: CreateFeedbackInput) {
@@ -16,7 +15,6 @@ class FeedbackModel {
 
     return prisma
       .$transaction(async (tx) => {
-        // 1) Load submission + related info (include assignment.endDate for validation)
         const submission = await tx.submission.findUnique({
           where: { id: submissionId },
           select: {
@@ -34,78 +32,50 @@ class FeedbackModel {
         });
         if (!submission) throw new Error("Submission not found");
 
-        const now = new Date();
-
-        // 1.1) Validate newDueDate: now <= newDueDate <= assignment.endDate
-        if (!(newDueDate instanceof Date) || isNaN(newDueDate.getTime())) {
-          throw new Error("newDueDate must be a valid Date");
-        }
-        if (newDueDate < now) {
-          throw new Error(
-            `newDueDate must not be in the past. Received: ${newDueDate.toISOString()}, now: ${now.toISOString()}`
-          );
-        }
-        if (newDueDate > submission.assignment.endDate) {
-          throw new Error(
-            `newDueDate must be on or before the assignment endDate (${submission.assignment.endDate.toISOString()})`
-          );
-        }
-
-        // 2) Validate deliverables belong to this assignment
-        const validDeliverableIds = new Set(
-          submission.assignment.deliverables.map((d) => d.id)
-        );
-        // for (const f of files ?? []) {
-        //   if (!validDeliverableIds.has(f.deliverableId)) {
-        //     throw new Error(
-        //       `deliverableId ${f.deliverableId} does not belong to assignment ${submission.assignmentId}`
-        //     );
-        //   }
-        // }
-
-        // 3) Create feedback (+ files)
         const feedback = await tx.feedback.create({
           data: {
             submissionId: submission.id,
             comment,
-            // feedbackFiles: files?.length
-            //   ? {
-            //       create: files.map((f) => ({
-            //         deliverableId: f.deliverableId,
-            //         fileUrl: f.fileUrls,
-            //       })),
-            //     }
-            //   : undefined,
-          },
-          // include: {
-          //   feedbackFiles: {
-          //     include: { deliverable: true },
-          //     orderBy: { id: "asc" },
-          //   },
-          // },
-        });
-
-        // 4) Update AssignmentDueDate for this group (upsert in case missing)
-        await tx.assignmentDueDate.upsert({
-          where: {
-            assignmentId_groupId: {
-              assignmentId: submission.assignmentId,
-              groupId: submission.groupId,
-            },
-          },
-          update: { dueDate: newDueDate },
-          create: {
-            assignmentId: submission.assignmentId,
-            groupId: submission.groupId,
-            dueDate: newDueDate,
           },
         });
 
-        // 5) Update submission status
         await tx.submission.update({
           where: { id: submission.id },
           data: { status: newStatus },
         });
+
+        if (newStatus !== "FINAL" && newDueDate != null) {
+          if (!(newDueDate instanceof Date) || isNaN(newDueDate.getTime())) {
+            throw new Error("newDueDate must be a valid Date");
+          }
+
+          const now = new Date();
+          if (newDueDate < now) {
+            throw new Error(
+              `newDueDate must not be in the past. Received: ${newDueDate.toISOString()}, now: ${now.toISOString()}`
+            );
+          }
+          if (newDueDate > submission.assignment.endDate) {
+            throw new Error(
+              `newDueDate must be on or before the assignment endDate (${submission.assignment.endDate.toISOString()})`
+            );
+          }
+
+          await tx.assignmentDueDate.upsert({
+            where: {
+              assignmentId_groupId: {
+                assignmentId: submission.assignmentId,
+                groupId: submission.groupId,
+              },
+            },
+            update: { dueDate: newDueDate },
+            create: {
+              assignmentId: submission.assignmentId,
+              groupId: submission.groupId,
+              dueDate: newDueDate,
+            },
+          });
+        }
 
         const updatedDue = await tx.assignmentDueDate.findUnique({
           where: {
@@ -120,7 +90,7 @@ class FeedbackModel {
         return {
           feedback,
           submission: { id: submission.id, status: newStatus },
-          assignmentDueDate: updatedDue,
+          assignmentDueDate: updatedDue, 
         };
       })
       .catch((err) => {
@@ -135,15 +105,13 @@ class FeedbackModel {
   }
 
   static async createFeedbackFile(data: {
-    feedbackId: number;
-    
-    deliverableId: number;
+    feedbackId: string;
+    deliverableId: string;
     fileUrl: string;
   }) {
     return prisma.feedbackFile.create({
       data: {
         feedbackId: data.feedbackId,
-        
         deliverableId: data.deliverableId,
         fileUrl: [data.fileUrl],
       },
