@@ -8,9 +8,9 @@ export type ChangeFileNameInput = {
   mime?: string;
   originalName?: string;
   partIndex?: number;
-  deliverableId?: number;
-  courseId?: number;
-  assignmentId?: number;
+  deliverableId?: string;
+  courseId?: string;
+  assignmentId?: string;
 };
 
 function extFromOriginalName(name?: string): string | undefined {
