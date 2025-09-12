@@ -1,5 +1,6 @@
 export namespace AnnouncementPayload {
   export type CreateAnnouncement = {
+    courseId: string;
     name: string;
     description: string;
     schedule: string;

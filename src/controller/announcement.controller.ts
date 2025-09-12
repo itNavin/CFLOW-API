@@ -1,9 +1,9 @@
 import { Context } from "hono";
 import AnnouncementModel from "../model/announcement.model";
 import { AnnouncementPayload } from "../types/payload//announcement.type";
+import { isValidUUID } from "../types/uuid";
 
 export const AnnouncementController = {
-  // POST /announcement/create/:courseId
   createAnnouncement: async (c: Context) => {
     try {
       const role = c.get("role");
@@ -11,17 +11,21 @@ export const AnnouncementController = {
       if (role !== "staff" && role !== "lecturer" && role !== "SUPER_ADMIN") {
         return c.json({ error: "Forbidden: STAFF and LECTURER only" }, 403);
       }
-      const courseId = Number(c.req.param("courseId"));
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
-      }
 
       const body = await c.req.json<AnnouncementPayload.CreateAnnouncement>();
 
+      const courseId = body.courseId;
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      }
+
       const name = body.name ? body.name.trim() : undefined;
       const description = body.description
-          ? body.description.trim()
-          : undefined;
+        ? body.description.trim()
+        : undefined;
 
       const scheduleStr = body.schedule;
       const schedule = new Date(scheduleStr);
@@ -35,47 +39,44 @@ export const AnnouncementController = {
         );
       }
 
-      // const createById = body.createById;
-      // if (!createById || Number.isNaN(createById)) {
-      //   return c.json(
-      //     { error: "createById is required and must be a number" },
-      //     400
-      //   );
-      // }
-
-      // const files = Array.isArray(body.files)
-      //   ? body.files.map(
-      //       (f) => ({
-      //         name: f.name.trim(),
-      //         filepath: f.filepath.trim(),
-      //         uploadById: f.uploadById,
-      //       })
-      //     )
-      //   : undefined;
-
       const created = await AnnouncementModel.createAnnouncement({
         courseId,
         name,
         description,
         schedule,
         userId,
-        // files,
       });
 
-      return c.json(created, 201);
-    } catch (err: any) {
-      console.error("Error creating announcement:", err);
-      return c.json({ error: "Failed to create announcement" }, 500);
+      return c.json(
+        {
+          message: "The announcement has been created successfully",
+          announcement: created,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "createAnnouncement",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
   
-  // GET /announcement/:courseId
   getAllAnnouncement: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
       }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      }
+
       const url = new URL(c.req.url);
       const all = url.searchParams.get("all");
       const publishedOnly = !(all && all.toLowerCase() === "true");
@@ -84,10 +85,23 @@ export const AnnouncementController = {
         courseId,
         publishedOnly
       );
-      return c.json(rows, 200);
-    } catch (err) {
-      console.error("Error fetching announcements:", err);
-      return c.json({ error: "Failed to fetch announcements" }, 500);
+      return c.json(
+        {
+          message: "The announcements have been fetched successfully",
+          announcements: rows,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getAllAnnouncement",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 };

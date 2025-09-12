@@ -29,7 +29,7 @@ export const DashboardController = {
     try {
       const userId = c.get("userId");
       console.log("userId", userId);
-      
+
       const role = c.get("role");
       const courseId = c.req.param("courseId");
       if (role === "student") {
@@ -39,14 +39,26 @@ export const DashboardController = {
         );
         return c.json(groupInformation, 200);
       } else {
-        const groupInformation = await DashboardModel.getGroupInformationforAdvisor(
-          userId,
-          courseId
+        const groupInformation =
+          await DashboardModel.getGroupInformationforAdvisor(userId, courseId);
+        return c.json(
+          {
+            message: "The group information has been fetched successfully",
+            groupInformation: groupInformation,
+          },
+          200
         );
-        return c.json(groupInformation, 200);
       }
-    } catch (e) {
-      return c.json({ error: "Failed to fetch groups", e }, 500);
+    } catch (error) {
+      console.error({
+        context: "getGroupInformationDashboard",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
@@ -64,8 +76,6 @@ export const DashboardController = {
       if (!isValidUUID(courseId)) {
         return c.json({ message: "Invalid courseId format" }, 400);
       }
-
-
 
       const assignmentId = readOptionalId(c, "assignmentId");
       console.log("assignmentId", assignmentId);
@@ -93,10 +103,23 @@ export const DashboardController = {
         : await DashboardModel.getCourseSummary(courseId, asOf);
 
       if (!summary) return c.json({ message: "Course not found" }, 404);
-      return c.json(summary, 200);
-    } catch (err) {
-      console.error("Error fetching dashboard summary:", err);
-      return c.json({ message: "Internal server error" }, 500);
+      return c.json(
+        {
+          message: "Success",
+          course: summary,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getCourseSummaryUnified",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 };
