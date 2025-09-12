@@ -1,20 +1,20 @@
 import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
 
-export type AssignmentsByGroupLite = {
-  courseId: number;
-  groupId: number;
+type AssignmentsByGroupLite = {
+  courseId: string;
+  groupId: string;
   counts: { open: number; submitted: number };
   openTasks: Array<{
-    id: number;
+    id: string;
     name: string;
     description: string | null;
-    endDate: Date; // will serialize to ISO in JSON
+    endDate: Date;
     schedule: Date | null;
-    dueDate: Date | null; // per-group due date
+    dueDate: Date | null;
   }>;
   submitted: Array<{
-    id: number;
+    id: string;
     name: string;
     description: string | null;
     endDate: Date;
@@ -25,7 +25,7 @@ export type AssignmentsByGroupLite = {
 
 
 export type CreateAssignmentInput = {
-  courseId: number;
+  courseId: string;
   name: string;
   description: string;
   endDate: Date;
@@ -33,7 +33,6 @@ export type CreateAssignmentInput = {
   dueDate: Date;
   deliverables?: Array<{
     name: string;
-    // can be ["pdf", "docx"] OR [{ mime, type }]
     allowedFileTypes?: Array<string | { mime: string; type?: string }>;
   }>;
 };
@@ -111,19 +110,16 @@ function normalizeAllowedFileTypes(
 }
 
 class AssignmentModel {
-  static async getGroupsByLecturerId(userId: string, courseId: number) {
+  static async getGroupsByLecturerId(userId: string, courseId: string) {
     return prisma.group.findMany({
       where: {
         courseId,
-        // at least one advisor whose courseMember.user.id === uid
         advisors: {
           some: {
             courseMember: {
               user: {
                 id: userId,
               },
-              // OR slightly faster (uses the FK on CourseMember):
-              // userId: uid
             },
           },
         },
@@ -135,7 +131,6 @@ class AssignmentModel {
 
   static async createAssignment(data: CreateAssignmentInput) {
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // 1) Create assignment (we’ll add deliverables afterward so we can normalize types)
       const assignment = await tx.assignment.create({
         data: {
           courseId: data.courseId,
@@ -146,7 +141,6 @@ class AssignmentModel {
         },
       });
 
-      // 2) Create deliverables + allowedFileTypes
       if (data.deliverables?.length) {
         for (const d of data.deliverables) {
           const createdDeliverable = await tx.deliverable.create({
@@ -170,7 +164,6 @@ class AssignmentModel {
         }
       }
 
-      // 3) Add due date to all groups in course
       const groups = await tx.group.findMany({
         where: { courseId: data.courseId },
         select: { id: true },
@@ -187,7 +180,6 @@ class AssignmentModel {
         });
       }
 
-      // 4) Return full assignment with normalized file types included
       const full = await tx.assignment.findUnique({
         where: { id: assignment.id },
         include: {
@@ -200,7 +192,7 @@ class AssignmentModel {
     });
   }
 
-  static async getAllAssignments(courseId: number) {
+  static async getAllAssignments(courseId: string) {
     const now = new Date();
     return prisma.assignment.findMany({
       where: { courseId, schedule: { lte: now } },
@@ -209,8 +201,8 @@ class AssignmentModel {
   }
 
   static async getAssignmentWithSubmissions(
-    assignmentId: number,
-    groupId: number
+    assignmentId: string,
+    groupId: string
   ) {
     return prisma.assignment.findUnique({
       where: { id: assignmentId },
@@ -248,14 +240,20 @@ class AssignmentModel {
     });
   }
 
-  static async getAssignmentsForGroup(
-    courseId: number,
-    groupId: number
+  static async getStudentAssignmentByGroupId(
+    courseId: string,
+    assignmentId: string,
+    groupId: string
   ): Promise<AssignmentsByGroupLite> {
     const now = new Date();
 
+    // restrict to this single assignment (and ensure it's in this course)
     const assignments = await prisma.assignment.findMany({
-      where: { courseId, schedule: { lte: now } }, // only released
+      where: {
+        id: assignmentId,
+        courseId,
+        schedule: { lte: now },
+      },
       select: {
         id: true,
         name: true,
@@ -267,7 +265,6 @@ class AssignmentModel {
           select: { dueDate: true },
           take: 1,
         },
-        // Pull just one submission id to know if the group has submitted
         submissions: {
           where: { groupId },
           select: { id: true },

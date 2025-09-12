@@ -4,23 +4,30 @@ import { AssignmentController } from "../controller/assignment.controller";
 export const assignmentRouter = new Hono();
 
 assignmentRouter.post(
-  "/create/course/:courseId",
+  "/create",
   AssignmentController.createAssignment
 );
 
+//For advisor and staff
 assignmentRouter.get(
-  "/course/:courseId",
-  AssignmentController.getAllAssignments
+  "/getAllAssignments/course/:courseId",
+  AssignmentController.getAllAssignmentsByCourseId
+);
+
+//For student
+assignmentRouter.get(
+  "/getStudentAssignmentByGroupId/course/:courseId/assignment/:assignmentId",
+  AssignmentController.getStudentAssignmentByGroupId
 );
 
 assignmentRouter.get(
-  "/course/:courseId/assignment/:assignmentId",
+  "/getSubmissionDetail/course/:courseId/assignment/:assignmentId",
+  AssignmentController.getAssignmentWithSubmissions
+);
+assignmentRouter.get(
+  "/getSubmissionDetail/course/:courseId/assignment/:assignmentId/group/:groupId",
   AssignmentController.getAssignmentWithSubmissions
 );
 
-assignmentRouter.get(
-  "/course/:courseId/group/:groupId/summary",
-  AssignmentController.getAssignmentsByGroup
-);
 
-assignmentRouter.get("/course/:courseId/groupAdvisor", AssignmentController.getGroupByLecturerId)
+assignmentRouter.get("/getGroupByLecturerId/course/:courseId", AssignmentController.getGroupByLecturerId)

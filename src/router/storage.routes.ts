@@ -9,10 +9,10 @@ storageRouter.post(
 );
 
 storageRouter.post(
-  "/upload/submission/course/:courseId",
+  "/upload/submission",
   StorageController.UploadSubmissionFile
 );
 storageRouter.post(
-  "/upload/feedback/course/:courseId",
+  "/upload/feedback",
   StorageController.UploadFeedbackFile
 );

@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import DashboardModel from "../model/dashboard.model";
+import { isValidUUID } from "src/types/uuid";
 
 function parseAsOf(c: Context): Date | undefined {
   const s = c.req.query("asOf");
@@ -30,7 +31,7 @@ export const DashboardController = {
       console.log("userId", userId);
       
       const role = c.get("role");
-      const courseId = Number(c.req.param("courseId"));
+      const courseId = c.req.param("courseId");
       if (role === "student") {
         const groupInformation = await DashboardModel.getGroupInformation(
           userId,
@@ -51,11 +52,20 @@ export const DashboardController = {
 
   getCourseSummaryUnified: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
       const userId = c.get("userId");
-      if (!Number.isFinite(courseId)) {
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
         return c.json({ message: "Invalid courseId" }, 400);
       }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
+
+
 
       const assignmentId = readOptionalId(c, "assignmentId");
       console.log("assignmentId", assignmentId);
@@ -76,8 +86,8 @@ export const DashboardController = {
 
       const summary = hasFilters
         ? await DashboardModel.getCourseSummaryFiltered(courseId, {
-            assignmentId: assignmentId as number | undefined,
-            groupId: groupId as number | undefined,
+            assignmentId: assignmentId as string | undefined,
+            groupId: groupId as string | undefined,
             asOf,
           })
         : await DashboardModel.getCourseSummary(courseId, asOf);

@@ -18,7 +18,7 @@ courseMemberRouter.get(
   "/studentsNotInCourse/course/:courseId",
   CourseMemberController.getStudentNotInCourse
 );
-courseMemberRouter.post("/members/course", CourseMemberController.addMembers);
+courseMemberRouter.post("/addMembers", CourseMemberController.addMembers);
 courseMemberRouter.delete(
   "/deleteMembers",
   CourseMemberController.deleteCourseMembers

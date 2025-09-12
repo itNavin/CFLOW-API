@@ -2,28 +2,53 @@ import type { Context } from "hono";
 import { prisma } from "../prisma";
 import AssignmentModel from "../model/assignment.model";
 import { AssignmentPayload } from "src/types/payload/assignment.types";
-import { log } from "console";
+import { isValidUUID } from "../types/uuid";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
     try {
       const role = c.get("role");
+      if (role != "lecturer") {
+        return c.json({ error: "Forbidden: lecturer only" }, 403);
+      }
+
       const userId = c.get("userId");
-      const courseId = Number(c.req.param("courseId"));
-      console.log("userId", userId);
-      console.log("courseId", courseId);
+      if (!userId) {
+        return c.json({ error: "Unauthorized" }, 401);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
+      }
 
       const groups = await AssignmentModel.getGroupsByLecturerId(
         userId,
         courseId
       );
-      return c.json(groups, 200);
-    } catch (e) {
-      return c.json({ error: "Failed to fetch groups" }, 500);
+      return c.json(
+        {
+          message: "Get lecturer's groups successfully",
+          groups: groups,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getGroupByLecturerId",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // POST /assignment/create/:courseId
   createAssignment: async (c: Context) => {
     try {
       const role = c.get("role");
@@ -31,25 +56,34 @@ export const AssignmentController = {
         return c.json({ error: "Forbidden: STAFF only" }, 403);
       }
 
-      const courseId = Number(c.req.param("courseId"));
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
-      }
-
       const body = await c.req.json<AssignmentPayload.CreateAssignment>();
 
-      const name = body.name.trim();
-      const description = body.description.trim();
-      const endDateStr = body.endDate;
-      const scheduleStr = body.schedule;
-      const dueDateStr = body.dueDate;
+      const courseId = body.courseId;
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      }
 
-      if (!name) return c.json({ error: "name is required" }, 400);
-      if (!description)
-        return c.json({ error: "description is required" }, 400);
-      if (!endDateStr) return c.json({ error: "endDate is required" }, 400);
-      if (!scheduleStr) return c.json({ error: "schedule is required" }, 400);
-      if (!dueDateStr) return c.json({ error: "dueDate is required" }, 400);
+      const name = body.name.trim();
+      if (!name) {
+        return c.json({ error: "name is required" }, 400);
+      }
+      const description = body.description.trim();
+
+      const endDateStr = body.endDate;
+      if (!endDateStr) {
+        return c.json({ error: "endDate is required" }, 400);
+      }
+      const scheduleStr = body.schedule;
+      if (!scheduleStr) {
+        return c.json({ error: "schedule is required" }, 400);
+      }
+      const dueDateStr = body.dueDate;
+      if (!dueDateStr) {
+        return c.json({ error: "dueDate is required" }, 400);
+      }
 
       const endDate = new Date(endDateStr);
       const schedule = new Date(scheduleStr);
@@ -74,74 +108,144 @@ export const AssignmentController = {
         deliverables,
       });
 
-      return c.json(created, 201);
-    } catch (err) {
-      console.error("Error creating assignment:", err);
-      return c.json({ error: "Failed to create assignment" }, 500);
+      return c.json(
+        {
+          message: "The assignment has been created successfully",
+          assignment: created,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "createAssignment",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // GET /assignment/course/:courseId
-  getAllAssignments: async (c: Context) => {
+  getAllAssignmentsByCourseId: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!courseId || Number.isNaN(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const role = c.get("role");
+      if (role !== "staff" && role !== "lecturer" && role !== "student") {
+        return c.json(
+          { error: "Forbidden: staff, lecturer, student only" },
+          403
+        );
+      }
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
       }
 
       const rows = await AssignmentModel.getAllAssignments(courseId);
-      return c.json(rows, 200);
-    } catch (err) {
-      console.error("Error fetching assignments:", err);
-      return c.json({ error: "Failed to fetch assignments" }, 500);
+      return c.json(
+        {
+          message: "The assignments have been fetched successfully",
+          assignments: rows,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "createAssignment",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
-  // GET /assignment/:assignmentId/group/:groupId
   getAssignmentWithSubmissions: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      const assignmentId = Number(c.req.param("assignmentId"));
-      const role = String(c.get("role") ?? "");
-      const userId = String(c.get("userId") ?? "");
-      console.log("courseId", courseId);
-      console.log("assignmentId", assignmentId);
-      console.log("role", role);
-      console.log("userId", userId);
-
-
-      if (!Number.isFinite(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const role = c.get("role");
+      if (!["staff", "lecturer", "student"].includes(role)) {
+        return c.json(
+          { message: "Forbidden: staff, lecturer, student only" },
+          403
+        );
       }
-      if (!Number.isFinite(assignmentId)) {
-        return c.json({ error: "Invalid assignmentId" }, 400);
+
+      const courseId = c.req.param("courseId");
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
+
+      const assignmentId = c.req.param("assignmentId");
+      if (!assignmentId)
+        return c.json({ message: "assignmentId is required" }, 400);
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
+      }
+
+      const userId = c.get("userId");
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
 
       const assignment = await prisma.assignment.findUnique({
         where: { id: assignmentId },
         select: { courseId: true },
       });
-      if (!assignment) return c.json({ error: "Assignment not found" }, 404);
+      if (!assignment) return c.json({ message: "Assignment not found" }, 404);
       if (assignment.courseId !== courseId) {
         return c.json(
-          { error: "Assignment does not belong to this course" },
+          { message: "Assignment does not belong to this course" },
           400
         );
       }
 
-      let groupId: number | undefined;
+      const groupIdParam = c.req.param("groupId"); 
 
-      if (role === "student") {
-        console.log("get in student block");
-        
-        if (!userId) return c.json({ error: "Unauthorized" }, 401);
+      let groupId: string;
+
+      if (groupIdParam) {
+        if (!isValidUUID(groupIdParam)) {
+          return c.json({ message: "groupId must be a valid UUID" }, 400);
+        }
+        if (!["lecturer", "staff"].includes(role)) {
+          return c.json(
+            { message: "Forbidden: lecturer, staff only for this route" },
+            403
+          );
+        }
+
+        const group = await prisma.group.findFirst({
+          where: { id: groupIdParam, courseId },
+          select: { id: true },
+        });
+        if (!group)
+          return c.json({ message: "Group not found in this course" }, 404);
+
+        groupId = groupIdParam;
+      } else {
+        if (role !== "student") {
+          return c.json(
+            {
+              message: "groupId path parameter is required for lecturer/staff",
+            },
+            400
+          );
+        }
 
         const cm = await prisma.courseMember.findUnique({
           where: { courseId_userId: { courseId, userId } },
           select: { id: true },
         });
         if (!cm) {
-          return c.json({ error: "You are not a member of this course" }, 403);
+          return c.json(
+            { message: "You are not a member of this course" },
+            403
+          );
         }
 
         const memberships = await prisma.groupMember.findMany({
@@ -152,83 +256,134 @@ export const AssignmentController = {
 
         if (memberships.length === 0) {
           return c.json(
-            { error: "You are not in any group for this course" },
+            { message: "You are not in any group for this course" },
             400
           );
         }
         if (memberships.length > 1) {
           return c.json(
             {
-              error:
-                "You belong to multiple groups in this course. Please specify groupId as a query parameter.",
+              message:
+                "You belong to multiple groups in this course. Please contact staff to specify the group.",
               groupIds: memberships.map((m) => m.groupId),
             },
             409
           );
         }
-        groupId = memberships[0].groupId;
-      } else if (
-        role === "lecturer" ||
-        role === "staff" ||
-        role === "SUPER_ADMIN"
-      ) {
-        console.log("get in lecturer, staff block");
-        const gidParam = c.req.query("groupId");
-        const gid = gidParam != null ? Number(gidParam) : NaN;
-        if (!Number.isFinite(gid)) {
-          return c.json(
-            {
-              error: "groupId query parameter is required and must be a number",
-            },
-            400
-          );
-        }
 
-        const group = await prisma.group.findFirst({
-          where: { id: gid, courseId },
-          select: { id: true },
-        });
-        if (!group) {
-          return c.json({ error: "Group not found in this course" }, 404);
-        }
-        groupId = gid;
-      } else {
-        return c.json({ error: "Forbidden" }, 403);
+        groupId = memberships[0].groupId;
       }
 
       const data = await AssignmentModel.getAssignmentWithSubmissions(
         assignmentId,
-        groupId!
+        groupId
       );
-      if (!data) return c.json({ error: "Assignment not found" }, 404);
+      if (!data) return c.json({ message: "Assignment not found" }, 404);
 
-      return c.json(data, 200);
-    } catch (err) {
-      console.error("Error fetching assignment details:", err);
-      return c.json({ error: "Failed to fetch assignment details" }, 500);
+      return c.json(
+        {
+          message: "Assignment with submissions fetched successfully",
+          assignment: data,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getAssignmentWithSubmissions",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json({ message: "Failed to fetch assignment details" }, 500);
     }
   },
 
-  getAssignmentsByGroup: async (c: Context) => {
+  getStudentAssignmentByGroupId: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      const groupId = Number(c.req.param("groupId"));
+      const courseId = c.req.param("courseId");
+      const assignmentId = c.req.param("assignmentId");
 
-      if (!Number.isFinite(courseId)) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
-      if (!Number.isFinite(groupId)) {
-        return c.json({ error: "Invalid groupId" }, 400);
+      if (!assignmentId) {
+        return c.json({ message: "assignmentId is required" }, 400);
+      }
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
       }
 
-      const data = await AssignmentModel.getAssignmentsForGroup(
+      const userId = c.get("userId");
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
+
+      const asg = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { courseId: true },
+      });
+      if (!asg) return c.json({ message: "Assignment not found" }, 404);
+      if (asg.courseId !== courseId) {
+        return c.json(
+          { message: "Assignment does not belong to this course" },
+          400
+        );
+      }
+
+      const cm = await prisma.courseMember.findUnique({
+        where: { courseId_userId: { courseId, userId } },
+        select: { id: true },
+      });
+      if (!cm) {
+        return c.json({ message: "You are not a member of this course" }, 403);
+      }
+
+      const memberships = await prisma.groupMember.findMany({
+        where: { courseMemberId: cm.id },
+        select: { groupId: true },
+        orderBy: { groupId: "asc" },
+      });
+
+      if (memberships.length === 0) {
+        return c.json(
+          { message: "You are not in any group for this course" },
+          400
+        );
+      }
+      if (memberships.length > 1) {
+        return c.json(
+          {
+            message:
+              "You belong to multiple groups in this course. Please specify groupId explicitly.",
+            groupIds: memberships.map((m) => m.groupId),
+          },
+          409
+        );
+      }
+
+      const groupId = memberships[0].groupId;
+
+      const data = await AssignmentModel.getStudentAssignmentByGroupId(
         courseId,
+        assignmentId,
         groupId
       );
-      return c.json(data, 200);
-    } catch (err) {
-      console.error("Error fetching assignments by group:", err);
-      return c.json({ error: "Failed to fetch assignments" }, 500);
+
+      return c.json(
+        {
+          message: "Assignment fetched successfully",
+          assignment: data,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getStudentAssignmentByGroupId",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 };

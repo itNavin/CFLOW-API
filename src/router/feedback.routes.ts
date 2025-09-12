@@ -4,6 +4,6 @@ import { FeedbackController } from "../controller/feedback.controller";
 export const feedbackRouter = new Hono();
 
 feedbackRouter.post(
-  "/submission/:submissionId",
+  "/create",
   FeedbackController.createFeedback
 );

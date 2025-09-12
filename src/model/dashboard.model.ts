@@ -26,8 +26,8 @@ function nowAsDate(): Date {
 }
 
 async function computeSubmissionRollup(
-  courseId: number,
-  opts?: { assignmentId?: number; groupId?: number; asOf?: Date }
+  courseId: string,
+  opts?: { assignmentId?: string; groupId?: string; asOf?: Date }
 ): Promise<SubmissionRollup> {
   const { assignmentId, groupId } = opts ?? {};
   const asOf = opts?.asOf ?? nowAsDate();
@@ -113,7 +113,7 @@ async function computeSubmissionRollup(
 }
 
 class DashboardModel {
-  static async getGroupInformation(userId: string, courseId: number) {
+  static async getGroupInformation(userId: string, courseId: string) {
     const groupInfo = await prisma.group.findMany({
       where: {
         members: { some: { courseMember: { userId } } },
@@ -132,7 +132,7 @@ class DashboardModel {
     return groupInfo;
   }
 
-  static async getGroupInformationforAdvisor(userId: string, courseId: number) {
+  static async getGroupInformationforAdvisor(userId: string, courseId: string) {
     const groupInfo = await prisma.group.findMany({
       where: {
         advisors: { some: { courseMember: { userId } } },
@@ -150,7 +150,7 @@ class DashboardModel {
     return groupInfo;
   }
 
-  static async getCourseSummary(courseId: number, asOf?: Date) {
+  static async getCourseSummary(courseId: string, asOf?: Date) {
     const course = await prisma.course.findUnique({
       where: { id: courseId },
       select: {
@@ -223,8 +223,8 @@ class DashboardModel {
   }
 
   static async getCourseSummaryFiltered(
-  courseId: number,
-  opts?: { assignmentId?: number; groupId?: number; asOf?: Date }
+  courseId: string,
+  opts?: { assignmentId?: string; groupId?: string; asOf?: Date }
 ) {
   const base = await prisma.course.findUnique({
     where: { id: courseId },
@@ -249,7 +249,7 @@ class DashboardModel {
   // ✅ Only fetch group if groupId is provided
   let group:
     | {
-        id: number;
+        id: string;
         codeNumber: string | null;
         projectName: string;
         productName: string | null;
@@ -258,7 +258,7 @@ class DashboardModel {
       }
     | null = null;
 
-  if (typeof opts?.groupId === "number") {
+  if (typeof opts?.groupId === "string") {
     group = await prisma.group.findFirst({
       where: { id: opts.groupId, courseId }, // findFirst accepts multiple conditions
       select: {
