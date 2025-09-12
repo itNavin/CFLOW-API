@@ -1,19 +1,12 @@
 import { prisma } from "../prisma";
 
-type NewFileInput = {
-  name: string;
-  filepath: string;
-  createdById?: number;
-};
-
 class AnnouncementModel {
   static async createAnnouncement(data: {
-    courseId: number;
+    courseId: string;
     name: string;
     description: string;
-    schedule?: Date | null; 
+    schedule: Date;
     userId: string;
-    // files?: NewFileInput[];
   }) {
     return prisma.$transaction(async (tx) => {
       const course = await tx.course.findUnique({
@@ -31,38 +24,20 @@ class AnnouncementModel {
           courseId: data.courseId,
           name: data.name,
           description: data.description,
-          schedule: data.schedule ?? null, 
+          schedule: data.schedule, 
           createById: data.userId,
         },
         select: { id: true, courseId: true },
       });
 
-      // if (data.files?.length) {
-      //   await tx.file.createMany({
-      //     data: data.files.map((f) => ({
-      //       name: f.name,
-      //       filepath: f.filepath,
-      //       createdById: f.createdById ?? data.userId, 
-      //       courseId: ann.courseId,                         
-      //       announcementId: ann.id,                         
-      //     })),
-      //   });
-      // }
-
       return tx.announcement.findUnique({
         where: { id: ann.id },
-        include: {      
-          createdBy: true,
-        },
+        include: { createdBy: true },
       });
     });
   }
 
-
-
-
-
-  static async getAllAnnouncement(courseId: number, publishedOnly = true) {
+  static async getAllAnnouncement(courseId: string, publishedOnly = true) {
     return prisma.announcement.findMany({
       where: {
         courseId,
