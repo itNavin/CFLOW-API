@@ -203,8 +203,15 @@ export const CourseController = {
         200
       );
     } catch (error: any) {
-      console.error("Error fetching course name by ID:", error);
-      return c.json({ message: "Internal server error" }, 500);
+      console.error({
+        context: "getCoursenameById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
   deleteCourseById: async (c: Context) => {
@@ -226,15 +233,19 @@ export const CourseController = {
       return c.json(
         {
           message: "Course and related data deleted successfully",
-          summary: result.counts, 
+          summary: result.counts,
         },
         200
       );
-    } catch (e: any) {
-      const status = e?.status ?? 500;
+    } catch (error: any) {
+      console.error({
+        context: "deleteCourseById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       return c.json(
-        { message: e?.message ?? "Failed to delete course" },
-        status
+        { message: "Internal server error. Please try again later." },
+        500
       );
     }
   },

@@ -14,7 +14,7 @@ import { feedbackRouter } from "./feedback.routes";
 import { filenameRouter } from "./filename.routes";
 import { importRouter } from "./excel.routes";
 import { storageRouter } from "./storage.routes";
-import { profileRouter } from "./pofile.routes";
+import { profileRouter } from "./profile.routes";
 
 const mainRouter = new Hono();
 
