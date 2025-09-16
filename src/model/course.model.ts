@@ -89,6 +89,131 @@ class CourseModel {
       where: { id: courseId },
     });
   }
+
+  static async deleteCourse(courseId: string) {
+    return prisma.$transaction(async (tx) => {
+      // Ensure course exists
+      const course = await tx.course.findUnique({
+        where: { id: courseId },
+        select: { id: true },
+      });
+      if (!course) {
+        const err: any = new Error("Course not found");
+        err.status = 404;
+        throw err;
+      }
+
+      // Delete in dependency-safe order
+      const counts: Record<string, number> = {};
+
+      // 1) Files tied to submissions/feedback (leaf-most)
+      counts.feedbackFiles = (
+        await tx.feedbackFile.deleteMany({
+          where: { feedback: { submission: { assignment: { courseId } } } },
+        })
+      ).count;
+
+      counts.submissionFiles = (
+        await tx.submissionFile.deleteMany({
+          where: { submission: { assignment: { courseId } } },
+        })
+      ).count;
+
+      // 2) Feedbacks & Submissions
+      counts.feedbacks = (
+        await tx.feedback.deleteMany({
+          where: { submission: { assignment: { courseId } } },
+        })
+      ).count;
+
+      counts.submissions = (
+        await tx.submission.deleteMany({
+          where: { assignment: { courseId } },
+        })
+      ).count;
+
+      // 3) Deliverable dependencies
+      counts.allowedFileTypes = (
+        await tx.allowedFileType.deleteMany({
+          where: { deliverable: { assignment: { courseId } } },
+        })
+      ).count;
+
+      counts.deliverables = (
+        await tx.deliverable.deleteMany({
+          where: { assignment: { courseId } },
+        })
+      ).count;
+
+      // 4) Assignment due dates
+      counts.assignmentDueDates = (
+        await tx.assignmentDueDate.deleteMany({
+          where: { assignment: { courseId } },
+        })
+      ).count;
+
+      // 5) Group links
+      counts.groupMembers = (
+        await tx.groupMember.deleteMany({
+          where: { group: { courseId } },
+        })
+      ).count;
+
+      counts.groupAdvisors = (
+        await tx.groupAdvisor.deleteMany({
+          where: { group: { courseId } },
+        })
+      ).count;
+
+      // 6) Groups themselves
+      counts.groups = (
+        await tx.group.deleteMany({
+          where: { courseId },
+        })
+      ).count;
+
+      // 7) Activity logs (if you use them)
+      if (tx.courseActivityLog) {
+        counts.activityLogs = (
+          await tx.courseActivityLog.deleteMany({
+            where: { courseId },
+          })
+        ).count;
+      }
+
+      // 8) Announcements and course files
+      counts.announcements = (
+        await tx.announcement.deleteMany({
+          where: { courseId },
+        })
+      ).count;
+
+      counts.files = (
+        await tx.file.deleteMany({
+          where: { courseId },
+        })
+      ).count;
+
+      // 9) Course members (after group/member/log cleanups)
+      counts.courseMembers = (
+        await tx.courseMember.deleteMany({
+          where: { courseId },
+        })
+      ).count;
+
+      // 10) Assignments (after deliverables/submissions/due dates)
+      counts.assignments = (
+        await tx.assignment.deleteMany({
+          where: { courseId },
+        })
+      ).count;
+
+      // 11) Finally the course
+      await tx.course.delete({ where: { id: courseId } });
+
+      return { counts };
+    });
+  }
 }
 
 export default CourseModel;
