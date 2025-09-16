@@ -14,6 +14,7 @@ import { feedbackRouter } from "./feedback.routes";
 import { filenameRouter } from "./filename.routes";
 import { importRouter } from "./excel.routes";
 import { storageRouter } from "./storage.routes";
+import { profileRouter } from "./pofile.routes";
 
 const mainRouter = new Hono();
 
@@ -33,5 +34,6 @@ mainRouter.route("/feedback", feedbackRouter);
 mainRouter.route("/filename", filenameRouter);
 mainRouter.route("/import", importRouter);
 mainRouter.route("/storage", storageRouter);
+mainRouter.route("/profile", profileRouter);
 
 export { mainRouter };
