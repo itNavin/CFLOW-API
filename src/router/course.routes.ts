@@ -8,5 +8,5 @@ courseRouter.put("/updateCourseById", CourseController.updateCourseById);
 courseRouter.get("/getStaffCourse", CourseController.getStaffCourses);
 courseRouter.get("/getCourseByUser", CourseController.getCourseByUser);
 courseRouter.get("/course/:courseId", CourseController.getCoursenameById);
-
+courseRouter.delete("delete", CourseController.deleteCourseById);
 

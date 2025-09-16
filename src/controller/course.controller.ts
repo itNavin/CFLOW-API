@@ -122,7 +122,7 @@ export const CourseController = {
       if (!userId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
-   
+
       const courses = await CourseModel.getStaffCourses(userId);
 
       return c.json(
@@ -189,12 +189,12 @@ export const CourseController = {
       if (!isValidUUID(courseId)) {
         return c.json({ message: "Invalid courseId format" }, 400);
       }
-      
+
       const course = await CourseModel.getCourseById(courseId);
       if (!course) {
         return c.json({ message: "Course not found" }, 404);
       }
-      
+
       return c.json(
         {
           message: "Get course name by ID successfully",
@@ -205,6 +205,37 @@ export const CourseController = {
     } catch (error: any) {
       console.error("Error fetching course name by ID:", error);
       return c.json({ message: "Internal server error" }, 500);
+    }
+  },
+  deleteCourseById: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json({ message: "Forbidden: STAFF or SUPER_ADMIN only" }, 403);
+      }
+      const body = await c.req.json<{ courseId: string }>();
+
+      const courseId = body.courseId;
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
+      }
+
+      const result = await CourseModel.deleteCourse(courseId);
+
+      return c.json(
+        {
+          message: "Course and related data deleted successfully",
+          summary: result.counts, 
+        },
+        200
+      );
+    } catch (e: any) {
+      const status = e?.status ?? 500;
+      return c.json(
+        { message: e?.message ?? "Failed to delete course" },
+        status
+      );
     }
   },
 };
