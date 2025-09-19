@@ -179,10 +179,10 @@ class DashboardModel {
       rollup,
     ] = await Promise.all([
       prisma.courseMember.count({
-        where: { courseId, user: { role: "STUDENT" } },
+        where: { courseId, user: { role: "student" } },
       }),
       prisma.courseMember.count({
-        where: { courseId, user: { role: "LECTURER" } },
+        where: { courseId, user: { role: "lecturer" } },
       }),
       prisma.group.count({ where: { courseId } }),
       prisma.assignment.count({ where: { courseId } }),
@@ -246,7 +246,6 @@ class DashboardModel {
   });
   if (!base) return null;
 
-  // ✅ Only fetch group if groupId is provided
   let group:
     | {
         id: string;
@@ -260,7 +259,7 @@ class DashboardModel {
 
   if (typeof opts?.groupId === "string") {
     group = await prisma.group.findFirst({
-      where: { id: opts.groupId, courseId }, // findFirst accepts multiple conditions
+      where: { id: opts.groupId, courseId },
       select: {
         id: true,
         codeNumber: true,
@@ -275,17 +274,15 @@ class DashboardModel {
         },
       },
     });
-    // If you prefer 404 when group not found in this course, you could throw here.
   }
 
   const [totalStudents, totalAdvisors, totalGroups, totalAssignments, rollup] =
     await Promise.all([
       prisma.courseMember.count({
-        where: { courseId, user: { role: "STUDENT" } },
+        where: { courseId, user: { role: "student" } },
       }),
       prisma.courseMember.count({
-        // If your enum is ADVISOR (not LECTURER), change accordingly
-        where: { courseId, user: { role: "LECTURER" } },
+        where: { courseId, user: { role: "lecturer" } },
       }),
       prisma.group.count({ where: { courseId } }),
       prisma.assignment.count({ where: { courseId } }),
@@ -327,7 +324,7 @@ class DashboardModel {
         asOf: opts?.asOf?.toISOString(),
       },
     },
-    group, // will be null if no groupId provided
+    group, 
   };
 }
 }

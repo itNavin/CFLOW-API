@@ -15,6 +15,7 @@ import { filenameRouter } from "./filename.routes";
 import { importRouter } from "./excel.routes";
 import { storageRouter } from "./storage.routes";
 import { profileRouter } from "./profile.routes";
+import { downloadRouter } from "./download.routes";
 
 const mainRouter = new Hono();
 
@@ -35,5 +36,6 @@ mainRouter.route("/filename", filenameRouter);
 mainRouter.route("/import", importRouter);
 mainRouter.route("/storage", storageRouter);
 mainRouter.route("/profile", profileRouter);
+mainRouter.route("/download", downloadRouter);
 
 export { mainRouter };
