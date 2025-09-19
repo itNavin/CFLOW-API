@@ -16,13 +16,21 @@ export const StorageController = {
         return c.json({ error: "Forbidden: lecturer and staff only" }, 403);
       }
 
-      const courseId = Number(c.req.param("courseId"));
-      const announcementIdQuery = c.req.query("announcementId");
-      const announcementId = announcementIdQuery
-        ? Number(announcementIdQuery)
-        : -1;
-
       const formData = await c.req.formData();
+
+      const courseId = String(formData.get("courseId") ?? "");
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      }
+
+      const announcementId = String(formData.get("announcementId") ?? "");
+      if (announcementId && !isValidUUID(announcementId)) {
+        return c.json({ error: "announcementId must be a valid UUID" }, 400);
+      }
+
       const file = formData.get("file") as File | null;
       if (!file) {
         return c.json({ error: "No file uploaded" }, 400);
@@ -30,10 +38,10 @@ export const StorageController = {
 
       const fileExtension = file.name.split(".").pop();
       const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-      const fileName =
-        announcementId > 0
-          ? `course-${courseId}/file/announcement-${announcementId}/${uniqueFileName}`
-          : `course-${courseId}/file/${uniqueFileName}`;
+      const fileName = announcementId
+        ? `course-${courseId}/file/announcement-${announcementId}/${uniqueFileName}`
+        : `course-${courseId}/file/${uniqueFileName}`;
+
       const fileBuffer = await file.arrayBuffer();
       const uploadResult = await uploadToMinio(
         fileName,
@@ -47,7 +55,7 @@ export const StorageController = {
         filepath: absoluteFileUrl,
         createdById: userId,
         courseId,
-        announcementId: announcementId > 0 ? announcementId : null,
+        announcementId: announcementId || null,
       });
 
       return c.json(
@@ -69,8 +77,101 @@ export const StorageController = {
       );
     }
   },
+  uploadAssignmentFile: async (c: Context) => {
+    try {
+      const userId = c.get("userId");
+      const role = c.get("role");
+      if (role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json(
+          { error: "Forbidden: staff, or SUPER_ADMIN only" },
+          403
+        );
+      }
 
-  UploadSubmissionFile: async (c: Context) => {
+      const formData = await c.req.formData();
+
+      const courseId = String(formData.get("courseId") ?? "");
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      }
+
+      const assignmentId = String(formData.get("assignmentId") ?? "");
+      if (!assignmentId) {
+        return c.json({ error: "assignmentId is required" }, 400);
+      }
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+      }
+
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { courseId: true },
+      });
+      if (!assignment) {
+        return c.json({ error: "Assignment not found" }, 404);
+      }
+      if (assignment.courseId !== courseId) {
+        return c.json(
+          { error: "assignmentId does not belong to the given courseId" },
+          400
+        );
+      }
+
+      const file = formData.get("file") as File | null;
+      if (!file) {
+        return c.json({ error: "No file uploaded" }, 400);
+      }
+
+      const fileExtension = file.name.split(".").pop();
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+
+      const fileNameBase = `course-${courseId}/assignment-${assignmentId}`;
+      const fullObjectKey = `${fileNameBase}/${uniqueFileName}`;
+
+      const fileBuffer = await file.arrayBuffer();
+      const uploadResult = await uploadToMinio(
+        fullObjectKey,
+        Buffer.from(fileBuffer)
+      );
+
+      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
+
+      const assignmentFile = await prisma.assignmentFile.create({
+        data: {
+          assignmentId,
+          fileUrl: [absoluteFileUrl],
+        },
+      });
+
+      return c.json(
+        {
+          message: "Assignment file uploaded successfully",
+          file: {
+            originalName: file.name,
+            url: absoluteFileUrl,
+          },
+          assignmentFile,
+          uploadedBy: userId,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "uploadAssignmentFile",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  uploadSubmissionFile: async (c: Context) => {
     try {
       const formData = await c.req.formData();
 
@@ -180,13 +281,13 @@ export const StorageController = {
         deliverableId: deliverableId,
         fileUrl: absoluteFileUrl,
       });
-     return c.json(
-       {
-         message: "File uploaded successfully",
+      return c.json(
+        {
+          message: "File uploaded successfully",
           file: newFile,
-       },
-       201
-     );
+        },
+        201
+      );
     } catch (error) {
       console.error({
         context: "uploadSubmissionFile",
@@ -197,7 +298,7 @@ export const StorageController = {
     }
   },
 
-  UploadFeedbackFile: async (c: Context) => {
+  uploadFeedbackFile: async (c: Context) => {
     try {
       const formData = await c.req.formData();
 
