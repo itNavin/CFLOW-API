@@ -4,11 +4,22 @@ import { Role } from "@prisma/client";
 import { CourseMemberPayload } from "src/types/payload/courseMember.type";
 import { ClassProgram } from "src/types/program";
 
+/** Throw if the course doesn't exist */
+async function ensureCourseExists(courseId: string) {
+  const exists = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true },
+  });
+  if (!exists) throw new Error("COURSE_NOT_FOUND");
+}
+
 export const getAdvisorMembers = async (courseId: string) => {
+  await ensureCourseExists(courseId);
+
   const advisors = await prisma.courseMember.findMany({
     where: {
       courseId,
-      user: { role: Role.LECTURER },
+      user: { role: Role.lecturer },
     },
     include: {
       user: true,
@@ -50,8 +61,8 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
 
   return prisma.user.findMany({
     where: {
-      role: Role.LECTURER,
-      ...(whereProgram ? { program: whereProgram } : {}), 
+      role: Role.lecturer,
+      ...(whereProgram ? { program: whereProgram } : {}),
       classMemberships: {
         none: { courseId },
       },
@@ -61,7 +72,7 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
       name: true,
       email: true,
       role: true,
-      program: true, 
+      program: true,
       createdAt: true,
     },
     orderBy: { name: "asc" },
@@ -69,17 +80,17 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
 };
 
 export const getStudentMembers = async (courseId: string) => {
+  await ensureCourseExists(courseId);
+
   return prisma.courseMember.findMany({
     where: {
       courseId,
-      user: { role: Role.STUDENT },
+      user: { role: Role.student },
     },
     include: {
       user: true,
       groupMembers: {
-        include: {
-          group: true,
-        },
+        include: { group: true },
       },
     },
   });
@@ -99,10 +110,10 @@ export const getStudentsNotInCourse = async (courseId: string) => {
 
   return prisma.user.findMany({
     where: {
-      role: Role.STUDENT,
+      role: Role.student,
       ...(whereProgram ? { program: whereProgram } : {}),
       classMemberships: {
-        none: { courseId }, 
+        none: { courseId },
       },
     },
     select: {
@@ -110,7 +121,7 @@ export const getStudentsNotInCourse = async (courseId: string) => {
       name: true,
       email: true,
       role: true,
-      program: true, 
+      program: true,
       createdAt: true,
     },
     orderBy: { name: "asc" },
@@ -118,6 +129,12 @@ export const getStudentsNotInCourse = async (courseId: string) => {
 };
 
 export const addMembers = async (courseId: string, userId: string) => {
+  await ensureCourseExists(courseId);
+
+  // (Optional) also ensure user exists:
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new Error("USER_NOT_FOUND");
+
   const existing = await prisma.courseMember.findFirst({
     where: { courseId, userId },
     include: { user: true, course: true },

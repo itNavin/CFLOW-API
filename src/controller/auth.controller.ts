@@ -5,12 +5,12 @@ import type { Context } from "hono";
 import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
-import { AuthModel } from "src/model/auth.model";
+// import { AuthModel } from "src/model/auth.model";
 
 const ROLE_MAP: Record<string, Role> = {
-  student: "STUDENT",
-  lecturer: "LECTURER",
-  staff: "STAFF",
+  student: "student",
+  lecturer: "lecturer",
+  staff: "staff",
 };
 
 export function mapRole(raw: unknown): Role {
