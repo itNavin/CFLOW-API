@@ -195,16 +195,6 @@ export const CourseMemberController = {
       if (userIds.length === 0) {
         return c.json({ message: "No valid userIds provided" }, 400);
       }
-      const invalidIds = userIds.filter((id) => !isValidUUID(id));
-      if (invalidIds.length > 0) {
-        return c.json(
-          {
-            message: "Invalid UUID(s) in userIds",
-            invalidIds,
-          },
-          400
-        );
-      }
 
       const course = await prisma.course.findUnique({
         where: { id: courseId },
