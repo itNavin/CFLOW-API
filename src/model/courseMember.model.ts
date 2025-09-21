@@ -4,7 +4,6 @@ import { Role } from "@prisma/client";
 import { CourseMemberPayload } from "src/types/payload/courseMember.type";
 import { ClassProgram } from "src/types/program";
 
-/** Throw if the course doesn't exist */
 async function ensureCourseExists(courseId: string) {
   const exists = await prisma.course.findUnique({
     where: { id: courseId },
