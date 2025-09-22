@@ -13,7 +13,6 @@ class GroupModel {
     coAdvisorIds?: string[];
   }) {
     return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      // --- Normalize input ---
       const codeNumber =
         typeof data.codeNumber === "string" && data.codeNumber.trim() !== ""
           ? data.codeNumber.trim()
@@ -24,7 +23,6 @@ class GroupModel {
           ? data.productName.trim()
           : null;
 
-      // --- Uniqueness checks (pre-emptive for clear errors) ---
       if (codeNumber) {
         const exists = await tx.group.findFirst({
           where: { courseId: data.courseId, codeNumber },
@@ -61,7 +59,6 @@ class GroupModel {
         }
       }
 
-      // --- Validate courseMembers existence (you already had this) ---
       const validateCourseMembers = async (ids: string[]) => {
         if (!ids.length)
           return { existingIds: new Set<string>(), missing: [] as string[] };
@@ -75,11 +72,9 @@ class GroupModel {
         return { existingIds, missing };
       };
 
-      // --- Members validation (duplicates in payload, must be students, not already in any group) ---
       const memberPayload = data.memberIds ?? [];
       const memberIds = memberPayload.map((m) => m.id);
 
-      // 1) reject duplicates within the payload
       const memberIdSet = new Set(memberIds);
       if (memberIdSet.size !== memberIds.length) {
         const dupes = memberIds.filter((id, i) => memberIds.indexOf(id) !== i);
@@ -90,7 +85,6 @@ class GroupModel {
         throw err;
       }
 
-      // 2) ensure they exist in this course
       const { existingIds: memberExisting, missing: memberMissing } =
         await validateCourseMembers(memberIds);
       if (memberMissing.length) {
@@ -103,7 +97,6 @@ class GroupModel {
         throw err;
       }
 
-      // 3) ensure they are STUDENTS
       if (memberIds.length) {
         const roles = await tx.courseMember.findMany({
           where: { id: { in: memberIds } },
@@ -121,7 +114,6 @@ class GroupModel {
         }
       }
 
-      // 4) ensure none of them is already in ANY group for this course
       if (memberIds.length) {
         const alreadyGrouped = await tx.groupMember.findMany({
           where: {
@@ -142,7 +134,6 @@ class GroupModel {
         }
       }
 
-      // --- Advisor / Co-Advisor validation (existence in course); you had this already ---
       const advisorIds = Array.from(new Set(data.advisorIds ?? []));
       const coAdvisorIds = Array.from(new Set(data.coAdvisorIds ?? []));
 
@@ -170,7 +161,6 @@ class GroupModel {
         throw err;
       }
 
-      // --- Create the group (after all validations pass) ---
       const newGroup = await tx.group.create({
         data: {
           courseId: data.courseId,
@@ -181,7 +171,6 @@ class GroupModel {
         },
       });
 
-      // --- Insert members ---
       if (memberPayload.length) {
         const rows = memberPayload
           .filter((m) => memberExisting.has(m.id))
@@ -196,7 +185,6 @@ class GroupModel {
         }
       }
 
-      // --- Insert advisors / co-advisors (deduped above) ---
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({
