@@ -110,6 +110,42 @@ export const GroupController = {
       );
     }
   },
+  getStudentNotInGroup: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if(!isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+      }
+
+      const students = await GroupModel.getStudentNoInGroup(courseId);
+      return c.json(
+        {
+          message: "Students retrieved successfully",
+          students: students,
+        },
+        200
+      );
+      
+    } catch (error) {
+      console.error({
+        context: "getStudentNotInGroup",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
 
   updateGroup: async (c: Context) => {
     try {
