@@ -79,9 +79,9 @@ class GroupModel {
         const rows = data.memberIds
           .filter((m) => memberExisting.has(m.id))
           .map(({ id, workRole }) => ({
-            courseMemberId: id, 
-            groupId: newGroup.id, 
-            workRole: workRole ?? undefined, 
+            courseMemberId: id,
+            groupId: newGroup.id,
+            workRole: workRole ?? undefined,
           }));
 
         if (rows.length) {
@@ -92,7 +92,7 @@ class GroupModel {
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({
-            courseMemberId, 
+            courseMemberId,
             groupId: newGroup.id,
             advisorRole: "ADVISOR",
           })),
@@ -102,7 +102,7 @@ class GroupModel {
       if (coAdvisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...coAdvisorExisting].map((courseMemberId) => ({
-            courseMemberId, 
+            courseMemberId,
             groupId: newGroup.id,
             advisorRole: "CO_ADVISOR",
           })),
@@ -125,6 +125,47 @@ class GroupModel {
         },
       },
     });
+  }
+
+  static async getStudentNoInGroup(courseId: string) {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    });
+    if (!course) throw new Error("COURSE_NOT_FOUND");
+
+    const members = await prisma.courseMember.findMany({
+      where: {
+        courseId,
+        user: { role: "student" },
+        groupMembers: { none: {} }, 
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            program: true,
+            createdAt: true,
+          },
+        },
+      },
+      orderBy: {
+        user: { name: "asc" },
+      },
+    });
+
+    return members.map((m) => ({
+      courseMemberId: m.id,
+      userId: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      role: m.user.role,
+      program: m.user.program,
+      createdAt: m.user.createdAt,
+    }));
   }
 
   static async updateGroup(
@@ -195,7 +236,7 @@ class GroupModel {
           const rows = data.memberIds
             .filter((m) => existingIds.has(m.id))
             .map(({ id, workRole }) => ({
-              courseMemberId: id, 
+              courseMemberId: id,
               groupId,
               workRole: String(workRole ?? "").trim(),
             }));
@@ -225,7 +266,7 @@ class GroupModel {
         if (existingIds.size) {
           await tx.groupAdvisor.createMany({
             data: [...existingIds].map((courseMemberId) => ({
-              courseMemberId, 
+              courseMemberId,
               groupId,
               advisorRole: role,
             })),
