@@ -141,6 +141,7 @@ model Assignment {
   id          String    @id @default(uuid()) @db.Uuid
   name        String
   description String?
+  dueDate     DateTime  @db.Timestamptz(3)
   endDate     DateTime  @db.Timestamptz(3)
   schedule    DateTime @db.Timestamptz(3)
   courseId    String    @db.Uuid

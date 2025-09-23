@@ -111,6 +111,12 @@ function normalizeAllowedFileTypes(
 
 class AssignmentModel {
   static async getGroupsByLecturerId(userId: string, courseId: string) {
+    const course = await prisma.course.findUnique({
+      where: { id: courseId },
+      select: { id: true },
+    });
+    if (!course) throw new Error("Course not found");
+
     return prisma.group.findMany({
       where: {
         courseId,
@@ -136,6 +142,7 @@ class AssignmentModel {
           courseId: data.courseId,
           name: data.name,
           description: data.description,
+          dueDate: data.dueDate,
           endDate: data.endDate,
           schedule: data.schedule,
         },
@@ -242,7 +249,7 @@ class AssignmentModel {
 
   static async getStudentAssignmentByGroupId(
     courseId: string,
-    assignmentId: string,
+    // assignmentId: string,
     groupId: string
   ): Promise<AssignmentsByGroupLite> {
     const now = new Date();
@@ -250,7 +257,7 @@ class AssignmentModel {
     // restrict to this single assignment (and ensure it's in this course)
     const assignments = await prisma.assignment.findMany({
       where: {
-        id: assignmentId,
+        // id: assignmentId,
         courseId,
         schedule: { lte: now },
       },

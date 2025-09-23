@@ -1,7 +1,7 @@
 import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
 
-class GroupModel {
+export class GroupModel {
   static async createGroup(data: {
     courseId: string;
     codeNumber?: string | null;
@@ -23,6 +23,7 @@ class GroupModel {
           ? data.productName.trim()
           : null;
 
+      // --- Uniqueness checks ---
       if (codeNumber) {
         const exists = await tx.group.findFirst({
           where: { courseId: data.courseId, codeNumber },
@@ -59,6 +60,7 @@ class GroupModel {
         }
       }
 
+      // --- Helpers ---
       const validateCourseMembers = async (ids: string[]) => {
         if (!ids.length)
           return { existingIds: new Set<string>(), missing: [] as string[] };
@@ -72,6 +74,7 @@ class GroupModel {
         return { existingIds, missing };
       };
 
+      // --- Members validation ---
       const memberPayload = data.memberIds ?? [];
       const memberIds = memberPayload.map((m) => m.id);
 
@@ -89,9 +92,7 @@ class GroupModel {
         await validateCourseMembers(memberIds);
       if (memberMissing.length) {
         const err: any = new Error(
-          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(
-            ", "
-          )}`
+          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
@@ -103,7 +104,7 @@ class GroupModel {
           select: { id: true, user: { select: { role: true } } },
         });
         const notStudents = roles
-          .filter((r) => r.user.role !== "student")
+          .filter((r) => r.user.role !== "student") 
           .map((r) => r.id);
         if (notStudents.length) {
           const err: any = new Error(
@@ -134,6 +135,7 @@ class GroupModel {
         }
       }
 
+      // --- Advisors validation (existence in course only; add role checks if needed) ---
       const advisorIds = Array.from(new Set(data.advisorIds ?? []));
       const coAdvisorIds = Array.from(new Set(data.coAdvisorIds ?? []));
 
@@ -141,9 +143,7 @@ class GroupModel {
         await validateCourseMembers(advisorIds);
       if (advisorMissing.length) {
         const err: any = new Error(
-          `Invalid advisorIds for course ${
-            data.courseId
-          }: ${advisorMissing.join(", ")}`
+          `Invalid advisorIds for course ${data.courseId}: ${advisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
@@ -153,14 +153,13 @@ class GroupModel {
         await validateCourseMembers(coAdvisorIds);
       if (coAdvisorMissing.length) {
         const err: any = new Error(
-          `Invalid coAdvisorIds for course ${
-            data.courseId
-          }: ${coAdvisorMissing.join(", ")}`
+          `Invalid coAdvisorIds for course ${data.courseId}: ${coAdvisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
       }
 
+      // --- Create group ---
       const newGroup = await tx.group.create({
         data: {
           courseId: data.courseId,
@@ -171,6 +170,25 @@ class GroupModel {
         },
       });
 
+      // --- Backfill AssignmentDueDate for existing assignments in this course ---
+      // Uses the assignment's dueDate field
+      const existingAssignments = await tx.assignment.findMany({
+        where: { courseId: data.courseId },
+        select: { id: true, dueDate: true },
+      });
+
+      if (existingAssignments.length) {
+        await tx.assignmentDueDate.createMany({
+          data: existingAssignments.map((a) => ({
+            assignmentId: a.id,
+            groupId: newGroup.id,
+            dueDate: a.dueDate,
+          })),
+          skipDuplicates: true, // respects @@unique([assignmentId, groupId])
+        });
+      }
+
+      // --- Insert members ---
       if (memberPayload.length) {
         const rows = memberPayload
           .filter((m) => memberExisting.has(m.id))
@@ -179,12 +197,12 @@ class GroupModel {
             groupId: newGroup.id,
             workRole: workRole ?? undefined,
           }));
-
         if (rows.length) {
           await tx.groupMember.createMany({ data: rows });
         }
       }
 
+      // --- Insert advisors / co-advisors ---
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({
@@ -208,6 +226,8 @@ class GroupModel {
       return newGroup;
     });
   }
+
+
 
   static async getAllGroups(courseId: string) {
     return prisma.group.findMany({
