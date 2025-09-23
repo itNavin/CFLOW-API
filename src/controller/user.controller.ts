@@ -1,9 +1,10 @@
 import { Context } from "hono";
 import UserModel from "../model/user.model";
 import * as XLSX from "xlsx";
+import { isValidUUID } from "src/types/uuid";
 import { decodeToken, getTokenFromHeader } from "../util/jwt";
 
-const Roles = new Set(["STUDENT", "LECTURER", "STAFF", "SUPER_ADMIN"]);
+const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
 
 export const UserController = {
@@ -15,8 +16,11 @@ export const UserController = {
       if (!userId) return c.json({ message: "Unauthorized" }, 401);
 
       const courseId = c.req.param("courseId");
-      if (!Number.isFinite(courseId)) {
-        return c.json({ message: "Invalid courseId" }, 400);
+      if (!courseId) {
+        return c.json({ message: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       if (role !== "student") {

@@ -9,7 +9,7 @@ type UploadRow = {
 
 type UploadArgs = {
   rows: UploadRow[];
-  role: "STUDENT" | "LECTURER" | "STAFF" | "SUPER_ADMIN";
+  role: "student" | "lecturer" | "staff" | "SUPER_ADMIN";
   program: "CS" | "DSI" | "BOTH"; 
 };
 
@@ -51,8 +51,8 @@ class UserModel {
       throw err;
     }
 
-    if (cm.user.role !== "STUDENT") {
-      const err: any = new Error("Only STUDENT can have a personal project");
+    if (cm.user.role !== "student") {
+      const err: any = new Error("Only student can have a personal project");
       err.status = 403;
       throw err;
     }
