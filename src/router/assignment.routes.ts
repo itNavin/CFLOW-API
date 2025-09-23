@@ -16,7 +16,7 @@ assignmentRouter.get(
 
 //For student
 assignmentRouter.get(
-  "/getStudentAssignmentByGroupId/course/:courseId/assignment/:assignmentId",
+  "/getStudentAssignmentByGroupId/course/:courseId",
   AssignmentController.getStudentAssignmentByGroupId
 );
 

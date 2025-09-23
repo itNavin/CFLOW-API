@@ -57,7 +57,7 @@ export const GroupController = {
         201
       );
     } catch (error: any) {
-      if (error?.status === 400) {
+      if (error?.status >= 400 && error?.status < 500) {
         return c.json({ error: error.message }, 400);
       }
       if (error?.code === "P2002") {

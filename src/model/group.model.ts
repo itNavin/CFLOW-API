@@ -1,7 +1,7 @@
 import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
 
-class GroupModel {
+export class GroupModel {
   static async createGroup(data: {
     courseId: string;
     codeNumber?: string | null;
@@ -13,16 +13,54 @@ class GroupModel {
     coAdvisorIds?: string[];
   }) {
     return await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const newGroup = await tx.group.create({
-        data: {
-          courseId: data.courseId,
-          codeNumber: data.codeNumber ?? null,
-          projectName: data.projectName,
-          productName: data.productName ?? undefined,
-          company: data.company ?? undefined,
-        },
-      });
+      const codeNumber =
+        typeof data.codeNumber === "string" && data.codeNumber.trim() !== ""
+          ? data.codeNumber.trim()
+          : null;
+      const projectName = data.projectName.trim();
+      const productName =
+        typeof data.productName === "string" && data.productName.trim() !== ""
+          ? data.productName.trim()
+          : null;
 
+      // --- Uniqueness checks ---
+      if (codeNumber) {
+        const exists = await tx.group.findFirst({
+          where: { courseId: data.courseId, codeNumber },
+          select: { id: true },
+        });
+        if (exists) {
+          const err: any = new Error("Duplicate codeNumber in this course");
+          err.status = 409;
+          throw err;
+        }
+      }
+
+      {
+        const exists = await tx.group.findFirst({
+          where: { courseId: data.courseId, projectName },
+          select: { id: true },
+        });
+        if (exists) {
+          const err: any = new Error("Duplicate projectName in this course");
+          err.status = 409;
+          throw err;
+        }
+      }
+
+      if (productName) {
+        const exists = await tx.group.findFirst({
+          where: { courseId: data.courseId, productName },
+          select: { id: true },
+        });
+        if (exists) {
+          const err: any = new Error("Duplicate productName in this course");
+          err.status = 409;
+          throw err;
+        }
+      }
+
+      // --- Helpers ---
       const validateCourseMembers = async (ids: string[]) => {
         if (!ids.length)
           return { existingIds: new Set<string>(), missing: [] as string[] };
@@ -36,59 +74,135 @@ class GroupModel {
         return { existingIds, missing };
       };
 
-      const memberIds = data.memberIds?.map((m) => m.id) ?? [];
+      // --- Members validation ---
+      const memberPayload = data.memberIds ?? [];
+      const memberIds = memberPayload.map((m) => m.id);
+
+      const memberIdSet = new Set(memberIds);
+      if (memberIdSet.size !== memberIds.length) {
+        const dupes = memberIds.filter((id, i) => memberIds.indexOf(id) !== i);
+        const err: any = new Error(
+          `Duplicate memberIds in request: ${[...new Set(dupes)].join(", ")}`
+        );
+        err.status = 400;
+        throw err;
+      }
+
       const { existingIds: memberExisting, missing: memberMissing } =
         await validateCourseMembers(memberIds);
       if (memberMissing.length) {
         const err: any = new Error(
-          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(
-            ", "
-          )}`
+          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
       }
 
-      const advisorIds = data.advisorIds ?? [];
+      if (memberIds.length) {
+        const roles = await tx.courseMember.findMany({
+          where: { id: { in: memberIds } },
+          select: { id: true, user: { select: { role: true } } },
+        });
+        const notStudents = roles
+          .filter((r) => r.user.role !== "student") 
+          .map((r) => r.id);
+        if (notStudents.length) {
+          const err: any = new Error(
+            `These courseMemberIds are not students: ${notStudents.join(", ")}`
+          );
+          err.status = 400;
+          throw err;
+        }
+      }
+
+      if (memberIds.length) {
+        const alreadyGrouped = await tx.groupMember.findMany({
+          where: {
+            courseMemberId: { in: memberIds },
+            group: { courseId: data.courseId },
+          },
+          select: { courseMemberId: true, groupId: true },
+        });
+        if (alreadyGrouped.length) {
+          const details = alreadyGrouped
+            .map((g) => `${g.courseMemberId}→${g.groupId}`)
+            .join(", ");
+          const err: any = new Error(
+            `Each student can have only 1 group: already in group(s): ${details}`
+          );
+          err.status = 409;
+          throw err;
+        }
+      }
+
+      // --- Advisors validation (existence in course only; add role checks if needed) ---
+      const advisorIds = Array.from(new Set(data.advisorIds ?? []));
+      const coAdvisorIds = Array.from(new Set(data.coAdvisorIds ?? []));
+
       const { existingIds: advisorExisting, missing: advisorMissing } =
         await validateCourseMembers(advisorIds);
       if (advisorMissing.length) {
         const err: any = new Error(
-          `Invalid advisorIds for course ${
-            data.courseId
-          }: ${advisorMissing.join(", ")}`
+          `Invalid advisorIds for course ${data.courseId}: ${advisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
       }
 
-      const coAdvisorIds = data.coAdvisorIds ?? [];
       const { existingIds: coAdvisorExisting, missing: coAdvisorMissing } =
         await validateCourseMembers(coAdvisorIds);
       if (coAdvisorMissing.length) {
         const err: any = new Error(
-          `Invalid coAdvisorIds for course ${
-            data.courseId
-          }: ${coAdvisorMissing.join(", ")}`
+          `Invalid coAdvisorIds for course ${data.courseId}: ${coAdvisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
       }
 
-      if (data.memberIds?.length) {
-        const rows = data.memberIds
+      // --- Create group ---
+      const newGroup = await tx.group.create({
+        data: {
+          courseId: data.courseId,
+          codeNumber,
+          projectName,
+          productName: productName ?? undefined,
+          company: data.company ?? undefined,
+        },
+      });
+
+      // --- Backfill AssignmentDueDate for existing assignments in this course ---
+      // Uses the assignment's dueDate field
+      const existingAssignments = await tx.assignment.findMany({
+        where: { courseId: data.courseId },
+        select: { id: true, dueDate: true },
+      });
+
+      if (existingAssignments.length) {
+        await tx.assignmentDueDate.createMany({
+          data: existingAssignments.map((a) => ({
+            assignmentId: a.id,
+            groupId: newGroup.id,
+            dueDate: a.dueDate,
+          })),
+          skipDuplicates: true, // respects @@unique([assignmentId, groupId])
+        });
+      }
+
+      // --- Insert members ---
+      if (memberPayload.length) {
+        const rows = memberPayload
           .filter((m) => memberExisting.has(m.id))
           .map(({ id, workRole }) => ({
             courseMemberId: id,
             groupId: newGroup.id,
             workRole: workRole ?? undefined,
           }));
-
         if (rows.length) {
           await tx.groupMember.createMany({ data: rows });
         }
       }
 
+      // --- Insert advisors / co-advisors ---
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({
@@ -112,6 +226,8 @@ class GroupModel {
       return newGroup;
     });
   }
+
+
 
   static async getAllGroups(courseId: string) {
     return prisma.group.findMany({
@@ -138,7 +254,7 @@ class GroupModel {
       where: {
         courseId,
         user: { role: "student" },
-        groupMembers: { none: {} }, 
+        groupMembers: { none: {} },
       },
       include: {
         user: {
