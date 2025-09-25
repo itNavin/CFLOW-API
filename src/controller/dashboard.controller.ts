@@ -9,20 +9,15 @@ function parseAsOf(c: Context): Date | undefined {
   return isNaN(d.getTime()) ? undefined : d;
 }
 
-function readOptionalId(
+function readOptionalUUID(
   c: Context,
   name: string
-): number | undefined | "INVALID" {
-  const p = c.req.param(name);
-  if (p !== undefined) {
-    const n = Number(p);
-    return Number.isFinite(n) ? n : "INVALID";
-  }
+): string | undefined | "INVALID" {
   const q = c.req.query(name);
   if (q == null || q === "") return undefined;
-  const n = Number(q);
-  return Number.isFinite(n) ? n : "INVALID";
+  return isValidUUID(q) ? q : "INVALID";
 }
+
 
 export const DashboardController = {
   getGroupInformationDashboard: async (c: Context) => {
@@ -65,34 +60,27 @@ export const DashboardController = {
   getCourseSummaryUnified: async (c: Context) => {
     try {
       const userId = c.get("userId");
-      if (!userId) {
-        return c.json({ message: "Unauthorized" }, 401);
-      }
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
 
       const courseId = c.req.param("courseId");
-      if (!courseId) {
+      if (!courseId || !isValidUUID(courseId)) {
         return c.json({ message: "Invalid courseId" }, 400);
       }
-      if (!isValidUUID(courseId)) {
-        return c.json({ message: "Invalid courseId format" }, 400);
-      }
 
-      const assignmentId = readOptionalId(c, "assignmentId");
-      console.log("assignmentId", assignmentId);
+      const assignmentId = readOptionalUUID(c, "assignmentId");
       if (assignmentId === "INVALID") {
-        return c.json({ message: "Invalid assignmentId" }, 400);
+        return c.json({ message: "Invalid assignmentId (UUID expected)" }, 400);
       }
 
-      const groupId = readOptionalId(c, "groupId");
-      console.log("groupId", groupId);
+      const groupId = readOptionalUUID(c, "groupId");
       if (groupId === "INVALID") {
-        return c.json({ message: "Invalid groupId" }, 400);
+        return c.json({ message: "Invalid groupId (UUID expected)" }, 400);
       }
 
       const asOf = parseAsOf(c);
 
       const hasFilters =
-        typeof assignmentId === "number" || typeof groupId === "number";
+        typeof assignmentId === "string" || typeof groupId === "string";
 
       const summary = hasFilters
         ? await DashboardModel.getCourseSummaryFiltered(courseId, {
@@ -103,13 +91,8 @@ export const DashboardController = {
         : await DashboardModel.getCourseSummary(courseId, asOf);
 
       if (!summary) return c.json({ message: "Course not found" }, 404);
-      return c.json(
-        {
-          message: "Success",
-          course: summary,
-        },
-        200
-      );
+
+      return c.json({ message: "Success", course: summary }, 200);
     } catch (error) {
       console.error({
         context: "getCourseSummaryUnified",
