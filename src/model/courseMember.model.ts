@@ -53,15 +53,15 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
   });
   if (!course) throw new Error("COURSE_NOT_FOUND");
 
-  const whereProgram =
-    course.program === ClassProgram.BOTH
-      ? undefined
-      : { in: [course.program, ClassProgram.BOTH] };
+  // const whereProgram =
+  //   course.program === ClassProgram.BOTH
+  //     ? undefined
+  //     : { in: [course.program, ClassProgram.BOTH] };
 
   return prisma.user.findMany({
     where: {
       role: Role.lecturer,
-      ...(whereProgram ? { program: whereProgram } : {}),
+      // ...(whereProgram ? { program: whereProgram } : {}),
       classMemberships: {
         none: { courseId },
       },
@@ -74,7 +74,9 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
       program: true,
       createdAt: true,
     },
-    orderBy: { name: "asc" },
+    orderBy: [
+      { name: "asc" },
+    ],
   });
 };
 
