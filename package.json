@@ -1,10 +1,12 @@
 {
   "name": "backend",
   "scripts": {
+    "start": "bun run dist/index.js",
     "dev": "bun run --hot src/index.ts",
     "db:migrate": "bunx prisma migrate dev",
     "db:generate": "bunx prisma generate",
-    "db:pull": "bunx prisma db pull"
+    "db:pull": "bunx prisma db pull",
+    "compile": "bun build src/index.ts --outfile dist/index.js --target bun --minify"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.879.0",
