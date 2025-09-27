@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import DashboardModel from "../model/dashboard.model";
 import { isValidUUID } from "src/types/uuid";
+import { group } from "console";
 
 function parseAsOf(c: Context): Date | undefined {
   const s = c.req.query("asOf");
@@ -18,12 +19,10 @@ function readOptionalUUID(
   return isValidUUID(q) ? q : "INVALID";
 }
 
-
 export const DashboardController = {
   getGroupInformationDashboard: async (c: Context) => {
     try {
       const userId = c.get("userId");
-      console.log("userId", userId);
 
       const role = c.get("role");
       const courseId = c.req.param("courseId");
@@ -32,7 +31,24 @@ export const DashboardController = {
           userId,
           courseId
         );
-        return c.json(groupInformation, 200);
+        if (groupInformation.length === 0) {
+          return c.json(
+            {
+              message: "No group found for this student in the specified course.",
+              projectName: "none",
+              productName: "none",
+              company: "none",
+            },
+            404
+          );
+        }
+        return c.json(
+          {
+            message: "The group information has been fetched successfully",
+            groupInformation: groupInformation,
+          },
+          200
+        );
       } else {
         const groupInformation =
           await DashboardModel.getGroupInformationforAdvisor(userId, courseId);
