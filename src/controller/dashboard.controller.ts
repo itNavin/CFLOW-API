@@ -39,7 +39,7 @@ export const DashboardController = {
               productName: "none",
               company: "none",
             },
-            404
+            200
           );
         }
         return c.json(
