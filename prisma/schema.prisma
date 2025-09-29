@@ -45,6 +45,7 @@ model User {
   id                   String         @id
   name                 String         @unique
   email                String         @unique
+  password             String?       
   role                 Role
   program              ClassProgram
   createdAt            DateTime       @default(now()) @db.Timestamptz(3)
