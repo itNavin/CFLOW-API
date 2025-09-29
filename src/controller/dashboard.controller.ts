@@ -1,7 +1,6 @@
 import type { Context } from "hono";
 import DashboardModel from "../model/dashboard.model";
 import { isValidUUID } from "src/types/uuid";
-import { group } from "console";
 
 function parseAsOf(c: Context): Date | undefined {
   const s = c.req.query("asOf");
@@ -35,9 +34,13 @@ export const DashboardController = {
           return c.json(
             {
               message: "No group found for this student in the specified course.",
+              id: "none",
+              codeNumber: "none",
               projectName: "none",
               productName: "none",
               company: "none",
+              member: [],
+              advisors: [],
             },
             200
           );

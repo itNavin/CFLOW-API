@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import FileModel from "../model/file.model";
+import { isValidUUID } from "src/types/uuid";
 
 export const FileController = {
   // POST /file/course/:courseId
@@ -53,49 +54,55 @@ export const FileController = {
     try {
       const url = new URL(c.req.url);
 
-      const announcementIdParam = url.searchParams.get("announcementId");
+      const announcementIdParam = url.searchParams.get("announcementId"); // UUID
       const unattachedParam = url.searchParams.get("unattached");
 
-      const createdByIdParam = url.searchParams.get("createdById");
+      const createdByIdParam = url.searchParams.get("createdById"); // UUID
+      const uploadedByIdParam = url.searchParams.get("uploadedById"); // UUID (alias)
 
-      const uploadedByIdParam = url.searchParams.get("uploadedById");
-
-      const courseIdParam = url.searchParams.get("courseId");
-      const orderParam = url.searchParams.get("order");
+      const courseIdParam = url.searchParams.get("courseId"); // UUID
+      const orderParam = url.searchParams.get("order"); // "asc" | "desc"
 
       const announcementId =
-        announcementIdParam !== null ? Number(announcementIdParam) : undefined;
+        announcementIdParam && announcementIdParam.trim() !== ""
+          ? announcementIdParam.trim()
+          : undefined;
 
       const unattached = unattachedParam
         ? unattachedParam.toLowerCase() === "true"
         : undefined;
 
+      // Prefer createdById; fall back to uploadedById
       const createdById =
-        createdByIdParam !== null
-          ? Number(createdByIdParam)
-          : uploadedByIdParam !== null
-          ? Number(uploadedByIdParam)
+        createdByIdParam && createdByIdParam.trim() !== ""
+          ? createdByIdParam.trim()
+          : uploadedByIdParam && uploadedByIdParam.trim() !== ""
+          ? uploadedByIdParam.trim()
           : undefined;
 
       const courseId =
-        courseIdParam !== null ? Number(courseIdParam) : undefined;
+        courseIdParam && courseIdParam.trim() !== ""
+          ? courseIdParam.trim()
+          : undefined;
 
       const order = orderParam === "desc" ? "desc" : "asc";
 
+      // Optional: validate UUIDs if present
+      if (courseId && !isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+      }
+      if (announcementId && !isValidUUID(announcementId)) {
+        return c.json({ error: "Invalid announcementId (UUID expected)" }, 400);
+      }
+      if (createdById && !isValidUUID(createdById)) {
+        return c.json({ error: "Invalid createdById (UUID expected)" }, 400);
+      }
+
       const files = await FileModel.getAllFiles({
-        announcementId:
-          typeof announcementId === "number" && !Number.isNaN(announcementId)
-            ? announcementId
-            : undefined,
+        announcementId,
         unattached,
-        createdById:
-          typeof createdById === "number" && !Number.isNaN(createdById)
-            ? createdById
-            : undefined,
-        courseId:
-          typeof courseId === "number" && !Number.isNaN(courseId)
-            ? courseId
-            : undefined,
+        createdById,
+        courseId,
         order,
       });
 
@@ -109,46 +116,50 @@ export const FileController = {
   // GET /file/course/:courseId
   getFilesByCourseId: async (c: Context) => {
     try {
-      const courseId = Number(c.req.param("courseId"));
-      if (!Number.isFinite(courseId) || courseId <= 0) {
-        return c.json({ error: "Invalid courseId" }, 400);
+      const courseId = c.req.param("courseId"); // UUID
+      if (!courseId) {
+        return c.json({ error: "courseId is required" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const url = new URL(c.req.url);
       const announcementIdParam = url.searchParams.get("announcementId");
       const unattachedParam = url.searchParams.get("unattached");
-
       const createdByIdParam = url.searchParams.get("createdById");
       const uploadedByIdParam = url.searchParams.get("uploadedById");
-
       const orderParam = url.searchParams.get("order");
 
       const announcementId =
-        announcementIdParam !== null ? Number(announcementIdParam) : undefined;
+        announcementIdParam && announcementIdParam.trim() !== ""
+          ? announcementIdParam.trim()
+          : undefined;
 
       const unattached = unattachedParam
         ? unattachedParam.toLowerCase() === "true"
         : undefined;
 
       const createdById =
-        createdByIdParam !== null
-          ? Number(createdByIdParam)
-          : uploadedByIdParam !== null
-          ? Number(uploadedByIdParam)
+        createdByIdParam && createdByIdParam.trim() !== ""
+          ? createdByIdParam.trim()
+          : uploadedByIdParam && uploadedByIdParam.trim() !== ""
+          ? uploadedByIdParam.trim()
           : undefined;
 
-      const order = orderParam === "desc" ? "desc" : "asc";
+      const order: "asc" | "desc" = orderParam === "desc" ? "desc" : "asc";
+
+      if (announcementId && !isValidUUID(announcementId)) {
+        return c.json({ error: "Invalid announcementId (UUID expected)" }, 400);
+      }
+      if (createdById && !isValidUUID(createdById)) {
+        return c.json({ error: "Invalid createdById (UUID expected)" }, 400);
+      }
 
       const files = await FileModel.getFilesByCourseId(courseId, {
-        announcementId:
-          typeof announcementId === "number" && !Number.isNaN(announcementId)
-            ? announcementId
-            : undefined,
+        announcementId,
         unattached,
-        createdById:
-          typeof createdById === "number" && !Number.isNaN(createdById)
-            ? createdById
-            : undefined,
+        createdById,
         order,
       });
 
