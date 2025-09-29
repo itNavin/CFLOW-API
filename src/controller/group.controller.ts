@@ -18,7 +18,7 @@ export const GroupController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
-      if(!isValidUUID(courseId)) {
+      if (!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
@@ -86,7 +86,7 @@ export const GroupController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
-      if(!isValidUUID(courseId)) {
+      if (!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
@@ -121,7 +121,7 @@ export const GroupController = {
       if (!courseId) {
         return c.json({ message: "courseId is required" }, 400);
       }
-      if(!isValidUUID(courseId)) {
+      if (!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
@@ -133,7 +133,6 @@ export const GroupController = {
         },
         200
       );
-      
     } catch (error) {
       console.error({
         context: "getStudentNotInGroup",
@@ -157,12 +156,12 @@ export const GroupController = {
       const body = await c.req.json<GroupPayload.updateGroup>();
 
       const courseId = String(body.courseId ?? "").trim();
-      if(!isValidUUID(courseId)) {
+      if (!isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const groupId = String(body.groupId ?? "").trim();
-      if(!isValidUUID(groupId)) {
+      if (!isValidUUID(groupId)) {
         return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
       }
 
@@ -231,6 +230,35 @@ export const GroupController = {
       }
       console.error({
         context: "createCourse",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+  deleteGroup: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: staff only" }, 403);
+      }
+      const body = await c.req.json<{ groupId: string }>();
+      const groupId = body.groupId;
+      if (!isValidUUID(groupId)) {
+        return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
+      }
+
+      const ok = await GroupModel.deleteGroup(groupId);
+      if (!ok) {
+        return c.json({ error: "Group not found" }, 404);
+      }
+      return c.json({ message: "Group deleted successfully" }, 200);
+    } catch (error) {
+      console.error({
+        context: "deleteGroup",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
