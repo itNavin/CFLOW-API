@@ -5,6 +5,7 @@ import type { Context } from "hono";
 import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
+import bcrypt from "bcryptjs"; 
 // import { AuthModel } from "src/model/auth.model";
 
 const ROLE_MAP: Record<string, Role> = {
@@ -22,6 +23,22 @@ export function mapRole(raw: unknown): Role {
   throw new Error(`Unsupported role: ${raw}`);
 }
 
+function isBcryptHash(h: string) {
+  return /^\$2[aby]\$/.test(h);
+}
+function isArgon2idHash(h: string) {
+  return /^\$argon2id\$/.test(h);
+}
+async function verifyPassword(plain: string, hash: string) {
+  if (isBcryptHash(hash)) {
+    return bcrypt.compare(plain, hash);
+  }
+  if (isArgon2idHash(hash)) {
+    return Bun.password.verify(plain, hash); // Bun supports argon2id verify
+  }
+  return false; // unknown hash format
+}
+
 export const AuthController = {
   login: async (c: Context) => {
     const body = await c.req.json<{ username: string; password: string }>();
@@ -32,42 +49,92 @@ export const AuthController = {
     }
 
     try {
-      const ssoResponse = await loginSSO(username, password);
+      if (username.startsWith("Sol#")) {
+        const user = await(async () => {
+          return prisma.user.findUnique({
+            where: { id: username },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              role: true,
+              password: true,
+            },
+          });
+        })();
 
-      if (!ssoResponse.success || !ssoResponse.data) {
-        return c.json({ message: "Invalid credentials" }, 401);
+        if (!user || !user.password) {
+          return c.json({ message: "Invalid credentials" }, 401);
+        }
+
+        const ok = await bcrypt.compare(password, user.password);
+        if (!ok) {
+          return c.json({ message: "Invalid credentials" }, 401);
+        }
+
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          return c.json(
+            { message: "Server misconfiguration: JWT_SECRET missing" },
+            500
+          );
+        }
+
+        const token = jwt.sign(
+          { sub: user.id, role: user.role, typ: "solar" },
+          secret,
+          { expiresIn: "7d" }
+        );
+
+        return c.json({
+          message: "Login successful",
+          token,
+          user: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            name: user.name,
+          },
+        });
+      } else {
+        const ssoResponse = await loginSSO(username, password);
+
+        if (!ssoResponse.success || !ssoResponse.data) {
+          return c.json({ message: "Invalid credentials" }, 401);
+        }
+
+        const accessTokenPayload = jwt.decode(
+          ssoResponse.data.access_token
+        ) as SsoAccessTokenPayload;
+
+        const role = mapRole(
+          (accessTokenPayload as any).role ?? accessTokenPayload.description
+        );
+
+        // try {
+        //   await AuthModel.createUser({
+        //     id: accessTokenPayload.preferred_username,
+        //     email: accessTokenPayload.email,
+        //     name: accessTokenPayload.name,
+        //     role,
+        //   });
+        // } catch (e) {
+        //   if ((e as any)?.code !== "P2002") throw e;
+        //   console.log("User already exists, skipping creation");
+        // }
+
+        return c.json({
+          message: "Login successful",
+          token: ssoResponse.data.refresh_token,
+          user: {
+            id: accessTokenPayload.preferred_username,
+            email: accessTokenPayload.email,
+            role: accessTokenPayload.description,
+            name: accessTokenPayload.name,
+          },
+        });
       }
-
-      const accessTokenPayload = jwt.decode(
-        ssoResponse.data.access_token
-      ) as SsoAccessTokenPayload;
-
-      const role = mapRole(
-        (accessTokenPayload as any).role ?? accessTokenPayload.description
-      );
       
-      // try {
-      //   await AuthModel.createUser({
-      //     id: accessTokenPayload.preferred_username,
-      //     email: accessTokenPayload.email,
-      //     name: accessTokenPayload.name,
-      //     role,
-      //   });
-      // } catch (e) {
-      //   if ((e as any)?.code !== "P2002") throw e;
-      //   console.log("User already exists, skipping creation");
-      // }
-
-      return c.json({
-        message: "Login successful",
-        token: ssoResponse.data.refresh_token,
-        user: {
-          id: accessTokenPayload.preferred_username,
-          email: accessTokenPayload.email,
-          role: accessTokenPayload.description,
-          name: accessTokenPayload.name,
-        },
-      });
     } catch (error) {
       console.error("Login failed:", error);
       return c.json({ message: "Login failed" }, 500);

@@ -14,9 +14,23 @@ export const DownloadController = {
       const url = await DownloadModel.getFileDownloadUrl(fileId);
       if (!url) return c.json({ message: "File not found" }, 404);
 
-      return c.json({ url }, 200);
-    } catch (e: any) {
-      return c.json({ message: e?.message ?? "Failed to get file URL" }, 500);
+      return c.json(
+        {
+          message: "File download URL fetched successfully",
+          url: url,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "downloadFile",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
     }
   },
 
@@ -38,10 +52,21 @@ export const DownloadController = {
       );
       if (!url) return c.json({ message: "File not found" }, 404);
 
-      return c.json({ url }, 200);
-    } catch (e: any) {
       return c.json(
-        { message: e?.message ?? "Failed to get submission file URL" },
+        {
+          message: "Submission file download URL fetched successfully",
+          url: url,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "downloadSubmissionFile",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
         500
       );
     }
@@ -62,10 +87,21 @@ export const DownloadController = {
       );
       if (!url) return c.json({ message: "File not found" }, 404);
 
-      return c.json({ url }, 200);
-    } catch (e: any) {
       return c.json(
-        { message: e?.message ?? "Failed to get feedback file URL" },
+        {
+          message: "Feedback file download URL fetched successfully",
+          url: url,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "downloadFeedbackFile",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
         500
       );
     }

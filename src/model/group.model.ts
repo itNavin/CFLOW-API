@@ -92,7 +92,9 @@ export class GroupModel {
         await validateCourseMembers(memberIds);
       if (memberMissing.length) {
         const err: any = new Error(
-          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(", ")}`
+          `Invalid memberIds for course ${data.courseId}: ${memberMissing.join(
+            ", "
+          )}`
         );
         err.status = 400;
         throw err;
@@ -104,7 +106,7 @@ export class GroupModel {
           select: { id: true, user: { select: { role: true } } },
         });
         const notStudents = roles
-          .filter((r) => r.user.role !== "student") 
+          .filter((r) => r.user.role !== "student")
           .map((r) => r.id);
         if (notStudents.length) {
           const err: any = new Error(
@@ -143,7 +145,9 @@ export class GroupModel {
         await validateCourseMembers(advisorIds);
       if (advisorMissing.length) {
         const err: any = new Error(
-          `Invalid advisorIds for course ${data.courseId}: ${advisorMissing.join(", ")}`
+          `Invalid advisorIds for course ${
+            data.courseId
+          }: ${advisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
@@ -153,7 +157,9 @@ export class GroupModel {
         await validateCourseMembers(coAdvisorIds);
       if (coAdvisorMissing.length) {
         const err: any = new Error(
-          `Invalid coAdvisorIds for course ${data.courseId}: ${coAdvisorMissing.join(", ")}`
+          `Invalid coAdvisorIds for course ${
+            data.courseId
+          }: ${coAdvisorMissing.join(", ")}`
         );
         err.status = 400;
         throw err;
@@ -226,8 +232,6 @@ export class GroupModel {
       return newGroup;
     });
   }
-
-
 
   static async getAllGroups(courseId: string) {
     return prisma.group.findMany({
@@ -401,6 +405,59 @@ export class GroupModel {
         },
       });
       return updated!;
+    });
+  }
+  static async deleteGroup(groupId: string): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
+      const group = await tx.group.findUnique({
+        where: { id: groupId },
+        select: { id: true },
+      });
+      if (!group) return false;
+
+      const submissions = await tx.submission.findMany({
+        where: { groupId },
+        select: { id: true },
+      });
+      const submissionIds = submissions.map((s) => s.id);
+
+      if (submissionIds.length) {
+        await tx.submissionFile.deleteMany({
+          where: { submissionId: { in: submissionIds } },
+        });
+
+        const feedbacks = await tx.feedback.findMany({
+          where: { submissionId: { in: submissionIds } },
+          select: { id: true },
+        });
+        const feedbackIds = feedbacks.map((f) => f.id);
+
+        if (feedbackIds.length) {
+          await tx.feedbackFile.deleteMany({
+            where: { feedbackId: { in: feedbackIds } },
+          });
+          await tx.feedback.deleteMany({ where: { id: { in: feedbackIds } } });
+        }
+
+        await tx.courseActivityLog.deleteMany({
+          where: { entityType: "SUBMISSION", entityId: { in: submissionIds } },
+        });
+
+        await tx.submission.deleteMany({
+          where: { id: { in: submissionIds } },
+        });
+      }
+
+      await tx.assignmentDueDate.deleteMany({ where: { groupId } });
+      await tx.groupAdvisor.deleteMany({ where: { groupId } });
+      await tx.groupMember.deleteMany({ where: { groupId } });
+
+      await tx.courseActivityLog.deleteMany({
+        where: { entityType: "GROUP", entityId: groupId },
+      });
+
+      const del = await tx.group.deleteMany({ where: { id: groupId } });
+      return del.count > 0;
     });
   }
 }

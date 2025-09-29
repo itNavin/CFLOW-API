@@ -1,7 +1,13 @@
-// import { prisma } from "../prisma";
-// import type { Prisma, Role } from "@prisma/client";
+import { prisma } from "../prisma";
+import type { Prisma, Role } from "@prisma/client";
 
-// class AuthModel {
+class AuthModel {
+    static async loginSolarUser(username: string) {
+    return prisma.user.findUnique({
+      where: { id: username },
+    });
+  }
+
 //   static async createUser(data: {
 //     id: string;
 //     email: string;
@@ -17,6 +23,6 @@
 //       },
 //     });
 //   }
-// }
+}
 
-// export { AuthModel };
+export { AuthModel };

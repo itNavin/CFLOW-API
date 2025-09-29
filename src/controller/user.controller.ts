@@ -2,7 +2,6 @@ import { Context } from "hono";
 import UserModel from "../model/user.model";
 import * as XLSX from "xlsx";
 import { isValidUUID } from "src/types/uuid";
-import { decodeToken, getTokenFromHeader } from "../util/jwt";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
@@ -91,7 +90,7 @@ export const UserController = {
 
         const kId = keys["id"];
         const kEmail = keys["email"];
-        const kName = keys["name"]; 
+        const kName = keys["name"];
 
         const rawId = kId ? r[kId] : "";
         const email = kEmail ? String(r[kEmail]).trim() : "";
@@ -119,20 +118,236 @@ export const UserController = {
       const result = await UserModel.uploadStudentDataByExcel({
         rows: normalized,
         role: role as any,
-        program: program as any, 
+        program: program as any,
       });
 
       return c.json(
         {
           message: "Users have been processed successfully",
           summary: result.summary,
-          errors: result.errors, 
+          errors: result.errors,
         },
         200
       );
     } catch (error) {
       console.error({
         context: "uploadStudentDataByExcel",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  createLecturerUser: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const body = await c.req.json();
+      const { id, email, name, program } = body;
+      if (!id || !email || !name || !program) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+      const createLecturerUser = await UserModel.createLecturerUser(
+        id,
+        email,
+        name,
+        program
+      );
+      return c.json(
+        {
+          message: "Lecturer user created successfully",
+          user: createLecturerUser,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "createLecturerUser",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  createSolarLecturerUser: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json();
+      const { email, name, program } = body;
+      if (!email || !name || !program) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+
+      const id = "Sol#" + email.split("@")[0];
+      const rawPassword = Math.random().toString(36).slice(-8); // temporary password
+      // hash
+      const hashedPassword = await Bun.password.hash(rawPassword, {
+        algorithm: "bcrypt",
+        cost: 10,
+      });
+
+      console.log("id:", id);
+      console.log("raw password:", rawPassword);
+
+      const createSolarLecturerUser = await UserModel.createSolarLecturerUser(
+        id,
+        email,
+        name,
+        hashedPassword,
+        program
+      );
+
+      return c.json(
+        {
+          message: "Lecturer user created successfully",
+          user: createSolarLecturerUser,
+          tempPassword: rawPassword,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "createSolarLecturerUser",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  updateSolarPassword: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "lecturer ") {
+        return c.json({ message: "Forbidden: LECTURER only" }, 403);
+      }
+
+      const body = await c.req.json();
+      const { userId, newPassword } = body;
+      if (!userId || !newPassword) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+      if (userId.startsWith("Sol#") === false) {
+        return c.json({ message: "Not a solar user" }, 400);
+      }
+
+      const hashedPassword = await Bun.password.hash(newPassword, {
+        algorithm: "bcrypt",
+        cost: 10,
+      });
+
+      const updatedUser = await UserModel.updateSolarPassword(
+        userId,
+        hashedPassword
+      );
+      if (!updatedUser) {
+        return c.json({ message: "User not found" }, 404);
+      }
+
+      return c.json({ message: "Password updated successfully" }, 200);
+    } catch (error) {
+      console.error({
+        context: "updateSolarPassword",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  getAllUsers: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const users = await UserModel.getAllUsers();
+      return c.json(users, 200);
+    } catch (error) {
+      console.error({
+        context: "getAllUsers",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  fetchStudentData: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const academicYear = c.req.query("academicYear");
+      if (!academicYear) {
+        return c.json({ message: "academicYear is required" }, 400);
+      }
+
+      const baseUrl = process.env.STUDENT_FETCH_DATA_URL;
+      if (!baseUrl) {
+        return c.json(
+          { message: "STUDENT_FETCH_DATA_URL is not configured" },
+          500
+        );
+      }
+
+      const data = await fetch(
+        `${baseUrl}/api/v1/users/profile/studentsFromYear?academicYear=${academicYear}`
+      );
+      const json = await data.json();
+      const rows = Array.isArray(json) ? json : json?.data ?? [];
+
+      const acceptedPrograms = new Set([
+        "Bachelor of Science Program in Computer Science (English Program)",
+        "Bachelor of Arts Programme in Digital Service Innovation",
+      ]);
+
+      const filtered = rows.filter(
+        (r: any) =>
+          String(r?.statusName ?? "").trim() === "กำลังศึกษาอยู่" &&
+          acceptedPrograms.has(String(r?.programNameEng ?? "").trim())
+      );
+
+      // Insert (your model can still do its own validation/dedupe)
+      const summary = await UserModel.fetchStudentDataFromAPI(filtered);
+
+      return c.json(
+        {
+          message: "Student data has been processed successfully",
+          summary,
+          data: filtered, // ← now only shows allowed rows
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "fetchStudentData",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });

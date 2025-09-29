@@ -8,11 +8,11 @@ export type CreateFileInput = {
   announcementId?: number | null;
 };
 
-export type GetAllFilesParams = {
-  courseId?: number;
-  announcementId?: number | null;
-  unattached?: boolean; 
-  createdById?: number; 
+type GetAllFilesParams = {
+  courseId?: string; 
+  announcementId?: string; 
+  unattached?: boolean;
+  createdById?: string;
   order?: "asc" | "desc";
 };
 
@@ -21,10 +21,9 @@ class FileModel {
     name: string;
     filepath: string;
     createdById: string;
-    courseId?: string; 
-    announcementId?: string | null; 
+    courseId?: string;
+    announcementId?: string | null;
   }) {
-
     const creator = await prisma.user.findUnique({
       where: { id: data.createdById },
       select: { id: true },
@@ -55,7 +54,7 @@ class FileModel {
         err.status = 400;
         throw err;
       }
-      courseId = ann.courseId; 
+      courseId = ann.courseId;
     }
 
     if (courseId == null) {
@@ -80,12 +79,12 @@ class FileModel {
       data: {
         name: data.name,
         filepath: data.filepath,
-        createdById: data.createdById, 
+        createdById: data.createdById,
         courseId,
         announcementId: announcementId ?? null,
       },
       include: {
-        createdBy: true, 
+        createdBy: true,
         course: true,
       },
     });
@@ -96,18 +95,18 @@ class FileModel {
       courseId,
       announcementId,
       unattached,
-      createdById, 
+      createdById,
       order = "asc",
     } = params;
 
     const where: any = {};
 
-    if (typeof createdById === "number" && !Number.isNaN(createdById)) {
-      where.createdById = createdById; 
+    if (typeof createdById === "string" && createdById.trim() !== "") {
+      where.createdById = createdById.trim(); 
     }
 
-    if (typeof courseId === "number" && !Number.isNaN(courseId)) {
-      where.courseId = courseId;
+    if (typeof courseId === "string" && courseId.trim() !== "") {
+      where.courseId = courseId.trim(); 
     }
 
     if (typeof announcementId === "number" && !Number.isNaN(announcementId)) {
@@ -119,15 +118,15 @@ class FileModel {
     return prisma.file.findMany({
       where,
       include: {
-        createdBy: true, 
+        createdBy: true,
         course: true,
       },
-      orderBy: { id: order },
+      orderBy: { uploadAt: order },
     });
   }
 
   static async getFilesByCourseId(
-    courseId: number,
+    courseId: string,
     params: Omit<GetAllFilesParams, "courseId"> = {}
   ) {
     return this.getAllFiles({ ...params, courseId });

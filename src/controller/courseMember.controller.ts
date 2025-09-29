@@ -166,6 +166,7 @@ export const CourseMemberController = {
   addMembers: async (c: Context) => {
     try {
       const role = c.get("role");
+      console.log("role", role);
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
@@ -183,6 +184,7 @@ export const CourseMemberController = {
       if (!Array.isArray(raw) || raw.length === 0) {
         return c.json({ message: "userIds must be a non-empty array" }, 400);
       }
+      console.log("raw", raw);
 
       const userIds: string[] = [
         ...new Set(
