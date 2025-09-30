@@ -2,6 +2,7 @@ import { Context } from "hono";
 import UserModel from "../model/user.model";
 import * as XLSX from "xlsx";
 import { isValidUUID } from "src/types/uuid";
+import { prisma } from "../prisma";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
@@ -272,17 +273,33 @@ export const UserController = {
   updateSolarPassword: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "lecturer ") {
+      console.log("role:", role);
+      if (role !== "lecturer") {
         return c.json({ message: "Forbidden: LECTURER only" }, 403);
       }
 
       const body = await c.req.json();
-      const { userId, newPassword } = body;
-      if (!userId || !newPassword) {
+      const { userId, oldPassword, newPassword } = body;
+      if (!userId || !oldPassword || !newPassword) {
         return c.json({ message: "Missing required fields" }, 400);
       }
       if (userId.startsWith("Sol#") === false) {
         return c.json({ message: "Not a solar user" }, 400);
+      }
+      const checkOldPassword = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { password: true },
+      });
+
+      if (!checkOldPassword?.password) {
+        return c.json({ message: "User password not found" }, 400);
+      }
+      const isOldPasswordValid = await Bun.password.verify(
+        oldPassword,
+        checkOldPassword.password
+      );
+      if (!isOldPasswordValid) {
+        return c.json({ message: "Invalid old password" }, 400);
       }
 
       const hashedPassword = await Bun.password.hash(newPassword, {
