@@ -33,14 +33,17 @@ export const DashboardController = {
         if (groupInformation.length === 0) {
           return c.json(
             {
-              message: "No group found for this student in the specified course.",
-              id: "none",
-              codeNumber: "none",
-              projectName: "none",
-              productName: "none",
-              company: "none",
-              member: [],
-              advisors: [],
+              message:
+                "No group found for this student in the specified course.",
+              groupInformation: {
+                id: "none",
+                codeNumber: "none",
+                projectName: "none",
+                productName: "none",
+                company: "none",
+                member: [],
+                advisors: [],
+              },
             },
             200
           );
