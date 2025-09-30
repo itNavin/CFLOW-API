@@ -12,36 +12,32 @@ function sOrNull(v: any): string | null {
 }
 
 export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
-  // 0) Determine program (CS | DSI)
   const course = await prisma.course.findUnique({
     where: { id: courseId },
     select: { program: true },
   });
   if (!course) throw new Error("Course not found");
 
-  // 1) Read first sheet
   const wb = XLSX.read(fileBuffer, { type: "buffer" });
   const sheetName = wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", raw: false });
   if (rows.length === 0) throw new Error("Excel is empty");
 
-  // 2) Accumulators
   type AccGroup = {
     projectName: string;
-    productName: string | null; // CS only; DSI → null
-    company: string | null; // DSI only; CS → null
-    advisor?: string | null; // identifier string (User.id or email or name)
+    productName: string | null;
+    company: string | null;
+    advisor?: string | null;
     coAdvisor?: string | null;
     members: Array<{
       studentId: string;
-      name: string; // FULL NAME now
-      workRole: string | null; // DSI only
+      name: string;
+      workRole: string | null;
     }>;
   };
   const groupsToUpsert = new Map<string, AccGroup>();
 
-  // carry-down support
   let currentGroupCode: string | null = null;
   const carryByGroup = new Map<
     string,
@@ -54,61 +50,51 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
     }
   >();
 
-  // 3) Parse rows with carry-down
   rows.forEach((raw, idx) => {
-    const excelRow = idx + 2; // header at row 1
+    const excelRow = idx + 2;
 
-    // Read exact headers from your templates (CS / DSI)
     const rawGroup = s(raw["Group No."]);
     const rawProject = s(raw["Project name"]);
-    const rawProduct = s(raw["Product name"]); // CS
-    const rawCompany = s(raw["Company"]); // DSI
+    const rawProduct = s(raw["Product name"]);
+    const rawCompany = s(raw["Company"]);
     const rawAdvisor = sOrNull(raw["Advisor"]);
     const rawCoAdv = sOrNull(raw["Co-advisor"]);
 
     const studentId = s(raw["Student ID"]);
-    const fullName = s(raw["Name"]); // full name in a single column now
-    const role = s(raw["Role"]); // DSI
+    const fullName = s(raw["Name"]);
+    const role = s(raw["Role"]);
 
-    // Skip totally empty lines
     if (!rawGroup && !studentId && !fullName) return;
 
-    // Carry group code
     if (rawGroup) currentGroupCode = rawGroup;
     const groupCode = currentGroupCode;
     if (!groupCode) {
       throw new Error(`Row ${excelRow}: Missing required fields: Group No.`);
     }
 
-    // Initialize per-group carry
     if (!carryByGroup.has(groupCode)) carryByGroup.set(groupCode, {});
     const carry = carryByGroup.get(groupCode)!;
 
-    // Project name: first row must define; subsequent rows can inherit
     if (rawProject) carry.projectName = rawProject;
     if (!carry.projectName) {
       throw new Error(`Row ${excelRow}: Missing required fields: Project name`);
     }
 
-    // Program-specific carried fields
     if (course.program === "CS") {
       if (rawProduct) carry.productName = rawProduct;
-      carry.company = null; // CS never has company
+      carry.company = null;
     } else {
       if (rawCompany) carry.company = rawCompany;
-      carry.productName = null; // DSI never has product
+      carry.productName = null;
     }
 
-    // Advisors: take the first non-empty within the group
     if (!carry.advisor && rawAdvisor) carry.advisor = rawAdvisor;
     if (!carry.coAdvisor && rawCoAdv) carry.coAdvisor = rawCoAdv;
 
-    // Validate student row minima
     if (!studentId) {
       throw new Error(`Row ${excelRow}: Missing required fields: Student ID`);
     }
 
-    // Create/refresh accumulator for this group
     if (!groupsToUpsert.has(groupCode)) {
       groupsToUpsert.set(groupCode, {
         projectName: carry.projectName!,
@@ -130,18 +116,16 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
 
     groupsToUpsert.get(groupCode)!.members.push({
       studentId,
-      name: fullName, // keep full name as-is
+      name: fullName,
       workRole: course.program === "DSI" ? role || null : null,
     });
   });
 
   if (groupsToUpsert.size === 0) throw new Error("No valid rows were found.");
 
-  // 4) Apply to DB (idempotent, with validations)
   return prisma.$transaction(async (tx) => {
     const results: any[] = [];
 
-    // helper: resolve advisor string → user + ensure is CourseMember
     async function resolveAdvisorOrThrow(
       who: "advisor" | "coAdvisor",
       ident: string,
@@ -150,9 +134,7 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
       const raw0 = (ident ?? "").trim();
       if (!raw0) throw new Error(`Group ${groupCode}: ${who} is empty`);
 
-      // Accept "id:<ANY_NONSPACE>" or "user:<ANY_NONSPACE>"
       const explicitIdMatch = raw0.match(/^(?:id|user)\s*:\s*(\S+)$/i);
-      // Also accept plain UUID-ish or pure digits as literal IDs
       const looksLikeUuid =
         /^[0-9a-fA-F-]{16,}$/.test(raw0) || /^[a-f0-9]{24}$/i.test(raw0);
       const looksLikeDigits = /^\d+$/.test(raw0);
@@ -175,7 +157,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         return { userId: user.id, courseMemberId: cm.id };
       }
 
-      // 2) Email
       if (raw0.includes("@")) {
         const user = await tx.user.findUnique({ where: { email: raw0 } });
         if (!user)
@@ -193,7 +174,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         return { userId: user.id, courseMemberId: cm.id };
       }
 
-      // Normalize "Surname, Name" → "Name Surname"
       const raw = raw0.includes(",")
         ? raw0
             .split(",")
@@ -202,10 +182,8 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
             .join(" ")
         : raw0;
 
-      // Name-only matching against User.name
       const tokens = raw.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
 
-      // Pass 1: exact, startsWith, contains
       let candidates = await tx.user.findMany({
         where: {
           OR: [
@@ -217,7 +195,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         select: { id: true, email: true, name: true },
       });
 
-      // Pass 2: require all tokens to appear (order-agnostic)
       if (candidates.length === 0 && tokens.length >= 2) {
         candidates = await tx.user.findMany({
           where: {
@@ -284,7 +261,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
     }
 
     for (const [groupCode, payload] of groupsToUpsert) {
-      // (A) Validate duplicate projectName within course (different code)
       const nameConflict = await tx.group.findFirst({
         where: {
           courseId,
@@ -299,7 +275,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         );
       }
 
-      // (B) Upsert group by unique (courseId, codeNumber)
       const group = await tx.group.upsert({
         where: { courseId_codeNumber: { courseId, codeNumber: groupCode } },
         update: {
@@ -321,7 +296,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         select: { id: true, projectName: true, codeNumber: true },
       });
 
-      // (C) Resolve & link advisors (idempotent)
       const advisorRefs: Array<{
         courseMemberId: string;
         groupId: string;
@@ -360,10 +334,8 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         });
       }
 
-      // (D) Resolve students (Student ID → User.id STRING)
       const resolvedMembers = await Promise.all(
         payload.members.map(async (m) => {
-          // If your system uses Student ID == User.id (string), this works:
           const user = await tx.user.findUnique({ where: { id: m.studentId } });
           if (!user) {
             throw new Error(
@@ -378,15 +350,13 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         })
       );
 
-      // (E) Ensure CourseMember rows (no duplicates)
       if (resolvedMembers.length) {
         await tx.courseMember.createMany({
           data: resolvedMembers.map(({ userId }) => ({ courseId, userId })),
-          skipDuplicates: true, // requires @@unique([courseId,userId])
+          skipDuplicates: true,
         });
       }
 
-      // Map CourseMember ids for these users
       const cmRows = await tx.courseMember.findMany({
         where: {
           courseId,
@@ -398,7 +368,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         cmRows.map((r) => [r.userId, r.id])
       );
 
-      // (F) Check if any of these students already belong to ANY group in this course
       const cmIds = cmRows.map((r) => r.id);
       const memberships = await tx.groupMember.findMany({
         where: { courseMemberId: { in: cmIds } },
@@ -414,7 +383,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         },
       });
 
-      // Build lookup by courseMemberId
       const membershipByCmId = new Map<
         string,
         {
@@ -433,7 +401,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         }
       }
 
-      // If any already in some group in this course (including same group), error
       for (const m of resolvedMembers) {
         const cmId = cmByUser.get(m.userId)!;
         const existing = membershipByCmId.get(cmId);
@@ -446,7 +413,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         }
       }
 
-      // (G) Create GroupMember rows (only if no conflicts)
       const existingGm = await tx.groupMember.findMany({
         where: { groupId: group.id },
         select: { courseMemberId: true },
