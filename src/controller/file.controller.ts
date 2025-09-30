@@ -3,13 +3,48 @@ import FileModel from "../model/file.model";
 import { isValidUUID } from "src/types/uuid";
 
 export const FileController = {
-  // POST /file/course/:courseId
+  deleteFile: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json(
+          { error: "Forbidden: ADVISOR, ADMIN or SUPER_ADMIN only" },
+          403
+        );
+      }
+
+      const body = await c.req.json<{ fileId: string }>();
+      const fileId = body.fileId;
+      if (!fileId || !isValidUUID(fileId)) {
+        return c.json(
+          { error: "fileId is required and must be a valid UUID" },
+          400
+        );
+      }
+      const deletedFile = await FileModel.deleteFile(fileId);
+      return c.json(
+        { message: "File deleted successfully", file: deletedFile },
+        200
+      );
+    } catch (error: any) {
+      console.error({
+        context: "deleteFile",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
   createFile: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "ADVISOR" && role !== "ADMIN" && role !== "SUPER_ADMIN") {
+      if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
         return c.json(
-          { error: "Forbidden: ADVISOR, ADMIN or SUPER_ADMIN only" },
+          { error: "Forbidden: LECTURER, STAFF or SUPER_ADMIN only" },
           403
         );
       }
