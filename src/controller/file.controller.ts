@@ -54,14 +54,14 @@ export const FileController = {
     try {
       const url = new URL(c.req.url);
 
-      const announcementIdParam = url.searchParams.get("announcementId"); // UUID
+      const announcementIdParam = url.searchParams.get("announcementId");
       const unattachedParam = url.searchParams.get("unattached");
 
-      const createdByIdParam = url.searchParams.get("createdById"); // UUID
-      const uploadedByIdParam = url.searchParams.get("uploadedById"); // UUID (alias)
+      const createdByIdParam = url.searchParams.get("createdById");
+      const uploadedByIdParam = url.searchParams.get("uploadedById"); 
 
-      const courseIdParam = url.searchParams.get("courseId"); // UUID
-      const orderParam = url.searchParams.get("order"); // "asc" | "desc"
+      const courseIdParam = url.searchParams.get("courseId"); 
+      const orderParam = url.searchParams.get("order"); 
 
       const announcementId =
         announcementIdParam && announcementIdParam.trim() !== ""
@@ -72,7 +72,6 @@ export const FileController = {
         ? unattachedParam.toLowerCase() === "true"
         : undefined;
 
-      // Prefer createdById; fall back to uploadedById
       const createdById =
         createdByIdParam && createdByIdParam.trim() !== ""
           ? createdByIdParam.trim()
@@ -87,7 +86,6 @@ export const FileController = {
 
       const order = orderParam === "desc" ? "desc" : "asc";
 
-      // Optional: validate UUIDs if present
       if (courseId && !isValidUUID(courseId)) {
         return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
       }
@@ -113,10 +111,9 @@ export const FileController = {
     }
   },
 
-  // GET /file/course/:courseId
   getFilesByCourseId: async (c: Context) => {
     try {
-      const courseId = c.req.param("courseId"); // UUID
+      const courseId = c.req.param("courseId"); 
       if (!courseId) {
         return c.json({ error: "courseId is required" }, 400);
       }

@@ -13,6 +13,8 @@ userRouter.post(
   UserController.uploadUserDataByExcel
 );
 
+userRouter.post("/create-staff", UserController.createStaffUser);
+
 userRouter.post("/create-lecturer", UserController.createLecturerUser);
 
 userRouter.post("/create-solar-lecturer", UserController.createSolarLecturerUser);

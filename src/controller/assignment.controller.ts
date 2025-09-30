@@ -300,33 +300,14 @@ export const AssignmentController = {
   getStudentAssignmentByGroupId: async (c: Context) => {
     try {
       const courseId = c.req.param("courseId");
-      // const assignmentId = c.req.param("assignmentId");
 
       if (!courseId) return c.json({ message: "courseId is required" }, 400);
       if (!isValidUUID(courseId)) {
         return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
-      // if (!assignmentId) {
-      //   return c.json({ message: "assignmentId is required" }, 400);
-      // }
-      // if (!isValidUUID(assignmentId)) {
-      //   return c.json({ message: "assignmentId must be a valid UUID" }, 400);
-      // }
 
       const userId = c.get("userId");
       if (!userId) return c.json({ message: "Unauthorized" }, 401);
-
-      // const asg = await prisma.assignment.findUnique({
-      //   where: { id: assignmentId },
-      //   select: { courseId: true },
-      // });
-      // if (!asg) return c.json({ message: "Assignment not found" }, 404);
-      // if (asg.courseId !== courseId) {
-      //   return c.json(
-      //     { message: "Assignment does not belong to this course" },
-      //     400
-      //   );
-      // }
 
       const cm = await prisma.courseMember.findUnique({
         where: { courseId_userId: { courseId, userId } },
@@ -363,7 +344,6 @@ export const AssignmentController = {
 
       const data = await AssignmentModel.getStudentAssignmentByGroupId(
         courseId,
-        // assignmentId,
         groupId
       );
 

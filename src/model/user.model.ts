@@ -212,6 +212,18 @@ class UserModel {
     };
   }
 
+  static async createStaffUser(id: string, email: string, name: string, program: "CS" | "DSI" | "BOTH") {
+    return prisma.user.create({
+      data: {
+        id,
+        email,
+        name,
+        role: "staff",
+        program,
+      },
+    });
+  }
+
   static async createLecturerUser(
     id: string,
     email: string,
