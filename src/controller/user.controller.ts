@@ -141,6 +141,43 @@ export const UserController = {
       );
     }
   },
+  createStaffUser: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const body = await c.req.json();
+      const { email, name, program } = body;
+      if ( !email || !name || !program) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+      const id = email.split("@")[0];
+      const createStaffUser = await UserModel.createStaffUser(
+        id,
+        email,
+        name,
+        program
+      );
+      return c.json(
+        {
+          message: "Staff user created successfully",
+          user: createStaffUser,
+        },
+        201
+      );
+    } catch (error) {
+      console.error({
+        context: "createStaffUser",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
 
   createLecturerUser: async (c: Context) => {
     try {

@@ -6,7 +6,6 @@ import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
 import bcrypt from "bcryptjs"; 
-// import { AuthModel } from "src/model/auth.model";
 
 const ROLE_MAP: Record<string, Role> = {
   student: "student",
@@ -34,9 +33,8 @@ async function verifyPassword(plain: string, hash: string) {
     return bcrypt.compare(plain, hash);
   }
   if (isArgon2idHash(hash)) {
-    return Bun.password.verify(plain, hash); // Bun supports argon2id verify
+    return Bun.password.verify(plain, hash); 
   }
-  return false; // unknown hash format
 }
 
 export const AuthController = {
@@ -110,18 +108,6 @@ export const AuthController = {
         const role = mapRole(
           (accessTokenPayload as any).role ?? accessTokenPayload.description
         );
-
-        // try {
-        //   await AuthModel.createUser({
-        //     id: accessTokenPayload.preferred_username,
-        //     email: accessTokenPayload.email,
-        //     name: accessTokenPayload.name,
-        //     role,
-        //   });
-        // } catch (e) {
-        //   if ((e as any)?.code !== "P2002") throw e;
-        //   console.log("User already exists, skipping creation");
-        // }
 
         return c.json({
           message: "Login successful",

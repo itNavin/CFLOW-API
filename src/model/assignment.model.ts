@@ -249,15 +249,12 @@ class AssignmentModel {
 
   static async getStudentAssignmentByGroupId(
     courseId: string,
-    // assignmentId: string,
     groupId: string
   ): Promise<AssignmentsByGroupLite> {
     const now = new Date();
 
-    // restrict to this single assignment (and ensure it's in this course)
     const assignments = await prisma.assignment.findMany({
       where: {
-        // id: assignmentId,
         courseId,
         schedule: { lte: now },
       },
