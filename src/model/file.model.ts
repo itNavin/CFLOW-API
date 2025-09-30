@@ -17,6 +17,18 @@ type GetAllFilesParams = {
 };
 
 class FileModel {
+  static async deleteFile(fileId: string) {
+    const file = await prisma.file.findUnique({
+      where: { id: fileId },
+    });
+    if (!file) {
+      const err: any = new Error("File not found");
+      err.status = 404;
+      throw err;
+    }
+    return prisma.file.delete({ where: { id: fileId } });
+  }
+  
   static async createFile(data: {
     name: string;
     filepath: string;
