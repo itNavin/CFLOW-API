@@ -325,8 +325,17 @@ export const AssignmentController = {
 
       if (memberships.length === 0) {
         return c.json(
-          { message: "You are not in any group for this course" },
-          400
+          {
+            message: "Assignment fetched successfully",
+            assignment: {
+              courseId,
+              groupId: null,
+              counts: { open: 0, submitted: 0 },
+              openTasks: [],
+              submitted: [],
+            },
+          },
+          200
         );
       }
       if (memberships.length > 1) {

@@ -17,10 +17,12 @@ import { storageRouter } from "./storage.routes";
 import { profileRouter } from "./profile.routes";
 import { downloadRouter } from "./download.routes";
 import { statusRouter } from "./status.routes";
+import { debugRouter } from "./debug.routes";
 
 const mainRouter = new Hono();
 
 mainRouter.route("/auth", authRouter);
+mainRouter.route("/debug", debugRouter);
 
 mainRouter.use(authMiddleware);
 mainRouter.route("/course", courseRouter);
