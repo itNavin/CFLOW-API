@@ -3,6 +3,8 @@ import UserModel from "../model/user.model";
 import * as XLSX from "xlsx";
 import { isValidUUID } from "src/types/uuid";
 import { prisma } from "../prisma";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
@@ -187,10 +189,11 @@ export const UserController = {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
       const body = await c.req.json();
-      const { id, email, name, program } = body;
-      if (!id || !email || !name || !program) {
+      const {  email, name, program } = body;
+      if ( !email || !name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
       }
+      const id = email.split("@")[0];
       const createLecturerUser = await UserModel.createLecturerUser(
         id,
         email,
