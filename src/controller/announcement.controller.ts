@@ -2,6 +2,10 @@ import { Context } from "hono";
 import AnnouncementModel from "../model/announcement.model";
 import { AnnouncementPayload } from "../types/payload//announcement.type";
 import { isValidUUID } from "../types/uuid";
+import { mailRoles } from "src/util/mailRole";
+import { announcementMail } from "src/mail/announcement.mail";
+import { sendEmail } from "src/lib/mailer";
+import { mailSentAndSummary } from "src/util/mailSummary";
 
 export const AnnouncementController = {
   createAnnouncement: async (c: Context) => {
@@ -46,6 +50,16 @@ export const AnnouncementController = {
         schedule,
         userId,
       });
+      //mail
+      // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
+      const mailUsers = await mailRoles.test(courseId);
+      const courseName = await mailRoles.coursename(courseId);
+      if (!courseName) {
+        return c.json({ error: "Course not found" }, 404);
+      }
+      const { subject, html, text } =
+        await announcementMail.createAnnouncementMail(courseName.name, created);
+      mailSentAndSummary(mailUsers, subject, html, text);
 
       return c.json(
         {

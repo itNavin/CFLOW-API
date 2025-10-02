@@ -6,6 +6,9 @@ import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
 import bcrypt from "bcryptjs"; 
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
+import { authMail } from "src/mail/auth.mail";
 
 const ROLE_MAP: Record<string, Role> = {
   student: "student",
@@ -27,14 +30,6 @@ function isBcryptHash(h: string) {
 }
 function isArgon2idHash(h: string) {
   return /^\$argon2id\$/.test(h);
-}
-async function verifyPassword(plain: string, hash: string) {
-  if (isBcryptHash(hash)) {
-    return bcrypt.compare(plain, hash);
-  }
-  if (isArgon2idHash(hash)) {
-    return Bun.password.verify(plain, hash); 
-  }
 }
 
 export const AuthController = {
@@ -84,6 +79,12 @@ export const AuthController = {
           { expiresIn: "7d" }
         );
 
+        //mail for solar login
+        // const mailUser = await mailRoles.getSingleUser(user.id);
+        const mailUser = await mailRoles.test(user.id);
+        const {subject, html, text} = await authMail.loginMail(user.name);
+        mailSentAndSummary(mailUser, subject, html, text);
+
         return c.json({
           message: "Login successful",
           token,
@@ -108,6 +109,11 @@ export const AuthController = {
         const role = mapRole(
           (accessTokenPayload as any).role ?? accessTokenPayload.description
         );
+        //mail 
+        //const mailUser = await mailRoles.getSingleUser(accessTokenPayload.preferred_username);
+        const mailUser = await mailRoles.test2(accessTokenPayload.preferred_username);
+        const {subject, html, text} = await authMail.loginMail(accessTokenPayload.name);
+        mailSentAndSummary(mailUser, subject, html, text);
 
         return c.json({
           message: "Login successful",

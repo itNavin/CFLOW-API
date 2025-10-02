@@ -39,6 +39,12 @@ class CourseModel {
     });
   }
 
+  static async getCourseByName(name: string) {
+    return prisma.course.findFirst({
+      where: { name },
+    });
+  }
+
   static async updateCourseById(body: CoursePayload.updateCourseBody) {
     const course = await prisma.course.update({
       where: { id: body.courseId },
@@ -164,13 +170,13 @@ class CourseModel {
         })
       ).count;
 
-      if (tx.courseActivityLog) {
-        counts.activityLogs = (
-          await tx.courseActivityLog.deleteMany({
-            where: { courseId },
-          })
-        ).count;
-      }
+      // if (tx.activityLog) {
+      //   counts.activityLogs = (
+      //     await tx.activityLog.deleteMany({
+      //       where: { courseId },
+      //     })
+      //   ).count;
+      // }
 
       counts.announcements = (
         await tx.announcement.deleteMany({

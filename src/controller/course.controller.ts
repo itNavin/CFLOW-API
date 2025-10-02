@@ -2,6 +2,9 @@ import type { Context } from "hono";
 import CourseModel from "../model/course.model";
 import type { CoursePayload } from "../types/payload/course.type";
 import { isValidUUID } from "../types/uuid";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
+import { courseMail } from "src/mail/course.mail";
 
 export const CourseController = {
   createCourse: async (c: Context) => {
@@ -18,6 +21,10 @@ export const CourseController = {
 
       const body = await c.req.json<CoursePayload.createCourse>();
       const { name, description, program } = body;
+      const duplicateName = await CourseModel.getCourseByName(name);
+      if (duplicateName) {
+        return c.json({ message: "Course name already exists" }, 400);
+      }
 
       if (!name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
@@ -29,17 +36,25 @@ export const CourseController = {
         return c.json({ message: "Course description too long" }, 400);
       }
 
-      const course = await CourseModel.createCourse(
+      const created = await CourseModel.createCourse(
         name,
         description,
         program,
         userId
       );
+      //mail
+      //const mailUsers = await mailRoles.getStaff();
+      const mailUsers = await mailRoles.test2("stf02");
+      const { subject, html, text } = await courseMail.createCourseMail(
+        name,
+        created
+      );
+      await mailSentAndSummary(mailUsers, subject, html, text);
 
       return c.json(
         {
           message: "Course created successfully",
-          course: course,
+          course: created,
         },
         201
       );
@@ -74,6 +89,10 @@ export const CourseController = {
       }
 
       const courseName = String(body.name);
+      const duplicateName = await CourseModel.getCourseByName(courseName);
+      if (duplicateName && duplicateName.id !== courseId) {
+        return c.json({ message: "Course name already exists" }, 400);
+      }
       if (!courseName) {
         return c.json({ message: "Invalid course name" }, 400);
       }
@@ -89,12 +108,21 @@ export const CourseController = {
         return c.json({ message: "Course description too long" }, 400);
       }
 
-      const updatedCourse = await CourseModel.updateCourseById(body);
+      const updated = await CourseModel.updateCourseById(body);
+
+      //mail
+      //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
+      const mailUsers = await mailRoles.test2("stf02");
+      const { subject, html, text } = await courseMail.updateCourseMail(
+        courseName,
+        updated
+      );
+      await mailSentAndSummary(mailUsers, subject, html, text);
 
       return c.json(
         {
           message: "The course has been updated successfully",
-          course: updatedCourse,
+          course: updated,
         },
         200
       );
