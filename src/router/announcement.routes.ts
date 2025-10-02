@@ -4,7 +4,7 @@ import { AnnouncementController } from "../controller/announcement.controller";
 export const announcementRouter = new Hono();
 
 announcementRouter.post(
-  "/course/:courseId",
+  "/course",
   AnnouncementController.createAnnouncement
 );
 

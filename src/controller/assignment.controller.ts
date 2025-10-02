@@ -3,6 +3,9 @@ import { prisma } from "../prisma";
 import AssignmentModel from "../model/assignment.model";
 import { AssignmentPayload } from "src/types/payload/assignment.types";
 import { isValidUUID } from "../types/uuid";
+import { assignmentMail } from "src/mail/assignment.mail";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
@@ -107,6 +110,19 @@ export const AssignmentController = {
         dueDate,
         deliverables,
       });
+
+      //mail
+      //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
+      const mailUsers = await mailRoles.test(courseId)
+      const courseName = await mailRoles.coursename(courseId);
+      if (!courseName) {
+        return c.json({ error: "Course not found" }, 404);
+      }
+      const { subject, html, text } = await assignmentMail.createAssignmentMail(
+        courseName.name,
+        created
+      );
+      mailSentAndSummary(mailUsers, subject, html, text);
 
       return c.json(
         {

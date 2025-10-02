@@ -12,6 +12,9 @@ import {
 
 import { CourseMemberPayload } from "src/types/payload/courseMember.type";
 import { isValidUUID } from "src/types/uuid";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
+import { courseMemberMail } from "src/mail/courseMember.mail";
 
 export const CourseMemberController = {
   getAdvisorMembers: async (c: Context) => {
@@ -166,7 +169,6 @@ export const CourseMemberController = {
   addMembers: async (c: Context) => {
     try {
       const role = c.get("role");
-      console.log("role", role);
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
@@ -184,7 +186,6 @@ export const CourseMemberController = {
       if (!Array.isArray(raw) || raw.length === 0) {
         return c.json({ message: "userIds must be a non-empty array" }, 400);
       }
-      console.log("raw", raw);
 
       const userIds: string[] = [
         ...new Set(
@@ -220,9 +221,27 @@ export const CourseMemberController = {
       const results = await Promise.all(
         userIds.map((uid) => addMembers(courseId, uid))
       );
-
+      const inserted = results.filter((r) => r.created);
       const insertedCount = results.filter((r) => r.created).length;
       const skippedAsDuplicates = results.length - insertedCount;
+
+      //mail
+      const coursename = await prisma.course
+        .findUnique({
+          where: { id: courseId },
+          select: { name: true },
+        })
+        .then((c) => c?.name || "the course");
+      const addedUserIds = inserted.map((r) => r.member.userId as string);
+
+      const mailUsers = await prisma.user.findMany({
+        where: { id: { in: addedUserIds } },
+        select: { id: true, name: true, email: true },
+      });
+      const { subject, html, text } = await courseMemberMail.addMemberMail(
+        coursename
+      );
+      await mailSentAndSummary(mailUsers, subject, html, text);
 
       return c.json(
         {
@@ -289,12 +308,30 @@ export const CourseMemberController = {
           400
         );
       }
+      const coursename = await prisma.courseMember
+        .findFirst({
+          where: { id: { in: courseMemberIds } },
+          select: { course: { select: { name: true } } },
+        })
+        .then((c) => c?.course.name || "the course");
+      // get user email and name
+      const mailUsers = await prisma.courseMember.findMany({
+        where: { id: { in: courseMemberIds } },
+        select: { user: true },
+      });
 
       const result = await deleteCourseMembers(courseMemberIds);
 
       const status =
         result.blocked.length > 0 || result.notFoundIds.length > 0 ? 207 : 200;
 
+      //mail
+
+      console.log("mailUsers:", mailUsers);
+      const { subject, html, text } = await courseMemberMail.deleteMemberMail(
+        coursename
+      );
+      await mailSentAndSummary(mailUsers, subject, html, text);
       return c.json(
         {
           message: "Course member deletion processed",
