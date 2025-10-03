@@ -271,9 +271,9 @@ class AssignmentModel {
         },
         submissions: {
           where: { groupId },
-          select: { id: true },
+          select: { id: true, status: true, submittedAt: true }, // add status + submittedAt
           take: 1,
-          orderBy: { id: "desc" },
+          orderBy: { submittedAt: "desc" }, // order by time, not id
         },
       },
       orderBy: { id: "asc" },
@@ -293,9 +293,19 @@ class AssignmentModel {
         dueDate,
       };
 
-      if (a.submissions.length === 0) {
+      const latest = a.submissions[0]; // newest because of orderBy desc
+
+      if (!latest) {
+        // never submitted
+        openTasks.push(base);
+      } else if (
+        latest.status === "REJECTED" ||
+        latest.status === "APPROVED_WITH_FEEDBACK"
+      ) {
+        // needs resubmission -> treat as open
         openTasks.push(base);
       } else {
+        // SUBMITTED or FINAL -> treat as submitted
         submitted.push(base);
       }
     }
