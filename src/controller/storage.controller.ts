@@ -29,13 +29,46 @@ const ALLOW_EXT_TO_MIME: Record<string, string> = {
 
 const BLOCK_EXT = new Set([
   // macro-enabled Office
-  "docm", "xlsm", "pptm",
+  "docm",
+  "xlsm",
+  "pptm",
   // archives & installers/executables/scripts (keep ZIP out for feedback uploads)
-  "rar","7z","gz","bz2","xz",
-  "exe","dll","so","dylib","msi","pkg","dmg","iso","jar","apk","com","scr",
-  "bat","cmd","ps1","vbs","wsf","sh","bash","zsh","php","py","rb","pl","reg","hta",
+  "rar",
+  "7z",
+  "gz",
+  "bz2",
+  "xz",
+  "exe",
+  "dll",
+  "so",
+  "dylib",
+  "msi",
+  "pkg",
+  "dmg",
+  "iso",
+  "jar",
+  "apk",
+  "com",
+  "scr",
+  "bat",
+  "cmd",
+  "ps1",
+  "vbs",
+  "wsf",
+  "sh",
+  "bash",
+  "zsh",
+  "php",
+  "py",
+  "rb",
+  "pl",
+  "reg",
+  "hta",
   // web script/html
-  "html","htm","js","mjs"
+  "html",
+  "htm",
+  "js",
+  "mjs",
 ]);
 
 const BLOCK_MIME = new Set([
@@ -311,22 +344,37 @@ export const StorageController = {
       const userId = c.get("userId");
       if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-      const courseId = String(formData.get("courseId") ?? "");
-      if (!courseId) return c.json({ error: "courseId is required" }, 400);
-      if (!isValidUUID(courseId))
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
-
-      const assignmentId = String(formData.get("assignmentId") ?? "");
-      if (!assignmentId)
-        return c.json({ error: "assignmentId is required" }, 400);
-      if (!isValidUUID(assignmentId))
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+      const submissionId = String(formData.get("submissionId") ?? "");
+      if (!submissionId)
+        return c.json({ error: "submissionId is required" }, 400);
+      if (!isValidUUID(submissionId))
+        return c.json({ error: "submissionId must be a valid UUID" }, 400);
 
       const deliverableId = String(formData.get("deliverableId") ?? "");
       if (!deliverableId)
         return c.json({ error: "deliverableId is required" }, 400);
       if (!isValidUUID(deliverableId))
         return c.json({ error: "deliverableId must be a valid UUID" }, 400);
+
+      const assignmentId = await SubmissionModel.getAssignmentBySubmission(
+        submissionId
+      );
+      if (!assignmentId)
+        return c.json({ error: "assignmentId is required" }, 400);
+      if (!isValidUUID(assignmentId))
+        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+
+      const courseId = await SubmissionModel.getCourseIdByAssignment(
+        assignmentId
+      );
+      if (!courseId) {
+        return c.json(
+          { error: "No course found for the given assignmentId" },
+          400
+        );
+      }
+      if (!isValidUUID(courseId))
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
 
       const cm = await prisma.courseMember.findUnique({
         where: { courseId_userId: { courseId, userId } },
@@ -359,12 +407,6 @@ export const StorageController = {
       const groupId = memberships[0].groupId;
       if (!isValidUUID(groupId))
         return c.json({ error: "groupId must be a valid UUID" }, 400);
-
-      const submissionId = String(formData.get("submissionId") ?? "");
-      if (!submissionId)
-        return c.json({ error: "submissionId is required" }, 400);
-      if (!isValidUUID(submissionId))
-        return c.json({ error: "submissionId must be a valid UUID" }, 400);
 
       const allowed = await prisma.allowedFileType.findMany({
         where: { deliverableId },

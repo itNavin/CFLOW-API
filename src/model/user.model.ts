@@ -154,64 +154,6 @@ class UserModel {
     };
   }
 
-  static async uploadStudentDataByExcel({ rows, role, program }: UploadArgs) {
-    const errors: Array<{ row: number; id: string; reason: string }> = [];
-    let created = 0;
-    let updated = 0;
-
-    await prisma.$transaction(
-      async (tx) => {
-        for (const r of rows) {
-          try {
-            const res = await tx.user.upsert({
-              where: { id: r.id },
-              create: {
-                id: r.id,
-                email: r.email,
-                name: r.name,
-                role,
-                program,
-              },
-              update: {
-                email: r.email,
-                name: r.name,
-                role,
-                program,
-              },
-              select: { id: true },
-            });
-          } catch (e: any) {
-            errors.push({
-              row: r.rowNumber,
-              id: r.id,
-              reason: e?.message ?? "Unknown error",
-            });
-          }
-        }
-      },
-      { timeout: 120_000 }
-    );
-
-    const ids = rows.map((r) => r.id);
-    const existing = await prisma.user.findMany({
-      where: { id: { in: ids } },
-      select: { id: true },
-    });
-    const existingSet = new Set(existing.map((u) => u.id));
-    created = rows.filter((r) => !existingSet.has(r.id)).length;
-    updated = rows.length - created - errors.length;
-    if (updated < 0) updated = 0;
-    return {
-      summary: {
-        totalRows: rows.length,
-        created,
-        updated,
-        failed: errors.length,
-      },
-      errors,
-    };
-  }
-
   static async createStaffUser(id: string, email: string, name: string, program: "CS" | "DSI" | "BOTH") {
     return prisma.user.create({
       data: {
