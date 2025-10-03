@@ -81,7 +81,7 @@ export const AuthController = {
 
         //mail for solar login
         // const mailUser = await mailRoles.getSingleUser(user.id);
-        const mailUser = await mailRoles.test(user.id);
+        const mailUser = await mailRoles.test2(user.id);
         const {subject, html, text} = await authMail.loginMail(user.name);
         mailSentAndSummary(mailUser, subject, html, text);
 
