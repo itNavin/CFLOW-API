@@ -439,9 +439,7 @@ export class GroupModel {
           await tx.feedback.deleteMany({ where: { id: { in: feedbackIds } } });
         }
 
-        await tx.courseActivityLog.deleteMany({
-          where: { entityType: "SUBMISSION", entityId: { in: submissionIds } },
-        });
+        
 
         await tx.submission.deleteMany({
           where: { id: { in: submissionIds } },
@@ -452,9 +450,7 @@ export class GroupModel {
       await tx.groupAdvisor.deleteMany({ where: { groupId } });
       await tx.groupMember.deleteMany({ where: { groupId } });
 
-      await tx.courseActivityLog.deleteMany({
-        where: { entityType: "GROUP", entityId: groupId },
-      });
+      
 
       const del = await tx.group.deleteMany({ where: { id: groupId } });
       return del.count > 0;
