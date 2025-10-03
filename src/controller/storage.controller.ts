@@ -510,17 +510,33 @@ export const StorageController = {
       if (role !== "lecturer") {
         return c.json({ error: "Forbidden: LECTURER only" }, 403);
       }
+      const feedbackId = String(formData.get("feedbackId") ?? "");
+      if (!feedbackId) return c.json({ error: "feedbackId is required" }, 400);
+      if (!isValidUUID(feedbackId))
+        return c.json({ error: "feedbackId must be a valid UUID" }, 400);
 
-      const courseId = String(formData.get("courseId") ?? "");
-      if (!courseId) return c.json({ error: "courseId is required" }, 400);
-      if (!isValidUUID(courseId))
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+      const submissionId = await SubmissionModel.getSubmissionByFeedback(
+        feedbackId
+      );
+      if (!submissionId)
+        return c.json({ error: "submissionId is required" }, 400);
+      if (!isValidUUID(submissionId))
+        return c.json({ error: "submissionId must be a valid UUID" }, 400);
 
-      const assignmentId = String(formData.get("assignmentId") ?? "");
+      const assignmentId = await SubmissionModel.getAssignmentBySubmission(
+        submissionId
+      );
       if (!assignmentId)
         return c.json({ error: "assignmentId is required" }, 400);
       if (!isValidUUID(assignmentId))
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+
+      const courseId = await SubmissionModel.getCourseIdByAssignment(
+        assignmentId
+      );
+      if (!courseId) return c.json({ error: "courseId is required" }, 400);
+      if (!isValidUUID(courseId))
+        return c.json({ error: "courseId must be a valid UUID" }, 400);
 
       const deliverableId = String(formData.get("deliverableId") ?? "");
       if (!deliverableId)
@@ -532,17 +548,6 @@ export const StorageController = {
       if (!groupId) return c.json({ error: "groupId is required" }, 400);
       if (!isValidUUID(groupId))
         return c.json({ error: "groupId must be a valid UUID" }, 400);
-
-      const submissionId = String(formData.get("submissionId") ?? "");
-      if (!submissionId)
-        return c.json({ error: "submissionId is required" }, 400);
-      if (!isValidUUID(submissionId))
-        return c.json({ error: "submissionId must be a valid UUID" }, 400);
-
-      const feedbackId = String(formData.get("feedbackId") ?? "");
-      if (!feedbackId) return c.json({ error: "feedbackId is required" }, 400);
-      if (!isValidUUID(feedbackId))
-        return c.json({ error: "feedbackId must be a valid UUID" }, 400);
 
       const file = formData.get("file") as File | null;
       if (!file) return c.json({ error: "No file uploaded" }, 400);
