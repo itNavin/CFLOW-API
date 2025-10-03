@@ -15,8 +15,8 @@ debugRouter.get("/send-test", async (c) => {
       message: "Email sent (queued to provider)",
       accepted: info.accepted,
       rejected: info.rejected,
-      response: info.response, // provider reply string
-      envelope: info.envelope, // from/to actually sent
+      response: info.response, 
+      envelope: info.envelope, 
     });
   } catch (err: any) {
     return c.json({ error: String(err?.message || err) }, 500);

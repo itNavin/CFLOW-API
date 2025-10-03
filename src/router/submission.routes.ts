@@ -7,3 +7,8 @@ submissionRouter.post(
   "/create",
   SubmissionController.createSubmission
 );
+
+submissionRouter.get(
+  "/hasSubmission/assignment/:assignmentId",
+  SubmissionController.hasSubmission
+);
