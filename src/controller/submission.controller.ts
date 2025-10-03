@@ -2,8 +2,67 @@ import type { Context } from "hono";
 import SubmissionModel from "../model/submission.model";
 import { SubmissionPayload } from "src/types/payload/submission.type";
 import { isValidUUID } from "../types/uuid";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
 
 export const SubmissionController = {
+  hasSubmission: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "student" && role !== "lecturer" && role !== "staff") {
+        return c.json({ message: "Forbidden: only students, lecturers, and staff can access this resource" }, 403);
+      }
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
+      const assignmentId = c.req.param("assignmentId");
+      if (!assignmentId) {
+        return c.json({ message: "assignmentId is required" }, 400);
+      }
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
+      }
+      const courseId = await SubmissionModel.getCourseIdByAssignment(assignmentId);
+      if (!courseId) {
+        return c.json({ message: "No course found for the given assignmentId" }, 400);
+      }
+
+      const groupId = await SubmissionModel.getGroupIdByUserAndCourse(userId, courseId);
+      if (!groupId) {
+        return c.json({ message: "User is not part of any group in this course" }, 400);
+      }
+
+      const subs = await SubmissionModel.hasSubmission({
+        groupId,
+        assignmentId,
+      });
+
+      if (!subs || subs.length === 0) {
+        return c.json({ hasSubmission: false }, 200);
+      }
+
+      const latest = subs[0];
+      return c.json(
+        {
+          hasSubmission: true,
+          submission: latest, 
+        },
+        200
+      );
+
+    } catch (error) {
+      console.error({
+        context: "hasSubmission",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
   createSubmission: async (c: Context) => {
     try {
       const role = c.get("role");
@@ -17,13 +76,6 @@ export const SubmissionController = {
       }
 
       const body = await c.req.json<SubmissionPayload.CreateSubmission>();
-      const courseId = body.courseId;
-      if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
-      }
-      if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
-      }
 
       const assignmentId = body.assignmentId;
       if (!assignmentId) {
@@ -31,6 +83,10 @@ export const SubmissionController = {
       }
       if (!isValidUUID(assignmentId)) {
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+      }
+      const courseId = await SubmissionModel.getCourseIdByAssignment(assignmentId);
+      if (!courseId) {
+        return c.json({ error: "No course found for the given assignmentId" }, 400);
       }
 
       const comment = body?.comment.trim();

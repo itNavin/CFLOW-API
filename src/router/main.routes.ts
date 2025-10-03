@@ -22,7 +22,7 @@ import { debugRouter } from "./debug.routes";
 const mainRouter = new Hono();
 
 mainRouter.route("/auth", authRouter);
-mainRouter.route("/debug", debugRouter);
+// mainRouter.route("/debug", debugRouter);
 
 mainRouter.use(authMiddleware);
 mainRouter.route("/course", courseRouter);

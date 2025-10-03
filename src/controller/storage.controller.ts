@@ -6,6 +6,8 @@ import FeedbackModel from "src/model/feedback.model";
 import { v4 as uuidv4 } from "uuid";
 import { isValidUUID } from "src/types/uuid";
 import { prisma } from "../prisma";
+import { mailRoles } from "src/util/mailRole";
+import { mailSentAndSummary } from "src/util/mailSummary";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024;
 
@@ -29,7 +31,7 @@ const BLOCK_EXT = new Set([
   // macro-enabled Office
   "docm", "xlsm", "pptm",
   // archives & installers/executables/scripts (keep ZIP out for feedback uploads)
-  "zip","rar","7z","gz","bz2","xz",
+  "rar","7z","gz","bz2","xz",
   "exe","dll","so","dylib","msi","pkg","dmg","iso","jar","apk","com","scr",
   "bat","cmd","ps1","vbs","wsf","sh","bash","zsh","php","py","rb","pl","reg","hta",
   // web script/html

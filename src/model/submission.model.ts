@@ -14,6 +14,40 @@ export type CreateSubmissionInput = {
 };
 
 class SubmissionModel {
+  static async getCourseIdByAssignment(assignmentId: string) {
+    const assignment = await prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      select: { courseId: true },
+    });
+    return assignment?.courseId ?? null;
+  }
+
+  static async getGroupIdByUserAndCourse(userId: string, courseId: string) {
+    const cm = await prisma.courseMember.findUnique({
+      where: { courseId_userId: { courseId, userId } },
+      select: { id: true },
+    });
+    if (!cm) return null;
+    const gm = await prisma.groupMember.findFirst({
+      where: { courseMemberId: cm.id },
+      select: { groupId: true },
+      orderBy: { groupId: "asc" },
+    });
+    return gm?.groupId ?? null;
+  }
+
+  static async hasSubmission(input: { groupId: string; assignmentId: string }) {
+    const submission = await prisma.submission.findMany({
+      where: {
+        groupId: input.groupId,
+        assignmentId: input.assignmentId,
+      },
+      orderBy: { submittedAt: "desc" },
+      select: { id: true, status: true },
+    });
+    return submission;
+  }
+
   static async createSubmission(input: CreateSubmissionInput) {
     const { userId, courseId, assignmentId, comment } = input;
 
