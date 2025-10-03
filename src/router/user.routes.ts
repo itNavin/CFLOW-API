@@ -8,10 +8,10 @@ userRouter.get(
   UserController.getMyProjectByCourse
 );
 
-userRouter.post(
-  "/upload-userData",
-  UserController.uploadUserDataByExcel
-);
+// userRouter.post(
+//   "/upload-userData",
+//   UserController.uploadUserDataByExcel
+// );
 
 userRouter.post("/create-staff", UserController.createStaffUser);
 
@@ -21,6 +21,6 @@ userRouter.post("/create-solar-lecturer", UserController.createSolarLecturerUser
 
 userRouter.get("/all-users", UserController.getAllUsers);
 
-userRouter.post("/update-solar-password", UserController.updateSolarPassword);
+// userRouter.post("/update-solar-password", UserController.updateSolarPassword);
 
 userRouter.get("/fetchStudentData", UserController.fetchStudentData);
