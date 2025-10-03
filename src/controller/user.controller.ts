@@ -5,6 +5,8 @@ import { isValidUUID } from "src/types/uuid";
 import { prisma } from "../prisma";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { userMail } from "src/mail/user.mail";
+import { create } from "domain";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
@@ -157,6 +159,24 @@ export const UserController = {
         hashedPassword,
         program
       );
+      console.log("finished creating user:", createSolarLecturerUser);
+      //mail
+      // const mailUser = await mailRoles.test2("stf02");
+      // console.log("mailUser:", mailUser);
+      //const createdUser = mailUser;
+      const createdUser = createSolarLecturerUser; 
+      const payload = { user: createdUser, tempPassword: rawPassword };
+
+      const { subject, html, text } = await userMail.createSolarLecturerMail(
+        payload,
+        {
+          frontendBaseUrl:
+            process.env.FRONTEND_BASE_URL ?? "http://localhost:3000",
+        }
+      );
+
+      // send to the created user (not a hard-coded test account)
+      await mailSentAndSummary([createdUser], subject, html, text);
 
       return c.json(
         {
