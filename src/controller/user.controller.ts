@@ -35,8 +35,10 @@ export const UserController = {
         userId,
         courseId
       );
+      
       return c.json(
         {
+          message: "get my project successfully",
           group: result.group,
           projectName: result.group.projectName,
           productName: result.group.productName,
@@ -201,11 +203,11 @@ export const UserController = {
 
   updateSolarPassword: async (c: Context) => {
     try {
-      const role = c.get("role");
-      console.log("role:", role);
-      if (role !== "lecturer") {
-        return c.json({ message: "Forbidden: LECTURER only" }, 403);
-      }
+      // const role = c.get("role");
+      // console.log("role:", role);
+      // if (role !== "lecturer") {
+      //   return c.json({ message: "Forbidden: LECTURER only" }, 403);
+      // }
 
       const body = await c.req.json();
       const { userId, oldPassword, newPassword } = body;
