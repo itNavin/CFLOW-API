@@ -127,9 +127,15 @@ class UserModel {
     const groups = cm.groupMembers.map((gm) => gm.group);
 
     if (groups.length === 0) {
-      const err: any = new Error("You are not assigned to any group yet");
-      err.status = 404;
-      throw err;
+      return {
+        group: {
+          id: "none",
+          codeNumber: "none",
+          projectName: "none",
+          productName: "none",
+          company: "none",
+        },
+      };
     }
     if (groups.length > 1) {
       const err: any = new Error(
