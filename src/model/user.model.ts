@@ -129,11 +129,11 @@ class UserModel {
     if (groups.length === 0) {
       return {
         group: {
-          id: "none",
-          codeNumber: "none",
-          projectName: "none",
-          productName: "none",
-          company: "none",
+          id: "None",
+          codeNumber: "None",
+          projectName: "None",
+          productName: "None",
+          company: "None",
         },
       };
     }
