@@ -1,9 +1,23 @@
+import { create } from "node:domain";
+import { Role } from "../types/role";
+type UserMailPayload = {
+  user: {
+    name: string;
+    id: string;
+    email: string;
+    password: string | null;
+    role: Role;
+    program: "CS" | "DSI" | "BOTH";
+    createdAt: Date;
+  };
+};
+
 export const userMail = {
   createSolarLecturerMail: async (
     payload: {
       user: { id: string; name: string; email: string };
       tempPassword: string;
-      token: string; 
+      token: string;
     },
     opts?: { frontendBaseUrl?: string }
   ) => {
@@ -62,8 +76,12 @@ C-Flow Team`;
 
     return { subject, html, text };
   },
+
   resetLinkMail: async (
-    payload: { user: { id: string; name: string; email: string }; token: string },
+    payload: {
+      user: { id: string; name: string; email: string };
+      token: string;
+    },
     opts?: { frontendBaseUrl?: string }
   ) => {
     if (!payload?.user || !payload?.token) {
@@ -71,14 +89,18 @@ C-Flow Team`;
     }
     const { user, token } = payload;
     const base = opts?.frontendBaseUrl ?? "http://localhost:3000";
-    const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(token)}`;
+    const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
+      token
+    )}`;
 
     const subject = `C-Flow: Your new password reset link`;
 
     const html = `
       <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
         <h1 style="margin-bottom: 8px;">Password Reset Link</h1>
-        <p>Hello <strong>${escapeHtml(user.name)}</strong> (${escapeHtml(user.id)}),</p>
+        <p>Hello <strong>${escapeHtml(user.name)}</strong> (${escapeHtml(
+      user.id
+    )}),</p>
         <p>Here is your new password reset link. It expires in 60 minutes:</p>
         <p><a href="${updateLink}" style="display:inline-block;padding:10px 16px;border-radius:6px;text-decoration:none;border:1px solid #000;">Update Password</a></p>
         <p style="color:#666;margin-top:16px">If the button doesn't work, copy and paste this link into your browser:<br/><span style="word-break:break-all">${updateLink}</span></p>
@@ -99,6 +121,62 @@ C-Flow Team`;
     return { subject, html, text };
   },
 
+  createStaffUserMail: async (mailUser: UserMailPayload) => {
+    if (!mailUser?.user) {
+      throw new Error("createStaffUserMail requires { user }");
+    }
+    const subject = `Welcome to C-Flow as a Staff Member`;
+
+    const html = `
+      <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
+        <h1 style="margin-bottom: 8px;">Welcome to C-Flow</h1>
+        <p>You have been registered as a <strong>Staff Member</strong> in the C-Flow system.</p>
+        <div style="background:#f6f8fa;padding:12px;border-radius:8px;margin:16px 0">
+          <p style="margin:0"><strong>Username (ID):</strong> ${escapeHtml(
+            mailUser.user.id
+          )}</p>
+          <p style="margin:0"><strong>Email:</strong> ${escapeHtml(
+            mailUser.user.email
+          )}</p>
+          <p style="margin:0"><strong>Name:</strong> ${escapeHtml(
+            mailUser.user.name
+          )}</p>
+        </div>
+        <p>Please log in to the system using your username (ID) and the email provided.</p>
+        <p>Best regards,<br/>C-Flow Team</p>
+      </div>
+    `;
+
+    const text = `This is text`;
+    return { subject, html, text };
+  },
+
+  createLecturerUserMail: async (mailUser: UserMailPayload) => {
+    const subject = `Welcome to C-Flow as a Lecturer`;
+
+    const html = `
+      <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.6;">
+        <h1 style="margin-bottom: 8px;">Welcome to C-Flow</h1>
+        <p>You have been registered as a <strong>Lecturer</strong> in the C-Flow system.</p>
+        <div style="background:#f6f8fa;padding:12px;border-radius:8px;margin:16px 0">
+          <p style="margin:0"><strong>Username (ID):</strong> ${escapeHtml(
+            mailUser.user.id
+          )}</p>
+          <p style="margin:0"><strong>Email:</strong> ${escapeHtml(
+            mailUser.user.email
+          )}</p>
+          <p style="margin:0"><strong>Name:</strong> ${escapeHtml(
+            mailUser.user.name
+          )}</p>
+        </div>
+        <p>Please log in to the system using your username (ID) and the email provided.</p>
+        <p>Best regards,<br/>C-Flow Team</p>
+      </div>
+    `;
+    const text = `This is text`;
+
+    return { subject, html, text};
+  }
 };
 
 function escapeHtml(s: string) {
