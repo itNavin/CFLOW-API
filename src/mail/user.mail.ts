@@ -1,13 +1,24 @@
 export const userMail = {
   createSolarLecturerMail: async (
-    createSolarLecturerUser: any,
+    payload: {
+      user: { id: string; name: string; email: string };
+      tempPassword: string;
+      token: string; // <-- add this
+    },
     opts?: { frontendBaseUrl?: string }
   ) => {
-    const { user, tempPassword } = createSolarLecturerUser;
+    if (!payload?.user || !payload?.tempPassword || !payload?.token) {
+      throw new Error(
+        "createSolarLecturerMail requires { user, tempPassword, token }"
+      );
+    }
+
+    const { user, tempPassword, token } = payload;
     const base = opts?.frontendBaseUrl ?? "http://localhost:3000";
 
-    const updateLink = `${base}/solar/update-password?userId=${encodeURIComponent(
-      user.id
+    // use token instead of userId in the link
+    const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
+      token
     )}`;
 
     const subject = `Welcome to C-Flow as a Solar Lecturer`;
@@ -24,7 +35,7 @@ export const userMail = {
             tempPassword
           )}</p>
         </div>
-        <p>Please update your password immediately using the button below:</p>
+        <p>Please update your password immediately using the button below (link expires in 30 minutes):</p>
         <p>
           <a href="${updateLink}" style="display:inline-block;padding:10px 16px;border-radius:6px;
              text-decoration:none;border:1px solid #000;">Update Password</a>
@@ -44,7 +55,7 @@ You have been registered as a Solar Lecturer in the C-Flow system.
 Username (ID): ${user.id}
 Temporary password: ${tempPassword}
 
-Update your password now:
+Update your password (link expires in 30 minutes):
 ${updateLink}
 
 Best regards,
