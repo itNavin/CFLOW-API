@@ -23,3 +23,21 @@ debugRouter.get("/send-test", async (c) => {
   }
 });
 
+debugRouter.post("/mail-debug", async (c) => {
+  const { to } = await c.req.json().catch(() => ({ to: null }));
+  if (!to) return c.json({ error: "to required" }, 400);
+  try {
+    const info = await sendEmail(to, "Debug test", "<b>Hello</b>", "Hello");
+    return c.json(
+      {
+        accepted: info.accepted,
+        rejected: info.rejected,
+        response: info.response,
+      },
+      200
+    );
+  } catch (e: any) {
+    return c.json({ error: String(e?.message ?? e) }, 500);
+  }
+});
+
