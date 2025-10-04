@@ -244,7 +244,7 @@ export const UserController = {
   updateSolarPassword: async (c: Context) => {
     try {
       const body = await c.req.json().catch(() => null);
-      const token: string | undefined = body?.token; // <--- token comes from client
+      const token: string | undefined = body?.token; 
       const oldPassword: string | undefined = body?.oldPassword;
       const newPassword: string | undefined = body?.newPassword;
 
@@ -252,14 +252,12 @@ export const UserController = {
         return c.json({ message: "Missing required fields" }, 400);
       }
 
-      // 1) Verify token FIRST
       const userId = await verifyResetTokenAndGetUserId(token);
 
       if (!userId.startsWith("Sol#")) {
         return c.json({ message: "Not a solar user" }, 400);
       }
 
-      // 2) (Optional) require old password as an extra step
       if (oldPassword) {
         const user = await prisma.user.findUnique({
           where: { id: userId },
@@ -272,7 +270,6 @@ export const UserController = {
         if (!ok) return c.json({ message: "Invalid old password" }, 400);
       }
 
-      // 3) Hash and set new password
       const hashedPassword = await Bun.password.hash(newPassword, {
         algorithm: "bcrypt",
         cost: 10,
@@ -283,7 +280,6 @@ export const UserController = {
       );
       if (!updated) return c.json({ message: "User not found" }, 404);
 
-      // 4) Mark token as used (one-time)
       await markResetTokenUsed(token);
 
       return c.json({ message: "Password updated successfully" }, 200);
@@ -355,14 +351,13 @@ export const UserController = {
           acceptedPrograms.has(String(r?.programNameEng ?? "").trim())
       );
 
-      // Insert (your model can still do its own validation/dedupe)
       const summary = await UserModel.fetchStudentDataFromAPI(filtered);
 
       return c.json(
         {
           message: "Student data has been processed successfully",
           summary,
-          data: filtered, // ← now only shows allowed rows
+          data: filtered, 
         },
         200
       );

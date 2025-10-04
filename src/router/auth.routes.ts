@@ -30,3 +30,8 @@ authRouter.get("/verify-reset-token", async (c) => {
     return c.json({ valid: false }, 200);
   }
 });
+
+authRouter.post(
+  "/resend-reset-link",
+  AuthController.refreshTokenUpdatePassword
+);
