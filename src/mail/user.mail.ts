@@ -3,7 +3,7 @@ export const userMail = {
     payload: {
       user: { id: string; name: string; email: string };
       tempPassword: string;
-      token: string; // <-- add this
+      token: string; 
     },
     opts?: { frontendBaseUrl?: string }
   ) => {
@@ -16,7 +16,6 @@ export const userMail = {
     const { user, tempPassword, token } = payload;
     const base = opts?.frontendBaseUrl ?? "http://localhost:3000";
 
-    // use token instead of userId in the link
     const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
       token
     )}`;

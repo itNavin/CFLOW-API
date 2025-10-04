@@ -199,8 +199,8 @@ export const UserController = {
         data: {
           userId: createSolarLecturerUser.id,
           tokenHash: hash,
-          expiresAt: new Date(Date.now() + 1000 * 30),
-        }, // 30m
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60), // 1h
+        },
       });
 
       //mail
