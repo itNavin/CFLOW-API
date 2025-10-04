@@ -1,4 +1,3 @@
-// mailer.ts
 import nodemailer from "nodemailer";
 
 const {
@@ -7,23 +6,35 @@ const {
   SMTP_SECURE = "false",
   SMTP_USER,
   SMTP_PASS,
-  MAIL_FROM,
+  MAIL_FROM, 
 } = process.env;
 
 if (!SMTP_HOST) throw new Error("SMTP_HOST is missing");
-if (!MAIL_FROM) throw new Error("MAIL_FROM is missing");
+if (!MAIL_FROM || !MAIL_FROM.includes("@")) {
+  throw new Error("MAIL_FROM is missing or invalid (must be an email)");
+}
+
+console.log(
+  "[mailer] host:",
+  SMTP_HOST,
+  "port:",
+  SMTP_PORT,
+  "secure:",
+  SMTP_SECURE,
+  "from:",
+  MAIL_FROM
+);
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: Number(SMTP_PORT),
-  secure: SMTP_SECURE === "true", // false for STARTTLS on 587
+  secure: SMTP_SECURE === "true", 
   auth:
     SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  logger: true, // <-- verbose logs to console
-  debug: true, // <-- include SMTP traffic
+  logger: true,
+  debug: true,
 });
 
-// call this once at startup
 (async () => {
   try {
     await transporter.verify();
@@ -39,26 +50,30 @@ export async function sendEmail(
   html: string,
   text?: string
 ) {
+  const from = `"C-Flow" <${MAIL_FROM}>`; 
+
   try {
     const info = await transporter.sendMail({
-      from: MAIL_FROM, // must be a real mailbox on the SMTP domain
+      from,
       to,
       subject,
       html,
       text,
       envelope: {
-        from: MAIL_FROM, // sets Return-Path; align with MAIL_FROM
+        from: MAIL_FROM, 
         to,
       },
-      // replyTo: "no-reply@yourdomain"     // optional
     });
+
     console.log(
       "[mailer] accepted:",
       info.accepted,
       "rejected:",
       info.rejected,
       "response:",
-      info.response
+      info.response,
+      "envelope:",
+      info.envelope
     );
     return info;
   } catch (err) {
