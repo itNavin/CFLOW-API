@@ -55,6 +55,7 @@ model User {
   createdAnnouncements Announcement[]
   uploadedFiles        File[]
   activityLogs         ActivityLog[]
+  passwordResetTokens  PasswordResetToken[]
 }
 
 model Course {
@@ -302,4 +303,16 @@ model ActivityLog {
   user           User        @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }

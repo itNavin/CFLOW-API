@@ -6,10 +6,42 @@ import { prisma } from "../prisma";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { userMail } from "src/mail/user.mail";
-import { create } from "domain";
+import { randomBytes, createHash } from "crypto";
+import crypto from "node:crypto";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
+function makeToken() {
+  const raw = randomBytes(32).toString("hex");
+  const hash = createHash("sha256").update(raw).digest("hex");
+  return { raw, hash };
+}
+const sha256 = (s: string) =>
+  crypto.createHash("sha256").update(s).digest("hex");
+
+export async function verifyResetTokenAndGetUserId(
+  rawToken: string
+): Promise<string> {
+  const tokenHash = sha256(rawToken);
+  const rec = await prisma.passwordResetToken.findFirst({
+    where: {
+      tokenHash,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    select: { id: true, userId: true },
+  });
+  if (!rec) throw new Error("Invalid or expired token");
+  return rec.userId;
+}
+
+export async function markResetTokenUsed(rawToken: string): Promise<void> {
+  const tokenHash = sha256(rawToken);
+  await prisma.passwordResetToken.updateMany({
+    where: { tokenHash, usedAt: null },
+    data: { usedAt: new Date() },
+  });
+}
 
 export const UserController = {
   // GET /user/my-project/course/:courseId
@@ -35,7 +67,7 @@ export const UserController = {
         userId,
         courseId
       );
-      
+
       return c.json(
         {
           message: "get my project successfully",
@@ -62,7 +94,7 @@ export const UserController = {
       }
       const body = await c.req.json();
       const { email, name, program } = body;
-      if ( !email || !name || !program) {
+      if (!email || !name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
       }
       const id = email.split("@")[0];
@@ -99,8 +131,8 @@ export const UserController = {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
       const body = await c.req.json();
-      const {  email, name, program } = body;
-      if ( !email || !name || !program) {
+      const { email, name, program } = body;
+      if (!email || !name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
       }
       const id = email.split("@")[0];
@@ -162,12 +194,21 @@ export const UserController = {
         program
       );
       console.log("finished creating user:", createSolarLecturerUser);
+      const { raw, hash } = makeToken();
+      await prisma.passwordResetToken.create({
+        data: {
+          userId: createSolarLecturerUser.id,
+          tokenHash: hash,
+          expiresAt: new Date(Date.now() + 1000 * 30),
+        }, // 30m
+      });
+
       //mail
       // const mailUser = await mailRoles.test2("stf02");
       // console.log("mailUser:", mailUser);
       //const createdUser = mailUser;
-      const createdUser = createSolarLecturerUser; 
-      const payload = { user: createdUser, tempPassword: rawPassword };
+      const createdUser = createSolarLecturerUser;
+      const payload = { user: createdUser, tempPassword: rawPassword, token: raw };
 
       const { subject, html, text } = await userMail.createSolarLecturerMail(
         payload,
@@ -177,7 +218,6 @@ export const UserController = {
         }
       );
 
-      // send to the created user (not a hard-coded test account)
       await mailSentAndSummary([createdUser], subject, html, text);
 
       return c.json(
@@ -203,56 +243,52 @@ export const UserController = {
 
   updateSolarPassword: async (c: Context) => {
     try {
-      // const role = c.get("role");
-      // console.log("role:", role);
-      // if (role !== "lecturer") {
-      //   return c.json({ message: "Forbidden: LECTURER only" }, 403);
-      // }
+      const body = await c.req.json().catch(() => null);
+      const token: string | undefined = body?.token; // <--- token comes from client
+      const oldPassword: string | undefined = body?.oldPassword;
+      const newPassword: string | undefined = body?.newPassword;
 
-      const body = await c.req.json();
-      const { userId, oldPassword, newPassword } = body;
-      if (!userId || !oldPassword || !newPassword) {
+      if (!token || !newPassword) {
         return c.json({ message: "Missing required fields" }, 400);
       }
-      if (userId.startsWith("Sol#") === false) {
+
+      // 1) Verify token FIRST
+      const userId = await verifyResetTokenAndGetUserId(token);
+
+      if (!userId.startsWith("Sol#")) {
         return c.json({ message: "Not a solar user" }, 400);
       }
-      const checkOldPassword = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { password: true },
-      });
 
-      if (!checkOldPassword?.password) {
-        return c.json({ message: "User password not found" }, 400);
-      }
-      const isOldPasswordValid = await Bun.password.verify(
-        oldPassword,
-        checkOldPassword.password
-      );
-      if (!isOldPasswordValid) {
-        return c.json({ message: "Invalid old password" }, 400);
+      // 2) (Optional) require old password as an extra step
+      if (oldPassword) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { password: true },
+        });
+        if (!user?.password)
+          return c.json({ message: "User password not found" }, 400);
+
+        const ok = await Bun.password.verify(oldPassword, user.password);
+        if (!ok) return c.json({ message: "Invalid old password" }, 400);
       }
 
+      // 3) Hash and set new password
       const hashedPassword = await Bun.password.hash(newPassword, {
         algorithm: "bcrypt",
         cost: 10,
       });
-
-      const updatedUser = await UserModel.updateSolarPassword(
+      const updated = await UserModel.updateSolarPassword(
         userId,
         hashedPassword
       );
-      if (!updatedUser) {
-        return c.json({ message: "User not found" }, 404);
-      }
+      if (!updated) return c.json({ message: "User not found" }, 404);
+
+      // 4) Mark token as used (one-time)
+      await markResetTokenUsed(token);
 
       return c.json({ message: "Password updated successfully" }, 200);
     } catch (error) {
-      console.error({
-        context: "updateSolarPassword",
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
+      console.error({ context: "updateSolarPassword", error: String(error) });
       return c.json(
         { message: "Internal server error. Please try again later." },
         500
