@@ -9,6 +9,8 @@ import bcrypt from "bcryptjs";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { authMail } from "src/mail/auth.mail";
+import { userMail } from "src/mail/user.mail";
+import crypto from "node:crypto";
 
 const ROLE_MAP: Record<string, Role> = {
   student: "student",
@@ -30,6 +32,13 @@ function isBcryptHash(h: string) {
 }
 function isArgon2idHash(h: string) {
   return /^\$argon2id\$/.test(h);
+}
+const sha256 = (s: string) =>
+  crypto.createHash("sha256").update(s).digest("hex");
+function makeToken() {
+  const raw = crypto.randomBytes(32).toString("hex");
+  const hash = sha256(raw);
+  return { raw, hash };
 }
 
 export const AuthController = {
@@ -135,4 +144,59 @@ export const AuthController = {
   verify: async (c: Context) => {
     return c.json({ message: "Token is valid" }, 200);
   },
+
+  refreshTokenUpdatePassword: async (c: Context) => {
+    try {
+    const body = await c.req.json().catch(() => null);
+    const userIdOrEmail: string | undefined = body?.userIdOrEmail;
+    if (!userIdOrEmail) {
+      return c.json({ message: "userIdOrEmail is required" }, 400);
+    }
+
+    // find user by Solar ID or email
+    const where =
+      userIdOrEmail.startsWith("Sol#")
+        ? { id: userIdOrEmail }
+        : { email: userIdOrEmail };
+
+    const user = await prisma.user.findUnique({
+      where,
+      select: { id: true, name: true, email: true, role: true },
+    });
+
+    if (!user) return c.json({ message: "User not found" }, 404);
+    if (!user.id.startsWith("Sol#")) {
+      // Only allow Solar accounts to use this route
+      return c.json({ message: "Not a Solar account" }, 400);
+    }
+
+    // Invalidate previous active tokens (optional but recommended)
+    await prisma.passwordResetToken.updateMany({
+      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+      data: { usedAt: new Date() },
+    });
+
+    // Create fresh token (60 minutes)
+    const { raw, hash } = makeToken();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash: hash, expiresAt },
+    });
+
+    // Build email (new template for “just a link”)
+    const { subject, html, text } = await userMail.resetLinkMail(
+      { user, token: raw },
+      { frontendBaseUrl: process.env.FRONTEND_BASE_URL ?? "http://localhost:3000" }
+    );
+
+    // Send email
+    await mailSentAndSummary([user], subject, html, text);
+
+    return c.json({ message: "A new reset link has been sent to your email." }, 200);
+  } catch (e: any) {
+    console.error("[resend-reset-link] error:", e);
+    return c.json({ message: "Failed to send a new link" }, 500);
+  }
+
+  }
 };
