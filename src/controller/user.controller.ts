@@ -8,6 +8,8 @@ import { mailSentAndSummary } from "src/util/mailSummary";
 import { userMail } from "src/mail/user.mail";
 import { randomBytes, createHash } from "crypto";
 import crypto from "node:crypto";
+import { create } from "node:domain";
+import { Role } from "../types/role";
 
 const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
 const Programs = new Set(["CS", "DSI", "BOTH"]);
@@ -44,7 +46,6 @@ export async function markResetTokenUsed(rawToken: string): Promise<void> {
 }
 
 export const UserController = {
-  // GET /user/my-project/course/:courseId
   getMyProjectByCourse: async (c: Context) => {
     try {
       const userId = c.get("userId");
@@ -104,6 +105,20 @@ export const UserController = {
         name,
         program
       );
+
+      const { subject, html, text } = await userMail.createStaffUserMail({
+        user: {
+          id: createStaffUser.id,
+          email: createStaffUser.email,
+          name: createStaffUser.name,
+          password: null,
+          role: createStaffUser.role as Role,
+          program: createStaffUser.program,
+          createdAt: createStaffUser.createdAt,
+        },
+      });
+      await mailSentAndSummary([createStaffUser], subject, html, text);
+
       return c.json(
         {
           message: "Staff user created successfully",
@@ -142,6 +157,21 @@ export const UserController = {
         name,
         program
       );
+
+      const { subject, html, text } = await userMail.createLecturerUserMail({
+        user: {
+          id: createLecturerUser.id,
+          email: createLecturerUser.email,
+          name: createLecturerUser.name,
+          password: null,
+          role: createLecturerUser.role as Role,
+          program: createLecturerUser.program,
+          createdAt: createLecturerUser.createdAt,
+        },
+      });
+      await mailSentAndSummary([createLecturerUser], subject, html, text);
+
+
       return c.json(
         {
           message: "Lecturer user created successfully",
@@ -199,8 +229,8 @@ export const UserController = {
         data: {
           userId: createSolarLecturerUser.id,
           tokenHash: hash,
-          expiresAt: new Date(Date.now() + 1000 * 30),
-        }, // 30m
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60), // 1h
+        },
       });
 
       //mail
@@ -208,7 +238,11 @@ export const UserController = {
       // console.log("mailUser:", mailUser);
       //const createdUser = mailUser;
       const createdUser = createSolarLecturerUser;
-      const payload = { user: createdUser, tempPassword: rawPassword, token: raw };
+      const payload = {
+        user: createdUser,
+        tempPassword: rawPassword,
+        token: raw,
+      };
 
       const { subject, html, text } = await userMail.createSolarLecturerMail(
         payload,
@@ -244,7 +278,7 @@ export const UserController = {
   updateSolarPassword: async (c: Context) => {
     try {
       const body = await c.req.json().catch(() => null);
-      const token: string | undefined = body?.token; 
+      const token: string | undefined = body?.token;
       const oldPassword: string | undefined = body?.oldPassword;
       const newPassword: string | undefined = body?.newPassword;
 
@@ -357,7 +391,7 @@ export const UserController = {
         {
           message: "Student data has been processed successfully",
           summary,
-          data: filtered, 
+          data: filtered,
         },
         200
       );

@@ -31,8 +31,8 @@ const transporter = nodemailer.createTransport({
   secure: SMTP_SECURE === "true", 
   auth:
     SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-  logger: true,
-  debug: true,
+  // logger: true,
+  // debug: true,
 });
 
 (async () => {

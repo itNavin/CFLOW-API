@@ -8,6 +8,8 @@ import { isValidUUID } from "src/types/uuid";
 import { prisma } from "../prisma";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { submissionMail } from "src/mail/submission.mail";
+import { group } from "console";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024;
 
@@ -356,16 +358,16 @@ export const StorageController = {
       if (!isValidUUID(deliverableId))
         return c.json({ error: "deliverableId must be a valid UUID" }, 400);
 
-      const assignmentId = await SubmissionModel.getAssignmentBySubmission(
+      const assignment = await SubmissionModel.getAssignmentBySubmission(
         submissionId
       );
-      if (!assignmentId)
+      if (!assignment?.id)
         return c.json({ error: "assignmentId is required" }, 400);
-      if (!isValidUUID(assignmentId))
+      if (!isValidUUID(assignment.id))
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
 
       const courseId = await SubmissionModel.getCourseIdByAssignment(
-        assignmentId
+        assignment.id
       );
       if (!courseId) {
         return c.json(
@@ -385,7 +387,9 @@ export const StorageController = {
 
       const memberships = await prisma.groupMember.findMany({
         where: { courseMemberId: cm.id },
-        select: { groupId: true },
+        select: { group: {
+          select: { id: true, projectName: true }
+        } },
         orderBy: { groupId: "asc" },
       });
       if (memberships.length === 0) {
@@ -399,12 +403,13 @@ export const StorageController = {
           {
             error:
               "You belong to multiple groups in this course. Please ask staff to resolve.",
-            groupIds: memberships.map((m) => m.groupId),
+            groupIds: memberships.map((m) => m.group.id),
           },
           409
         );
       }
-      const groupId = memberships[0].groupId;
+      const groupId = memberships[0].group.id;
+      const groupName = memberships[0].group.projectName;
       if (!isValidUUID(groupId))
         return c.json({ error: "groupId must be a valid UUID" }, 400);
 
@@ -469,7 +474,7 @@ export const StorageController = {
       }
 
       const unique = `${uuidv4()}.${ext || "bin"}`;
-      const objectKey = `course-${courseId}/assignment-${assignmentId}/deliverable-${deliverableId}/group-${groupId}/submission-${submissionId}/${unique}`;
+      const objectKey = `course-${courseId}/assignment-${assignment.id}/deliverable-${deliverableId}/group-${groupId}/submission-${submissionId}/${unique}`;
 
       const putKey = await uploadToMinio(
         objectKey,
@@ -483,6 +488,23 @@ export const StorageController = {
         deliverableId,
         fileUrl: absoluteFileUrl,
       });
+
+      //mail
+      //const mailStudentUsers = await mailRoles.getAllStudentsInGroup(groupId);
+      const mailStudentUsers = await mailRoles.test2("stf02");
+      const { subject, html, text } = await submissionMail.createStudentSubmissionMail(
+        assignment.name,
+        groupName
+      );
+      await mailSentAndSummary(mailStudentUsers, subject, html, text);
+
+      //const mailLecturerUsers = await mailRoles.getAllAdvisorsInGroup(groupId);
+      const mailLecturerUsers = await mailRoles.test2("stf02");
+      const { subject: sub2, html: html2, text: text2 } = await submissionMail.createLecturerSubmissionMail(
+        assignment.name,
+        groupName
+      );
+      await mailSentAndSummary(mailLecturerUsers, sub2, html2, text2);
 
       return c.json(
         {
@@ -523,16 +545,16 @@ export const StorageController = {
       if (!isValidUUID(submissionId))
         return c.json({ error: "submissionId must be a valid UUID" }, 400);
 
-      const assignmentId = await SubmissionModel.getAssignmentBySubmission(
+      const assignment = await SubmissionModel.getAssignmentBySubmission(
         submissionId
       );
-      if (!assignmentId)
+      if (!assignment?.id)
         return c.json({ error: "assignmentId is required" }, 400);
-      if (!isValidUUID(assignmentId))
+      if (!isValidUUID(assignment.id))
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
 
       const courseId = await SubmissionModel.getCourseIdByAssignment(
-        assignmentId
+        assignment.id
       );
       if (!courseId) return c.json({ error: "courseId is required" }, 400);
       if (!isValidUUID(courseId))
@@ -600,7 +622,7 @@ export const StorageController = {
 
       const uniqueFileName = `${uuidv4()}.${ext}`;
       const objectKey =
-        `course-${courseId}/assignment-${assignmentId}/deliverable-${deliverableId}` +
+        `course-${courseId}/assignment-${assignment.id}/deliverable-${deliverableId}` +
         `/group-${groupId}/submission-${submissionId}/feedbackId-${feedbackId}/${uniqueFileName}`;
 
       const putKey = await uploadToMinio(
