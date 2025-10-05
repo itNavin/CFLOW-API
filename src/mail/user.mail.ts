@@ -1,4 +1,3 @@
-import { create } from "node:domain";
 import { Role } from "../types/role";
 type UserMailPayload = {
   user: {
@@ -48,7 +47,7 @@ export const userMail = {
             tempPassword
           )}</p>
         </div>
-        <p>Please update your password immediately using the button below (link expires in 30 minutes):</p>
+        <p>Please update your password immediately using the button below (link expires in 1 hour):</p>
         <p>
           <a href="${updateLink}" style="display:inline-block;padding:10px 16px;border-radius:6px;
              text-decoration:none;border:1px solid #000;">Update Password</a>

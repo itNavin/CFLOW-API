@@ -24,9 +24,14 @@ class SubmissionModel {
   static async getAssignmentBySubmission(submissionId: string) {
     const submission = await prisma.submission.findUnique({
       where: { id: submissionId },
-      select: { assignmentId: true },
+      select: { assignment: {
+        select: {
+          id: true,
+          name: true,
+        }
+      } },
     });
-    return submission?.assignmentId ?? null;
+    return submission?.assignment ?? null;
   }
   static async getCourseIdByAssignment(assignmentId: string) {
     const assignment = await prisma.assignment.findUnique({

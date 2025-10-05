@@ -91,6 +91,34 @@ export const mailRoles = {
       },
     });
   },
+  getAllStudentsInGroup(groupId: string) {
+    return prisma.groupMember.findMany({
+      where: {
+        groupId: groupId,
+      },
+      select: {
+        courseMember: {
+          select: {
+            user: true,
+          },
+        }
+      },
+    });
+  },
+  getAllAdvisorsInGroup(groupId: string) {
+    return prisma.groupMember.findMany({
+      where: {
+        groupId: groupId,
+      },
+      select: {
+        courseMember: {
+          select: {
+            user: true,
+          }
+        }
+      },
+    });
+  },
   test(courseId: string) {
     return prisma.courseMember.findMany({
       where: {
