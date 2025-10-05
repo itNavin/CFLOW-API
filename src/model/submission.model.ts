@@ -14,6 +14,12 @@ export type CreateSubmissionInput = {
 };
 
 class SubmissionModel {
+  static getGroupNameById(groupId: string) {
+    return prisma.group.findUnique({
+      where: { id: groupId },
+      select: { projectName: true },
+    });
+  }
   static async getSubmissionByFeedback(feedbackId: string) {
     const feedback = await prisma.feedback.findUnique({
       where: { id: feedbackId },

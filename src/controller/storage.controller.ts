@@ -9,6 +9,7 @@ import { prisma } from "../prisma";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { submissionMail } from "src/mail/submission.mail";
+import { feedbackMail } from "src/mail/feedback.mail";
 import { group } from "console";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024;
@@ -387,9 +388,11 @@ export const StorageController = {
 
       const memberships = await prisma.groupMember.findMany({
         where: { courseMemberId: cm.id },
-        select: { group: {
-          select: { id: true, projectName: true }
-        } },
+        select: {
+          group: {
+            select: { id: true, projectName: true },
+          },
+        },
         orderBy: { groupId: "asc" },
       });
       if (memberships.length === 0) {
@@ -409,6 +412,7 @@ export const StorageController = {
         );
       }
       const groupId = memberships[0].group.id;
+      //ต้องแก้ cs ใช้ product name dsi ใช้ project name
       const groupName = memberships[0].group.projectName;
       if (!isValidUUID(groupId))
         return c.json({ error: "groupId must be a valid UUID" }, 400);
@@ -490,21 +494,30 @@ export const StorageController = {
       });
 
       //mail
-      //const mailStudentUsers = await mailRoles.getAllStudentsInGroup(groupId);
-      const mailStudentUsers = await mailRoles.test2("stf02");
-      const { subject, html, text } = await submissionMail.createStudentSubmissionMail(
-        assignment.name,
-        groupName
+      const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
+        groupId
       );
-      await mailSentAndSummary(mailStudentUsers, subject, html, text);
+      //const mailStudentUsersSubmission = await mailRoles.test2("stf02");
+      const { subject, html, text } =
+        await submissionMail.createStudentSubmissionMail(
+          assignment.name,
+          groupName
+        );
+      await mailSentAndSummary(mailStudentUsersSubmission, subject, html, text);
 
-      //const mailLecturerUsers = await mailRoles.getAllAdvisorsInGroup(groupId);
-      const mailLecturerUsers = await mailRoles.test2("stf02");
-      const { subject: sub2, html: html2, text: text2 } = await submissionMail.createLecturerSubmissionMail(
+      const mailLecturerUsersSubmission = await mailRoles.getAllAdvisorsInGroup(
+        groupId
+      );
+      //const mailLecturerUsersSubmission = await mailRoles.test2("stf02");
+      const {
+        subject: sub2,
+        html: html2,
+        text: text2,
+      } = await submissionMail.createLecturerSubmissionMail(
         assignment.name,
         groupName
       );
-      await mailSentAndSummary(mailLecturerUsers, sub2, html2, text2);
+      await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);
 
       return c.json(
         {
@@ -570,6 +583,9 @@ export const StorageController = {
       if (!groupId) return c.json({ error: "groupId is required" }, 400);
       if (!isValidUUID(groupId))
         return c.json({ error: "groupId must be a valid UUID" }, 400);
+      const groupName = await SubmissionModel.getGroupNameById(groupId);
+      if (!groupName)
+        return c.json({ error: "Cannot find group with the given groupId" }, 400);
 
       const file = formData.get("file") as File | null;
       if (!file) return c.json({ error: "No file uploaded" }, 400);
@@ -638,6 +654,32 @@ export const StorageController = {
         deliverableId,
         fileUrl: absoluteFileUrl,
       });
+
+      //mail
+      // const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
+      //   groupId
+      // );
+      const mailStudentUsersSubmission = await mailRoles.test2("stf02");
+      const { subject, html, text } =
+        await feedbackMail.createStudentFeedbackMail(
+          assignment.name,
+          groupName.projectName
+        );
+      await mailSentAndSummary(mailStudentUsersSubmission, subject, html, text);
+
+      // const mailLecturerUsersSubmission = await mailRoles.getAllAdvisorsInGroup(
+      //   groupId
+      // );
+      const mailLecturerUsersSubmission = await mailRoles.test2("stf02");
+      const {
+        subject: sub2,
+        html: html2,
+        text: text2,
+      } = await feedbackMail.createLecturerFeedbackMail(
+        assignment.name,
+        groupName.projectName
+      );
+      await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);
 
       return c.json(
         {
