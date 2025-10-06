@@ -5,6 +5,7 @@ import path from "node:path";
 import { enrollFromWorkbook } from "../model/excel.model";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { GroupMail } from "src/mail/group.mail";
 
 export const ImportController = {
   uploadAndEnroll: async (c: Context) => {
@@ -24,12 +25,171 @@ export const ImportController = {
     const arrayBuf = await file.arrayBuffer();
     const buf = Buffer.from(arrayBuf);
 
-    //mail
-    const staffMailUsers = await mailRoles.getStaffInCourse(courseId);
-    const lecturerMailUsers = await mailRoles.getLecturersInCourse(courseId);
-
     try {
       const result = await enrollFromWorkbook(courseId, buf);
+
+      //mail
+      const courseInfo = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { name: true, program: true },
+      });
+
+      // 2) Collect newly-created groupIds
+      const groupIds = (result?.details ?? []).map(
+        (d: { groupId: string }) => d.groupId
+      );
+
+      // 3) Fetch every (student, group) pair for those groups
+      const groupStudentRows = await prisma.groupMember.findMany({
+        where: { groupId: { in: groupIds } },
+        select: {
+          groupId: true,
+          group: {
+            select: {
+              codeNumber: true,
+              projectName: true,
+              productName: true, // CS
+              company: true, // DSI
+            },
+          },
+          courseMember: {
+            select: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      });
+
+      // 4) Bucket by groupId → { group, users[] }
+      const byGroup = new Map<
+        string,
+        {
+          group: {
+            codeNumber: string | null;
+            projectName: string;
+            productName: string | null;
+            company: string | null;
+          };
+          users: Array<{ id: string; name: string; email: string | null }>;
+        }
+      >();
+
+      for (const row of groupStudentRows) {
+        const g = byGroup.get(row.groupId) ?? {
+          group: row.group,
+          users: [],
+        };
+        g.users.push(row.courseMember.user);
+        byGroup.set(row.groupId, g);
+      }
+
+      // 5) Send one email per group, to all students in that group
+      for (const [, bucket] of byGroup) {
+        const recipients = bucket.users.filter((u) => !!u.email); // keep only users with email
+        if (recipients.length === 0) continue;
+
+        // Build the message with the *group-specific* info
+        const { subject, html, text } = await GroupMail.createGroupStudentMail({
+          courseName: courseInfo?.name ?? "your course",
+          program: courseInfo?.program ?? "CS",
+          group: {
+            codeNumber: bucket.group.codeNumber ?? "",
+            projectName: bucket.group.projectName,
+            productName: bucket.group.productName,
+            company: bucket.group.company,
+          },
+        });
+
+        await mailSentAndSummary(recipients, subject, html, text);
+      }
+
+      const advisorRows = await prisma.groupAdvisor.findMany({
+        where: { groupId: { in: groupIds } },
+        select: {
+          advisorRole: true, // "ADVISOR" | "CO_ADVISOR"
+          groupId: true,
+          group: {
+            select: {
+              codeNumber: true,
+              projectName: true,
+              productName: true, // CS
+              company: true, // DSI
+              members: {
+                select: {
+                  courseMember: {
+                    select: {
+                      user: { select: { id: true, name: true, email: true } },
+                    },
+                  },
+                  workRole: true,
+                },
+              },
+            },
+          },
+          courseMember: {
+            // the advisor's course member
+            select: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      });
+
+      // bucket: groupId => { group, advisors[], students[] }
+      type PlainUser = { id: string; name: string; email: string | null };
+      const advisorsByGroup = new Map<
+        string,
+        {
+          group: {
+            codeNumber: string | null;
+            projectName: string;
+            productName: string | null;
+            company: string | null;
+          };
+          advisors: Array<{ user: PlainUser; role: "ADVISOR" | "CO_ADVISOR" }>;
+          students: PlainUser[];
+        }
+      >();
+
+      for (const row of advisorRows) {
+        const current = advisorsByGroup.get(row.groupId) ?? {
+          group: {
+            codeNumber: row.group.codeNumber ?? "",
+            projectName: row.group.projectName,
+            productName: row.group.productName,
+            company: row.group.company,
+          },
+          advisors: [],
+          students: row.group.members.map((m) => m.courseMember.user),
+        };
+
+        current.advisors.push({
+          user: row.courseMember.user,
+          role: row.advisorRole,
+        });
+
+        advisorsByGroup.set(row.groupId, current);
+      }
+
+      // send one email *per advisor*, with group context + student list
+      for (const [, bucket] of advisorsByGroup) {
+        for (const adv of bucket.advisors) {
+          if (!adv.user.email) continue;
+
+          const { subject, html, text } = await GroupMail.createGroupLecturerMail({
+            courseName: courseInfo?.name ?? "your course",
+            program: courseInfo?.program ?? "CS",
+            advisor: { name: adv.user.name, role: adv.role },
+            group: {
+              codeNumber: bucket.group.codeNumber ?? "",
+              projectName: bucket.group.projectName,
+              productName: bucket.group.productName,
+              company: bucket.group.company,
+            },
+            students: bucket.students, // [{id,name,email}]
+          });
+
+          await mailSentAndSummary([adv.user], subject, html, text);
+        }
+      }
       return c.json({
         message: "upload successfully",
         result: result,
