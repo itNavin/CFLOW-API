@@ -80,8 +80,12 @@ export const AssignmentController = {
         return c.json({ error: "endDate is required" }, 400);
       }
       const scheduleStr = body.schedule;
-      if (!scheduleStr) {
-        return c.json({ error: "schedule is required" }, 400);
+      const schedule = new Date(scheduleStr);
+      if (!schedule || isNaN(schedule.getTime())) {
+        return c.json(
+          { error: "schedule must be a valid ISO datetime string" },
+          400
+        );
       }
       const dueDateStr = body.dueDate;
       if (!dueDateStr) {
@@ -89,7 +93,6 @@ export const AssignmentController = {
       }
 
       const endDate = new Date(endDateStr);
-      const schedule = new Date(scheduleStr);
       const dueDate = new Date(dueDateStr);
 
       if (isNaN(endDate.getTime()))
