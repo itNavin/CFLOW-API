@@ -73,6 +73,10 @@ export const CourseController = {
 
   updateCourseById: async (c: Context) => {
     try {
+      const userId = c.get("userId");
+      if (!userId) {
+        return c.json({ message: "Unauthorized" }, 401);
+      }
       const role = c.get("role");
       if (role !== "staff") {
         return c.json({ message: "Forbidden: STAFF only" }, 403);
@@ -115,7 +119,8 @@ export const CourseController = {
       const mailUsers = await mailRoles.test2("stf02");
       const { subject, html, text } = await courseMail.updateCourseMail(
         courseName,
-        updated
+        updated,
+        userId
       );
       await mailSentAndSummary(mailUsers, subject, html, text);
 

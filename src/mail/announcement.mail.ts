@@ -35,7 +35,7 @@ export const announcementMail = {
               )}</strong>.</p>
               ${
                 when
-                  ? `<p style="margin:0 0 12px;color:#111111;"><strong>Time:</strong> ${escapeHtml(
+                  ? `<p style="margin:0 0 12px;color:#111111;"><strong>Created at:</strong> ${escapeHtml(
                       when
                     )}</p>`
                   : ""
@@ -65,7 +65,7 @@ export const announcementMail = {
       "Dear user,",
       "",
       `There’s a new announcement in ${courseName}.`,
-      when ? `Time: ${when}` : "",
+      when ? `Created at: ${when}` : "",
       created.name ? `\n${created.name}` : "",
       created.description ? `\n${created.description}` : "",
       "",
