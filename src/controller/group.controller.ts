@@ -6,6 +6,7 @@ import { GroupPayload } from "../types/payload/group.type";
 import { isValidUUID } from "../types/uuid";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { GroupMail } from "src/mail/group.mail";
 
 export const GroupController = {
   createGroup: async (c: Context) => {
@@ -50,6 +51,19 @@ export const GroupController = {
           ? body.coAdvisorIds.map((ad) => ad.id)
           : [],
       });
+
+      //mail
+      const mailStudentUsers = body.memberIds
+      const { subject, html, text} = await GroupMail.createGroupStudentMail(newGroup)
+      await mailSentAndSummary(mailStudentUsers, subject, html, text)
+
+      const mailLecturerUsers = await GroupModel.getGroupAdvisorsAndCoAdvisorsById(newGroup.id)
+      const { subject: subjectLec, html: htmlLec, text: textLec} = await GroupMail.createGroupLecturerMail(newGroup)
+      await mailSentAndSummary(mailLecturerUsers, subjectLec, htmlLec, textLec)
+
+      const mailStaffUsers = mailRoles.getStaffInCourse(courseId)
+      const { subject: subjectStaff, html: htmlStaff, text: textStaff} = await GroupMail.createGroupStaffMail(newGroup)
+      await mailSentAndSummary(await mailStaffUsers, subjectStaff, htmlStaff, textStaff)
 
       return c.json(
         {
@@ -217,6 +231,20 @@ export const GroupController = {
       } as const;
 
       const updated = await GroupModel.updateGroup(groupId, courseId, payload);
+
+      //mail
+      const mailStudentUsers = body.memberIds
+      const { subject, html, text} = await GroupMail.updateGroupStudentMail(updated)
+      await mailSentAndSummary(mailStudentUsers, subject, html, text)
+
+      const mailLecturerUsers = await GroupModel.getGroupAdvisorsAndCoAdvisorsById(updated.id)
+      const { subject: subjectLec, html: htmlLec, text: textLec} = await GroupMail.updateGroupLecturerMail(updated)
+      await mailSentAndSummary(mailLecturerUsers, subjectLec, htmlLec, textLec)
+
+      const mailStaffUsers = mailRoles.getStaffInCourse(courseId)
+      const { subject: subjectStaff, html: htmlStaff, text: textStaff} = await GroupMail.updateGroupStaffMail(updated)
+      await mailSentAndSummary(await mailStaffUsers, subjectStaff, htmlStaff, textStaff)
+
       return c.json(
         {
           message: "Group updated successfully",
@@ -257,6 +285,18 @@ export const GroupController = {
       if (!ok) {
         return c.json({ error: "Group not found" }, 404);
       }
+
+      //mail
+      const courseId = await GroupModel.getCourseIdByGroupId(groupId);
+      if (!courseId) {
+        throw new Error("courseId is required for fetching staff users");
+      }
+      const mailStaffUsers = await mailRoles.getStaffInCourse(courseId);
+      const { subject, html, text} = await GroupMail.deleteGroupStaffMail(groupId)
+      await mailSentAndSummary(mailStaffUsers, subject, html, text)
+
+
+
       return c.json({ message: "Group deleted successfully" }, 200);
     } catch (error) {
       console.error({
