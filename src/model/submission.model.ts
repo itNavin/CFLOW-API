@@ -34,6 +34,7 @@ class SubmissionModel {
         select: {
           id: true,
           name: true,
+          endDate: true
         }
       } },
     });

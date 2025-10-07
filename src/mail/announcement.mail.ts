@@ -1,3 +1,4 @@
+import { prisma } from "src/prisma";
 import { formatBangkok } from "src/util/time";
 
 export const announcementMail = {
@@ -77,6 +78,164 @@ export const announcementMail = {
 
     return { subject, html, text };
   },
+  async updateAnnouncementMail(courseName: string, updated: any) {
+    const subject = `Announcement updated: ${updated.name} — ${courseName}`;
+
+    const updatedAtDate = toDateOrUndefined(updated?.updatedAt);
+    const when =
+      updatedAtDate && !isEpoch1970(updatedAtDate)
+        ? formatBangkok(updatedAtDate)
+        : undefined;
+
+    const html = `
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="x-apple-disable-message-reformatting">
+    <style>
+      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
+      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f6f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
+      <tr>
+        <td align="center" style="padding:24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
+            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
+              <p style="margin:0 0 12px;color:#111111;">Dear user,</p>
+              <p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(
+                courseName
+              )}</strong> was updated.</p>
+              ${
+                when
+                  ? `<p style="margin:0 0 12px;color:#111111;"><strong>Updated at:</strong> ${escapeHtml(
+                      when
+                    )}</p>`
+                  : ""
+              }
+              <p style="margin:0 0 12px;color:#111111;"><strong>${escapeHtml(
+                updated.name ?? ""
+              )}</strong></p>
+              ${
+                updated.description
+                  ? `<p style="margin:0 0 12px;color:#111111;">${escapeHtml(
+                      updated.description
+                    )}</p>`
+                  : ""
+              }
+              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`.trim();
+
+    const text = [
+      subject,
+      "",
+      "Dear user,",
+      "",
+      `An announcement in ${courseName} was updated.`,
+      when ? `Updated at: ${when}` : "",
+      updated.name ? `\n${updated.name}` : "",
+      updated.description ? `\n${updated.description}` : "",
+      "",
+      "Best regards,",
+      "C-Flow Team",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    return { subject, html, text };
+  },
+  async deleteAnnouncementMail(userId: string, courseName: string, deleted: any) {
+  const UserName = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { name: true, email: true },
+  });
+  const deletedByName = UserName?.name || "Unknown";
+  const deletedByEmail = UserName?.email || "";
+
+  const subject = `Announcement deleted: ${deleted?.name ?? "(untitled)"} — ${courseName}`;
+
+  // Prefer explicit deletedAt; otherwise fallback to updatedAt, then createdAt
+  const deletedAtDate =
+    toDateOrUndefined(deleted?.deletedAt) ??
+    toDateOrUndefined(deleted?.updatedAt) ??
+    toDateOrUndefined(deleted?.createdAt);
+
+  const when =
+    deletedAtDate && !isEpoch1970(deletedAtDate)
+      ? formatBangkok(deletedAtDate)
+      : undefined;
+
+  const deletedByHtml = `<p style="margin:0 0 12px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(deletedByName)}${
+    deletedByEmail ? ` &lt;${escapeHtml(deletedByEmail)}&gt;` : ""
+  }</p>`;
+
+  const html = `
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="x-apple-disable-message-reformatting">
+    <style>
+      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
+      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
+    </style>
+  </head>
+  <body style="margin:0;padding:0;background:#f6f6f8;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
+      <tr>
+        <td align="center" style="padding:24px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
+            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
+              <p style="margin:0 0 12px;color:#111111;">Dear user,</p>
+              <p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(courseName)}</strong> was deleted.</p>
+              ${when ? `<p style="margin:0 0 12px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(when)}</p>` : ""}
+              ${deletedByHtml}
+              <p style="margin:0 0 12px;color:#6b7280;"><strong>${escapeHtml(deleted?.name ?? "")}</strong></p>
+              ${
+                deleted?.description
+                  ? `<p style="margin:0 0 12px;color:#6b7280;">${escapeHtml(deleted.description)}</p>`
+                  : ""
+              }
+              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
+            </td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`.trim();
+
+  const deletedByText = `Deleted by: ${deletedByName}${
+    deletedByEmail ? ` <${deletedByEmail}>` : ""
+  }`;
+
+  const text = [
+    subject,
+    "",
+    "Dear user,",
+    "",
+    `An announcement in ${courseName} was deleted.`,
+    when ? `Deleted at: ${when}` : "",
+    deletedByText,
+    deleted?.name ? `\n${deleted.name}` : "",
+    deleted?.description ? `\n${deleted.description}` : "",
+    "",
+    "Best regards,",
+    "C-Flow Team",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return { subject, html, text };
+}
 };
 
 function toDateOrUndefined(v: unknown): Date | undefined {

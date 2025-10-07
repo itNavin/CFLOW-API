@@ -37,6 +37,34 @@ export type CreateAssignmentInput = {
   }>;
 };
 
+export type UpdateAssignmentInput = {
+  assignmentId: string;
+  name: string;
+  description: string;
+  endDate: Date;
+  schedule: Date;
+  dueDate: Date;
+  deliverables?: Array<{
+    name: string;
+    allowedFileTypes?: Array<string | { mime: string; type?: string }>;
+  }>;
+};
+
+type DeleteAssignmentResult = {
+  assignmentId: string;
+  counts: {
+    feedback: number;
+    submissions: number;
+    allowedFileTypes: number;
+    deliverables: number;
+    assignmentDueDates: number;
+  };
+  deletedAssignment: {
+    id: string;
+    name: string;
+  } | null;
+};
+
 const EXT_TO_MIME: Record<string, { mime: string; label: string }> = {
   pdf: { mime: "application/pdf", label: "PDF" },
   docx: {
@@ -196,6 +224,137 @@ class AssignmentModel {
       });
 
       return full!;
+    });
+  }
+
+  // model
+  static async updateAssignment(data: UpdateAssignmentInput) {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.assignment.findUnique({
+        where: { id: data.assignmentId },
+        select: { id: true, dueDate: true },
+      });
+      if (!existing) return null;
+
+      // --- proceed with your existing update logic (core fields + deliverables) ---
+      await tx.assignment.update({
+        where: { id: data.assignmentId },
+        data: {
+          name: data.name,
+          description: data.description ?? "",
+          endDate: data.endDate,
+          schedule: data.schedule,
+          dueDate: data.dueDate,
+        },
+      });
+
+      // If you’re replacing deliverables (and their allowed file types):
+      if (Array.isArray(data.deliverables)) {
+        await tx.allowedFileType.deleteMany({
+          where: { deliverable: { assignmentId: data.assignmentId } },
+        });
+        await tx.deliverable.deleteMany({
+          where: { assignmentId: data.assignmentId },
+        });
+
+        for (let i = 0; i < data.deliverables.length; i++) {
+          const d = data.deliverables[i];
+          const created = await tx.deliverable.create({
+            data: {
+              assignmentId: data.assignmentId,
+              name: (d.name ?? "").trim(),
+              // order: i, // uncomment if you have this column
+            },
+          });
+
+          const norm = normalizeAllowedFileTypes(d.allowedFileTypes);
+          if (norm.length > 0) {
+            await tx.allowedFileType.createMany({
+              data: norm.map((r) => ({
+                deliverableId: created.id,
+                mime: r.mime,
+                type: r.type,
+              })),
+            });
+          }
+        }
+      }
+
+      // Propagate dueDate change if needed
+      if (
+        existing.dueDate &&
+        data.dueDate &&
+        existing.dueDate.getTime() !== data.dueDate.getTime()
+      ) {
+        await tx.assignmentDueDate.updateMany({
+          where: { assignmentId: data.assignmentId, dueDate: existing.dueDate },
+          data: { dueDate: data.dueDate },
+        });
+      }
+
+      return tx.assignment.findUnique({
+        where: { id: data.assignmentId },
+        include: {
+          deliverables: { include: { allowedFileTypes: true } },
+          assignmentDueDates: true,
+        },
+      });
+    });
+  }
+
+  static async deleteAssignment(
+    assignmentId: string
+  ): Promise<DeleteAssignmentResult | null> {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // 0) Ensure the assignment exists first
+      const existing = await tx.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { id: true, name: true },
+      });
+      if (!existing) return null;
+
+      // 1) Delete feedback -> via submissions of this assignment
+      const feedbackRes = await tx.feedback.deleteMany({
+        where: { submission: { assignmentId } },
+      });
+
+      // 2) Delete submissions
+      const submissionRes = await tx.submission.deleteMany({
+        where: { assignmentId },
+      });
+
+      // 3) Delete allowed file types -> via deliverables of this assignment
+      const aftRes = await tx.allowedFileType.deleteMany({
+        where: { deliverable: { assignmentId } },
+      });
+
+      // 4) Delete deliverables
+      const deliverableRes = await tx.deliverable.deleteMany({
+        where: { assignmentId },
+      });
+
+      // 5) Delete assignment-level due dates
+      const dueDateRes = await tx.assignmentDueDate.deleteMany({
+        where: { assignmentId },
+      });
+
+      // 6) Finally delete the assignment itself
+      const deletedAssignment = await tx.assignment.delete({
+        where: { id: assignmentId },
+        select: { id: true, name: true },
+      });
+
+      return {
+        assignmentId,
+        counts: {
+          feedback: feedbackRes.count,
+          submissions: submissionRes.count,
+          allowedFileTypes: aftRes.count,
+          deliverables: deliverableRes.count,
+          assignmentDueDates: dueDateRes.count,
+        },
+        deletedAssignment,
+      };
     });
   }
 

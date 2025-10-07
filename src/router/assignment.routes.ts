@@ -8,6 +8,16 @@ assignmentRouter.post(
   AssignmentController.createAssignment
 );
 
+assignmentRouter.put(
+  "/update",
+  AssignmentController.updateAssignment
+);
+
+assignmentRouter.delete(
+  "/delete",
+  AssignmentController.deleteAssignment
+)
+
 //For advisor and staff
 assignmentRouter.get(
   "/getAllAssignments/course/:courseId",
@@ -29,5 +39,7 @@ assignmentRouter.get(
   AssignmentController.getAssignmentWithSubmissions
 );
 
-
-assignmentRouter.get("/getGroupByLecturerId/course/:courseId", AssignmentController.getGroupByLecturerId)
+assignmentRouter.get(
+  "/getGroupByLecturerId/course/:courseId",
+  AssignmentController.getGroupByLecturerId
+);

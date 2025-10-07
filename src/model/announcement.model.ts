@@ -37,6 +37,41 @@ class AnnouncementModel {
     });
   }
 
+  static async updateAnnouncement( 
+    announcementId: string,
+    name: string,
+    description: string | undefined,
+    schedule: Date
+  ) {
+    return prisma.$transaction(async (tx) => {
+      await tx.announcement.update({
+        where: { id: announcementId },
+        data: {
+          name,
+          description,
+          schedule,
+        },
+      });
+      return tx.announcement.findUnique({
+        where: { id: announcementId },
+        include: { createdBy: true },
+      });
+    });
+  }
+
+  static async deleteAnnouncement(announcementId: string) {
+    return prisma.$transaction(async (tx) => {
+      const ann = await tx.announcement.findUnique({
+        where: { id: announcementId },
+        include: { createdBy: true },
+      });
+      await tx.announcement.delete({
+        where: { id: announcementId },
+      });
+      return ann;
+    });
+  }
+
   static async getAllAnnouncement(courseId: string, publishedOnly = true) {
     return prisma.announcement.findMany({
       where: {
@@ -50,6 +85,15 @@ class AnnouncementModel {
       },
       orderBy: { id: "asc" },
     });
+  }
+
+  static async getCourseIdByAnnouncementId(announcementId: string) {
+    const ann = await prisma.announcement.findUnique({
+      where: { id: announcementId },
+      select: { courseId: true },
+    });
+    return ann;
+    
   }
 }
 

@@ -116,7 +116,7 @@ export const AssignmentController = {
 
       //mail
       //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
-      const mailUsers = await mailRoles.test(courseId)
+      const mailUsers = await mailRoles.test(courseId);
       const courseName = await mailRoles.coursename(courseId);
       if (!courseName) {
         return c.json({ error: "Course not found" }, 404);
@@ -137,6 +137,155 @@ export const AssignmentController = {
     } catch (error) {
       console.error({
         context: "createAssignment",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  updateAssignment: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<AssignmentPayload.UpdateAssignment>();
+
+      const assignmentId = body.assignmentId;
+      if (!assignmentId) {
+        return c.json({ error: "assignmentId is required" }, 400);
+      }
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+      }
+
+      const hasSubmission = await prisma.submission.findFirst({
+        where: { assignmentId },
+        select: { id: true },
+      });
+      if (hasSubmission) {
+        return c.json(
+          {
+            error:
+              "This assignment already has submissions and cannot be updated.",
+          },
+          409
+        );
+      }
+
+      const name = (body.name ?? "").trim();
+      if (!name) {
+        return c.json({ error: "name is required" }, 400);
+      }
+
+      const description = (body.description ?? "").trim();
+
+      const endDateStr = body.endDate;
+      if (!endDateStr) {
+        return c.json({ error: "endDate is required" }, 400);
+      }
+      const scheduleStr = body.schedule;
+      if (!scheduleStr) {
+        return c.json({ error: "schedule is required" }, 400);
+      }
+      const dueDateStr = body.dueDate;
+      if (!dueDateStr) {
+        return c.json({ error: "dueDate is required" }, 400);
+      }
+
+      const endDate = new Date(endDateStr);
+      const schedule = new Date(scheduleStr);
+      const dueDate = new Date(dueDateStr);
+
+      if (isNaN(endDate.getTime())) {
+        return c.json({ error: "endDate must be a valid ISO datetime" }, 400);
+      }
+      if (isNaN(schedule.getTime())) {
+        return c.json({ error: "schedule must be a valid ISO datetime" }, 400);
+      }
+      if (isNaN(dueDate.getTime())) {
+        return c.json({ error: "dueDate must be a valid ISO datetime" }, 400);
+      }
+
+      const deliverables = body.deliverables;
+
+      const updated = await AssignmentModel.updateAssignment({
+        assignmentId,
+        name,
+        description,
+        endDate,
+        schedule,
+        dueDate,
+        deliverables,
+      });
+
+      if (!updated) {
+        return c.json({ error: "Assignment not found" }, 404);
+      }
+
+      // const mailUsers = await mailRoles.test(courseId); 
+      // // const courseName = await mailRoles.coursename(courseId); 
+      // // if (!courseName) { 
+      // // return c.json({ error: "Course not found" }, 404); 
+      // // } 
+      // // const { subject, html, text } = 
+      // // await assignmentMail.updateAssignmentMail(courseName.name, updated); 
+      // // await mailSentAndSummary(mailUsers, subject, html, text);
+
+      return c.json(
+        {
+          message: "The assignment has been updated successfully",
+          assignment: updated,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "updateAssignment",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  deleteAssignment: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff" && role !== "SUPER_ADMIN") {
+        return c.json({ error: "Forbidden: STAFF only" }, 403);
+      }
+
+      const body = await c.req.json<{ assignmentId: string }>();
+
+      const assignmentId = body.assignmentId;
+      if (!assignmentId) {
+        return c.json({ error: "assignmentId is required" }, 400);
+      }
+
+      const deleted = await AssignmentModel.deleteAssignment(assignmentId);
+      if (!deleted) {
+        return c.json({ error: "Assignment not found" }, 404);
+      }
+
+      return c.json(
+        {
+          message: "The assignment has been deleted successfully",
+          delete: deleted,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "deleteAssignment",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -223,7 +372,7 @@ export const AssignmentController = {
         );
       }
 
-      const groupIdParam = c.req.param("groupId"); 
+      const groupIdParam = c.req.param("groupId");
 
       let groupId: string;
 

@@ -493,29 +493,34 @@ export const StorageController = {
         fileUrl: absoluteFileUrl,
       });
 
+        
       //mail
-      const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
-        groupId
-      );
-      //const mailStudentUsersSubmission = await mailRoles.test2("stf02");
+      //const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
+      //   groupId
+      // );
+      const mailStudentUsersSubmission = await mailRoles.test2("stf02");
       const { subject, html, text } =
         await submissionMail.createStudentSubmissionMail(
-          assignment.name,
-          groupName
+          assignment,
+          groupId,
+          groupName,
+          submissionId
         );
       await mailSentAndSummary(mailStudentUsersSubmission, subject, html, text);
 
-      const mailLecturerUsersSubmission = await mailRoles.getAllAdvisorsInGroup(
-        groupId
-      );
-      //const mailLecturerUsersSubmission = await mailRoles.test2("stf02");
+      // const mailLecturerUsersSubmission = await mailRoles.getAllAdvisorsInGroup(
+      //   groupId
+      // );
+      const mailLecturerUsersSubmission = await mailRoles.test2("stf02");
       const {
         subject: sub2,
         html: html2,
         text: text2,
       } = await submissionMail.createLecturerSubmissionMail(
-        assignment.name,
-        groupName
+        assignment,
+        groupId,
+        groupName,
+        submissionId
       );
       await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);
 
@@ -655,6 +660,8 @@ export const StorageController = {
         fileUrl: absoluteFileUrl,
       });
 
+      const userId = c.get("userId");
+      if (!userId) return c.json({ error: "Unauthorized" }, 401);
       //mail
       // const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
       //   groupId
@@ -663,7 +670,9 @@ export const StorageController = {
       const { subject, html, text } =
         await feedbackMail.createStudentFeedbackMail(
           assignment.name,
-          groupName.projectName
+          groupName.projectName,
+          submissionId,
+          userId
         );
       await mailSentAndSummary(mailStudentUsersSubmission, subject, html, text);
 
@@ -678,6 +687,8 @@ export const StorageController = {
       } = await feedbackMail.createLecturerFeedbackMail(
         assignment.name,
         groupName.projectName
+        ,submissionId,
+        userId
       );
       await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);
 
