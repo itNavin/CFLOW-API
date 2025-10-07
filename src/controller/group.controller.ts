@@ -369,34 +369,122 @@ export const GroupController = {
 
       const updated = await GroupModel.updateGroup(groupId, courseId, payload);
 
-      //mail
-      const mailStudentUsers = body.memberIds;
-      const { subject, html, text } = await GroupMail.updateGroupStudentMail(
-        updated
-      );
-      await mailSentAndSummary(mailStudentUsers, subject, html, text);
+      // 1) Course info
+      const courseInfo = await prisma.course.findUnique({
+        where: { id: courseId },
+        select: { name: true, program: true },
+      });
 
-      const mailLecturerUsers =
-        await GroupModel.getGroupAdvisorsAndCoAdvisorsById(updated.id);
-      const {
-        subject: subjectLec,
-        html: htmlLec,
-        text: textLec,
-      } = await GroupMail.updateGroupLecturerMail(updated);
-      await mailSentAndSummary(mailLecturerUsers, subjectLec, htmlLec, textLec);
+      // 2) Group info (display fields)
+      const groupRow = await prisma.group.findUnique({
+        where: { id: updated.id },
+        select: {
+          codeNumber: true,
+          projectName: true,
+          productName: true,
+          company: true,
+        },
+      });
 
-      const mailStaffUsers = mailRoles.getStaffInCourse(courseId);
-      const {
-        subject: subjectStaff,
-        html: htmlStaff,
-        text: textStaff,
-      } = await GroupMail.updateGroupStaffMail(updated);
-      await mailSentAndSummary(
-        await mailStaffUsers,
-        subjectStaff,
-        htmlStaff,
-        textStaff
-      );
+      // 3) Students (recipients for student mail)
+      const studentRows = await prisma.groupMember.findMany({
+        where: { groupId: updated.id },
+        select: {
+          courseMember: {
+            select: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      });
+      const students = studentRows.map((r) => r.courseMember.user);
+      const studentRecipients = students.filter((u) => !!u.email);
+
+      // 4) Advisors (recipients for lecturer mails; also used for staff mail)
+      const advisorRows = await prisma.groupAdvisor.findMany({
+        where: { groupId: updated.id },
+        select: {
+          advisorRole: true, // "ADVISOR" | "CO_ADVISOR"
+          courseMember: {
+            select: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      });
+      const advisorsForStaff = advisorRows.map((r) => ({
+        name: r.courseMember.user.name,
+        role: r.advisorRole as "ADVISOR" | "CO_ADVISOR",
+        email: r.courseMember.user.email ?? null,
+      }));
+
+      // 5) Send STUDENT mail (one email to all students)
+      if (studentRecipients.length > 0) {
+        const { subject, html, text } = await GroupMail.updateGroupStudentMail({
+          courseName: courseInfo?.name ?? "your course",
+          program: courseInfo?.program ?? "CS",
+          group: {
+            codeNumber: groupRow?.codeNumber ?? "",
+            projectName: groupRow?.projectName ?? "",
+            productName: groupRow?.productName ?? null,
+            company: groupRow?.company ?? null,
+          },
+        });
+
+        await mailSentAndSummary(studentRecipients, subject, html, text);
+      }
+
+      // 6) Send LECTURER mail (one per advisor)
+      for (const r of advisorRows) {
+        const adviserUser = r.courseMember.user;
+        if (!adviserUser.email) continue;
+
+        const {
+          subject: subjectLec,
+          html: htmlLec,
+          text: textLec,
+        } = await GroupMail.updateGroupLecturerMail({
+          courseName: courseInfo?.name ?? "your course",
+          program: courseInfo?.program ?? "CS",
+          advisor: {
+            name: adviserUser.name,
+            role: r.advisorRole as "ADVISOR" | "CO_ADVISOR",
+          },
+          group: {
+            codeNumber: groupRow?.codeNumber ?? "",
+            projectName: groupRow?.projectName ?? "",
+            productName: groupRow?.productName ?? null,
+            company: groupRow?.company ?? null,
+          },
+          students, // list of all students
+        });
+
+        await mailSentAndSummary([adviserUser], subjectLec, htmlLec, textLec);
+      }
+
+      // 7) Send STAFF mail (one email to all staff in course)
+      const staffRecipients = await mailRoles.getStaffInCourse(courseId);
+      if (Array.isArray(staffRecipients) && staffRecipients.length > 0) {
+        const {
+          subject: subjectStaff,
+          html: htmlStaff,
+          text: textStaff,
+        } = await GroupMail.updateGroupStaffMail({
+          courseName: courseInfo?.name ?? "your course",
+          program: courseInfo?.program ?? "CS",
+          group: {
+            codeNumber: groupRow?.codeNumber ?? "",
+            projectName: groupRow?.projectName ?? "",
+            productName: groupRow?.productName ?? null,
+            company: groupRow?.company ?? null,
+          },
+          advisors: advisorsForStaff,
+          students,
+        });
+
+        await mailSentAndSummary(
+          staffRecipients,
+          subjectStaff,
+          htmlStaff,
+          textStaff
+        );
+      }
 
       return c.json(
         {
@@ -428,29 +516,91 @@ export const GroupController = {
       if (role !== "staff") {
         return c.json({ message: "Forbidden: staff only" }, 403);
       }
+
       const body = await c.req.json<{ groupId: string }>();
       const groupId = body.groupId;
       if (!isValidUUID(groupId)) {
         return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
       }
 
+      // --- SNAPSHOT (before deletion) ---
+      const groupRow = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: {
+          id: true,
+          courseId: true,
+          codeNumber: true,
+          projectName: true,
+          productName: true,
+          company: true,
+        },
+      });
+      if (!groupRow) return c.json({ error: "Group not found" }, 404);
+
+      const courseInfo = await prisma.course.findUnique({
+        where: { id: groupRow.courseId },
+        select: { name: true, program: true },
+      });
+
+      // advisors (for mail content)
+      const advisorRows = await prisma.groupAdvisor.findMany({
+        where: { groupId },
+        select: {
+          advisorRole: true,
+          courseMember: {
+            select: { user: { select: { name: true, email: true } } },
+          },
+        },
+      });
+      const advisorsForStaff = advisorRows.map((r) => ({
+        name: r.courseMember.user.name,
+        role: r.advisorRole as "ADVISOR" | "CO_ADVISOR",
+        email: r.courseMember.user.email ?? null,
+      }));
+
+      // students (for mail content)
+      const studentRows = await prisma.groupMember.findMany({
+        where: { groupId },
+        select: {
+          courseMember: {
+            select: { user: { select: { id: true, name: true, email: true } } },
+          },
+        },
+      });
+      const studentsForStaff = studentRows.map((r) => r.courseMember.user);
+
+      // staff recipients
+      const staffRecipients = await mailRoles.getStaffInCourse(
+        groupRow.courseId
+      );
+
+      // --- DELETE ---
       const ok = await GroupModel.deleteGroup(groupId);
       if (!ok) {
+        // If another process deleted it, still return 404
         return c.json({ error: "Group not found" }, 404);
       }
 
-      //mail
-      const courseId = await GroupModel.getCourseIdByGroupId(groupId);
-      if (!courseId) {
-        throw new Error("courseId is required for fetching staff users");
-      }
-      const mailStaffUsers = await mailRoles.getStaffInCourse(courseId);
-      const { subject, html, text } = await GroupMail.deleteGroupStaffMail(
-        groupId
-      );
-      await mailSentAndSummary(mailStaffUsers, subject, html, text);
+      // --- MAIL staff (only) ---
+      if (Array.isArray(staffRecipients) && staffRecipients.length > 0) {
+        const { subject, html, text } = await GroupMail.deleteGroupStaffMail({
+          courseName: courseInfo?.name ?? "your course",
+          program: courseInfo?.program ?? "CS",
+          group: {
+            codeNumber: groupRow.codeNumber,
+            projectName: groupRow.projectName,
+            productName: groupRow.productName,
+            company: groupRow.company,
+          },
+          advisors: advisorsForStaff,
+          students: studentsForStaff,
+          deletedAt: new Date(),
+        });
 
-      return c.json({ message: "Group deleted successfully" }, 200);
+        await mailSentAndSummary(staffRecipients, subject, html, text);
+      }
+
+      return c.json({ message: "Group deleted successfully", groupId }, 200);
     } catch (error) {
       console.error({
         context: "deleteGroup",

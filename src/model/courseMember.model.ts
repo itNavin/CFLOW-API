@@ -12,6 +12,62 @@ async function ensureCourseExists(courseId: string) {
   if (!exists) throw new Error("COURSE_NOT_FOUND");
 }
 
+export const getStaffMembers = async (courseId: string) => {
+  await ensureCourseExists(courseId);
+  const staffs = await prisma.courseMember.findMany({
+    where: {
+      courseId,
+      user: { role: Role.staff },
+    },
+    include:{
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          program: true,
+          createdAt: true,
+        },
+      }
+    },
+    orderBy: { id: "asc" },
+  });
+  return staffs;
+}
+
+export const getStaffNotInCourse = async (courseId: string) => {
+  const course = await prisma.course.findUnique({
+    where: { id: courseId.trim() },
+    select: { id: true },
+  });
+  if (!course) throw new Error("COURSE_NOT_FOUND");
+
+  // 1) Who is already in this course?
+  const enrolled = await prisma.courseMember.findMany({
+    where: { courseId: course.id },
+    select: { userId: true },
+  });
+  const enrolledUserIds = enrolled.map((r) => r.userId);
+
+  // 2) Return staff NOT in that list
+  return prisma.user.findMany({
+    where: {
+      role: "staff", // or Role.staff
+      id: { notIn: enrolledUserIds.length ? enrolledUserIds : ["___none___"] },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      program: true,
+      createdAt: true,
+    },
+    orderBy: { name: "asc" },
+  });
+};
+
 export const getAdvisorMembers = async (courseId: string) => {
   await ensureCourseExists(courseId);
 
@@ -53,15 +109,9 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
   });
   if (!course) throw new Error("COURSE_NOT_FOUND");
 
-  // const whereProgram =
-  //   course.program === ClassProgram.BOTH
-  //     ? undefined
-  //     : { in: [course.program, ClassProgram.BOTH] };
-
   return prisma.user.findMany({
     where: {
       role: Role.lecturer,
-      // ...(whereProgram ? { program: whereProgram } : {}),
       classMemberships: {
         none: { courseId },
       },

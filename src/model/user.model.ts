@@ -257,7 +257,6 @@ class UserModel {
       prepared,                  // after normalize + client dedupe
       created,                   // actually inserted
       skipped,                   // duplicates ignored by DB uniques
-      errors: [],                // none in this path; DB conflicts are skipped
     };
   }
 }
