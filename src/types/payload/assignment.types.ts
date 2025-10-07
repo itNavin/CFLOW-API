@@ -9,6 +9,16 @@ export namespace AssignmentPayload {
     deliverables: DeliverablePayload[];
   };
 
+  export type UpdateAssignment = {
+    assignmentId: string;
+    name: string;
+    description: string;
+    endDate: string;
+    schedule: string;
+    dueDate: string;
+    deliverables: DeliverablePayload[];
+  };
+
   export type getAdvisorGroups = {
     courseId: string;
   };

@@ -7,5 +7,14 @@ announcementRouter.post(
   "/course",
   AnnouncementController.createAnnouncement
 );
+announcementRouter.put(
+  "/update",
+  AnnouncementController.updateAnnouncement
+);
+
+announcementRouter.delete(
+  "/delete",
+  AnnouncementController.deleteAnnouncement
+);
 
 announcementRouter.get("/course/:courseId", AnnouncementController.getAllAnnouncement);

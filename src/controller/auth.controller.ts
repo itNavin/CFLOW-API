@@ -120,9 +120,13 @@ export const AuthController = {
           (accessTokenPayload as any).role ?? accessTokenPayload.description
         );
         //mail 
+        const date = new Date();
         //const mailUser = await mailRoles.getSingleUser(accessTokenPayload.preferred_username);
         const mailUser = await mailRoles.test2(accessTokenPayload.preferred_username);
-        const {subject, html, text} = await authMail.loginMail(accessTokenPayload.name);
+        const { subject, html, text } = await authMail.loginMail(
+          accessTokenPayload.name,
+          { loginAt: date }
+        );
         mailSentAndSummary(mailUser, subject, html, text);
 
         return c.json({

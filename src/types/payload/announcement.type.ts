@@ -4,13 +4,14 @@ export namespace AnnouncementPayload {
     name: string;
     description: string;
     schedule: string;
-    // createById: number;
-    // files?: FilePayload[];
+
+  };
+  export type UpdateAnnouncement = {
+    announcementId: string;
+    name: string;
+    description: string;
+    schedule: string;
   };
 }
 
-// type FilePayload = {
-//   name: string;
-//   filepath: string;
-//   uploadById: number;
-// };
+  

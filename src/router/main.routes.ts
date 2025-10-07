@@ -18,6 +18,7 @@ import { profileRouter } from "./profile.routes";
 import { downloadRouter } from "./download.routes";
 import { statusRouter } from "./status.routes";
 import { debugRouter } from "./debug.routes";
+import { activityRouter } from "./activity.routes";
 
 const mainRouter = new Hono();
 
@@ -41,5 +42,6 @@ mainRouter.route("/storage", storageRouter);
 mainRouter.route("/profile", profileRouter);
 mainRouter.route("/download", downloadRouter);
 mainRouter.route("/status", statusRouter);
+mainRouter.route("/activity", activityRouter);
 
 export { mainRouter };

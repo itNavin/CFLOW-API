@@ -33,12 +33,12 @@ export const mailSentAndSummary = async (
 
   const logs = (mailUsers ?? [])
     .map((u: any) => ({
-      userId: u?.user?.id ?? u?.id, // supports both shapes
+      userId: u?.user?.id ?? u?.id, 
       title: subject,
       description: text,
       createdAt: new Date(),
     }))
-    .filter((l) => !!l.userId); // keep only rows with a userId
+    .filter((l) => !!l.userId); 
 
   if (logs.length) {
     try {
@@ -48,7 +48,5 @@ export const mailSentAndSummary = async (
       // don't throw—email summary should still return
     }
   }
-  // --- END NEW ---
-
   console.log("email summary:", summary);
 };
