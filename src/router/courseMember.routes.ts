@@ -3,6 +3,15 @@ import { CourseMemberController } from "../controller/courseMember.controller";
 
 export const courseMemberRouter = new Hono();
 courseMemberRouter.get(
+  "/staff/course/:courseId",
+  CourseMemberController.getStaffMembers
+);
+courseMemberRouter.get(
+  "/staffNotInCourse/course/:courseId",
+  CourseMemberController.getStaffNotInCourse
+);
+
+courseMemberRouter.get(
   "/advisors/course/:courseId",
   CourseMemberController.getAdvisorMembers
 );

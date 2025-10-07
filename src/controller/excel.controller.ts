@@ -174,20 +174,63 @@ export const ImportController = {
         for (const adv of bucket.advisors) {
           if (!adv.user.email) continue;
 
-          const { subject, html, text } = await GroupMail.createGroupLecturerMail({
+          const { subject, html, text } =
+            await GroupMail.createGroupLecturerMail({
+              courseName: courseInfo?.name ?? "your course",
+              program: courseInfo?.program ?? "CS",
+              advisor: { name: adv.user.name, role: adv.role },
+              group: {
+                codeNumber: bucket.group.codeNumber ?? "",
+                projectName: bucket.group.projectName,
+                productName: bucket.group.productName,
+                company: bucket.group.company,
+              },
+              students: bucket.students, // [{id,name,email}]
+            });
+
+          await mailSentAndSummary([adv.user], subject, html, text);
+        }
+      }
+
+      const staffRecipients = await mailRoles.getStaffInCourse(courseId);
+
+      // Only proceed if there are staff emails
+      if (Array.isArray(staffRecipients) && staffRecipients.length > 0) {
+        for (const [, bucket] of advisorsByGroup) {
+          // Map advisors into the format staff mail expects
+          const advisorsForStaff =
+            (bucket.advisors ?? []).map((a) => ({
+              name: a.user.name,
+              role: a.role as "ADVISOR" | "CO_ADVISOR",
+              email: a.user.email ?? null,
+            })) ?? [];
+
+          // Students already in bucket.students (PlainUser: {id,name,email})
+          const studentsForStaff = bucket.students ?? [];
+
+          const {
+            subject: subjectStaff,
+            html: htmlStaff,
+            text: textStaff,
+          } = await GroupMail.createGroupStaffMail({
             courseName: courseInfo?.name ?? "your course",
             program: courseInfo?.program ?? "CS",
-            advisor: { name: adv.user.name, role: adv.role },
             group: {
               codeNumber: bucket.group.codeNumber ?? "",
               projectName: bucket.group.projectName,
               productName: bucket.group.productName,
               company: bucket.group.company,
             },
-            students: bucket.students, // [{id,name,email}]
+            advisors: advisorsForStaff,
+            students: studentsForStaff,
           });
 
-          await mailSentAndSummary([adv.user], subject, html, text);
+          await mailSentAndSummary(
+            staffRecipients,
+            subjectStaff,
+            htmlStaff,
+            textStaff
+          );
         }
       }
       return c.json({

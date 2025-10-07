@@ -8,6 +8,8 @@ import {
   getStudentsNotInCourse,
   deleteCourseMembers,
   addMembers,
+  getStaffMembers,
+  getStaffNotInCourse
 } from "../model/courseMember.model";
 
 import { CourseMemberPayload } from "src/types/payload/courseMember.type";
@@ -17,6 +19,76 @@ import { mailSentAndSummary } from "src/util/mailSummary";
 import { courseMemberMail } from "src/mail/courseMember.mail";
 
 export const CourseMemberController = {
+  getStaffMembers: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
+
+      const staff = await getStaffMembers(courseId);
+
+      return c.json(
+        {
+          message: "Staff fetched successfully",
+          staff: staff,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getStaffMembers",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+  getStaffNotInCourse: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const courseId = c.req.param("courseId");
+      if (!courseId || courseId.trim().length === 0) {
+        return c.json({ message: "Invalid courseId" }, 400);
+      }
+      if (!isValidUUID(courseId)) {
+        return c.json({ message: "Invalid courseId format" }, 400);
+      }
+      const staffNotInCourse = await getStaffNotInCourse(courseId);
+
+      return c.json(
+        {
+          message: "Staff not in course fetched successfully",
+          staff: staffNotInCourse,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "getStaffMembers",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
   getAdvisorMembers: async (c: Context) => {
     try {
       const role = c.get("role");
