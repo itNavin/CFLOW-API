@@ -92,20 +92,21 @@ export const GroupController = {
         company: newGroup.company ?? null,
       };
 
-      // 4) Send ONE email per group to ALL students in that group
+      // 4) Send one email per student (personalized "Dear {Name}")
       if (studentRecipients.length > 0) {
-        const { subject, html, text } = await GroupMail.createGroupStudentMail({
-          courseName: courseInfo?.name ?? "your course",
-          program: courseInfo?.program ?? "CS",
-          group: {
-            codeNumber: groupPayload.codeNumber ?? "",
-            projectName: groupPayload.projectName,
-            productName: groupPayload.productName,
-            company: groupPayload.company,
-          },
-        });
-
-        await mailSentAndSummary(studentRecipients, subject, html, text);
+        await mailSentAndSummary(studentRecipients, async (u) =>
+          GroupMail.createGroupStudentMail({
+            courseName: courseInfo?.name ?? "your course",
+            program: courseInfo?.program ?? "CS",
+            group: {
+              codeNumber: groupPayload.codeNumber ?? "",
+              projectName: groupPayload.projectName,
+              productName: groupPayload.productName,
+              company: groupPayload.company,
+            },
+            recipientName: u?.name || "Student",
+          })
+        );
       }
 
       // 5) Advisors + co-advisors: one email PER advisor, with student list
@@ -414,8 +415,7 @@ export const GroupController = {
         email: r.courseMember.user.email ?? null,
       }));
 
-      // 5) Send STUDENT mail (one email to all students)
-      if (studentRecipients.length > 0) {
+      await mailSentAndSummary(studentRecipients, async (u) => {
         const { subject, html, text } = await GroupMail.updateGroupStudentMail({
           courseName: courseInfo?.name ?? "your course",
           program: courseInfo?.program ?? "CS",
@@ -425,10 +425,13 @@ export const GroupController = {
             productName: groupRow?.productName ?? null,
             company: groupRow?.company ?? null,
           },
+          students, // 👈 include list
+          advisors: advisorsForStaff, // 👈 include list
+          recipientName: u.name,
         });
+        return { subject, html, text };
+      });
 
-        await mailSentAndSummary(studentRecipients, subject, html, text);
-      }
 
       // 6) Send LECTURER mail (one per advisor)
       for (const r of advisorRows) {
@@ -452,7 +455,8 @@ export const GroupController = {
             productName: groupRow?.productName ?? null,
             company: groupRow?.company ?? null,
           },
-          students, // list of all students
+          students,
+          advisors: advisorsForStaff, // 👈 NEW
         });
 
         await mailSentAndSummary([adviserUser], subjectLec, htmlLec, textLec);

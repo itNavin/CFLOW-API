@@ -88,19 +88,20 @@ export const ImportController = {
         const recipients = bucket.users.filter((u) => !!u.email); // keep only users with email
         if (recipients.length === 0) continue;
 
-        // Build the message with the *group-specific* info
-        const { subject, html, text } = await GroupMail.createGroupStudentMail({
-          courseName: courseInfo?.name ?? "your course",
-          program: courseInfo?.program ?? "CS",
-          group: {
-            codeNumber: bucket.group.codeNumber ?? "",
-            projectName: bucket.group.projectName,
-            productName: bucket.group.productName,
-            company: bucket.group.company,
-          },
+        // Use the callback signature so each student gets "Dear {name}"
+        await mailSentAndSummary(recipients, async (u) => {
+          return GroupMail.createGroupStudentMail({
+            courseName: courseInfo?.name ?? "your course",
+            program: courseInfo?.program ?? "CS",
+            group: {
+              codeNumber: bucket.group.codeNumber ?? "",
+              projectName: bucket.group.projectName,
+              productName: bucket.group.productName,
+              company: bucket.group.company,
+            },
+            recipientName: u.name || "Student", // 👈 personalize
+          });
         });
-
-        await mailSentAndSummary(recipients, subject, html, text);
       }
 
       const advisorRows = await prisma.groupAdvisor.findMany({
