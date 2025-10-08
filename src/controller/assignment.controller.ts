@@ -7,6 +7,7 @@ import { assignmentMail } from "src/mail/assignment.mail";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import SubmissionModel from "src/model/submission.model";
+import { get } from "http";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
@@ -591,4 +592,32 @@ export const AssignmentController = {
       );
     }
   },
+  getAssignmentById: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      const assignmentId = c.req.param("assignmentId");
+      if (!assignmentId) {
+        return c.json({ message: "assignmentId is required" }, 400);
+      }
+      if (!isValidUUID(assignmentId)) {
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
+      }
+
+      const assignment = await AssignmentModel.getAssignmentById(assignmentId);
+
+      if (!assignment) {
+        return c.json({ message: "Assignment not found" }, 404);
+      }
+    } catch (error) {
+      console.error({
+        context: "getAssignmentById",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  }
 };

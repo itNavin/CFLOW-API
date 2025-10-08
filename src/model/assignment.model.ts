@@ -462,6 +462,14 @@ class AssignmentModel {
       submitted,
     };
   }
+  static async getAssignmentById(assignmentId: string) {
+    return prisma.assignment.findUnique({
+      where: { id: assignmentId },
+      include: {
+        deliverables: { include: { allowedFileTypes: true } },
+      },
+    });
+  }
 }
 
 export default AssignmentModel;
