@@ -1,8 +1,5 @@
 import type { Context } from "hono";
 import ProfileModel from "src/model/profile.model";
-import { isValidUUID } from "../types/uuid";
-import { mailRoles } from "src/util/mailRole";
-import { mailSentAndSummary } from "src/util/mailSummary";
 
 export const ProfileController = {
   getProfile: async (c: Context) => {

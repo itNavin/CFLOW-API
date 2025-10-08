@@ -499,30 +499,31 @@ export const StorageController = {
       //   groupId
       // );
       const mailStudentUsersSubmission = await mailRoles.test2("stf02");
-      const { subject, html, text } =
-        await submissionMail.createStudentSubmissionMail(
+      await mailSentAndSummary(mailStudentUsersSubmission, async (u) => {
+        const name = u?.user?.name ?? u?.name ?? "Student";
+        return submissionMail.createStudentSubmissionMail(
           assignment,
           groupId,
           groupName,
-          submissionId
+          submissionId,
+          name
         );
-      await mailSentAndSummary(mailStudentUsersSubmission, subject, html, text);
+      });
 
       // const mailLecturerUsersSubmission = await mailRoles.getAllAdvisorsInGroup(
       //   groupId
       // );
       const mailLecturerUsersSubmission = await mailRoles.test2("stf02");
-      const {
-        subject: sub2,
-        html: html2,
-        text: text2,
-      } = await submissionMail.createLecturerSubmissionMail(
-        assignment,
-        groupId,
-        groupName,
-        submissionId
-      );
-      await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);
+      await mailSentAndSummary(mailLecturerUsersSubmission, async (u) => {
+        const name = u?.user?.name ?? u?.name ?? "Lecturer";
+        return submissionMail.createLecturerSubmissionMail(
+          assignment,
+          groupId,
+          groupName, 
+          submissionId,
+          name
+        );
+      });
 
       return c.json(
         {

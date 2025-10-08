@@ -4,6 +4,9 @@ import { SubmissionPayload } from "src/types/payload/submission.type";
 import { isValidUUID } from "../types/uuid";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { submissionMail } from "src/mail/submission.mail";
+import { prisma } from "src/prisma";
+import GroupModel from "src/model/group.model";
 
 export const SubmissionController = {
   hasSubmission: async (c: Context) => {
@@ -84,15 +87,23 @@ export const SubmissionController = {
       if (!isValidUUID(assignmentId)) {
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
       }
-      const courseId = await SubmissionModel.getCourseIdByAssignment(assignmentId);
+      const courseId = await SubmissionModel.getCourseIdByAssignment(
+        assignmentId
+      );
       if (!courseId) {
-        return c.json({ error: "No course found for the given assignmentId" }, 400);
+        return c.json(
+          { error: "No course found for the given assignmentId" },
+          400
+        );
       }
 
       const comment = body?.comment.trim();
       if (comment) {
         if (comment.length > 500) {
-          return c.json({ error: "comment must be at most 500 characters" }, 400);
+          return c.json(
+            { error: "comment must be at most 500 characters" },
+            400
+          );
         }
       }
 
@@ -104,6 +115,7 @@ export const SubmissionController = {
       });
 
       c.header("Location", `/submission/${created.id}`);
+
       return c.json(
         {
           message: "Submission created successfully",

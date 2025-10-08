@@ -3,6 +3,8 @@ import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { mainRouter } from "./router/main.routes";
 import { prisma } from "./prisma";
+import { serveStatic } from "@hono/node-server/serve-static";
+import path from "node:path";
 
 const app = new Hono({ strict: false });
 
@@ -16,6 +18,16 @@ app.use(
     origin: ["http://localhost:3000"],
     credentials: true,
     exposeHeaders: ["X-Refresh-Token"],
+  })
+);
+
+const assetsRoot = path.join(process.cwd(), "src", "assets");
+app.use(
+  "/email-assets/*",
+  serveStatic({
+    root: assetsRoot,
+    // so /email-assets/SIT-LOGO.png -> /src/assets/SIT-LOGO.png
+    rewriteRequestPath: (p) => p.replace(/^\/email-assets\//, ""),
   })
 );
 

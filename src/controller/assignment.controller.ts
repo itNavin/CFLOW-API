@@ -6,6 +6,7 @@ import { isValidUUID } from "../types/uuid";
 import { assignmentMail } from "src/mail/assignment.mail";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import SubmissionModel from "src/model/submission.model";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
@@ -117,15 +118,17 @@ export const AssignmentController = {
       //mail
       //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test(courseId);
-      const courseName = await mailRoles.coursename(courseId);
-      if (!courseName) {
-        return c.json({ error: "Course not found" }, 404);
-      }
-      const { subject, html, text } = await assignmentMail.createAssignmentMail(
-        courseName.name,
-        created
-      );
-      mailSentAndSummary(mailUsers, subject, html, text);
+      const courseRow = await mailRoles.coursename(courseId);
+      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return assignmentMail.createAssignmentMail(
+          courseRow.name,
+          created,
+          recipientName
+        );
+      });
 
       return c.json(
         {
@@ -228,14 +231,25 @@ export const AssignmentController = {
         return c.json({ error: "Assignment not found" }, 404);
       }
 
-      // const mailUsers = await mailRoles.test(courseId); 
-      // // const courseName = await mailRoles.coursename(courseId); 
-      // // if (!courseName) { 
-      // // return c.json({ error: "Course not found" }, 404); 
-      // // } 
-      // // const { subject, html, text } = 
-      // // await assignmentMail.updateAssignmentMail(courseName.name, updated); 
-      // // await mailSentAndSummary(mailUsers, subject, html, text);
+      const courseId = await SubmissionModel.getCourseIdByAssignment(
+        assignmentId
+      );
+      if (!courseId) {
+        return c.json({ error: "Course not found" }, 404);
+      }
+
+      const mailUsers = await mailRoles.test(courseId);
+      const courseRow = await mailRoles.coursename(courseId);
+      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return assignmentMail.updateAssignmentMail(
+          courseRow.name,
+          updated,
+          recipientName
+        );
+      });
 
       return c.json(
         {
@@ -265,21 +279,55 @@ export const AssignmentController = {
       }
 
       const body = await c.req.json<{ assignmentId: string }>();
-
       const assignmentId = body.assignmentId;
       if (!assignmentId) {
         return c.json({ error: "assignmentId is required" }, 400);
       }
 
-      const deleted = await AssignmentModel.deleteAssignment(assignmentId);
-      if (!deleted) {
+      const assignmentRow = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: {
+          id: true,
+          name: true,
+          courseId: true,
+          dueDate: true,
+          schedule: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+      if (!assignmentRow) {
         return c.json({ error: "Assignment not found" }, 404);
+      }
+
+      const ok = await AssignmentModel.deleteAssignment(assignmentId);
+      if (!ok) {
+        return c.json({ error: "Assignment not found" }, 404);
+      }
+
+      const staff = await mailRoles.getStaffInCourse(assignmentRow.courseId);
+      const courseRow = await mailRoles.coursename(assignmentRow.courseId);
+      const deleter = await prisma.user.findUnique({
+        where: { id: c.get("userId") },
+        select: { name: true, email: true },
+      });
+
+      if (courseRow && Array.isArray(staff) && staff.length) {
+        await mailSentAndSummary(staff, async (u) => {
+          const recipientName = u?.user?.name || u?.name || "User";
+          return assignmentMail.deleteAssignmentMail(
+            courseRow.name,
+            assignmentRow,
+            { name: deleter?.name, email: deleter?.email },
+            recipientName
+          );
+        });
       }
 
       return c.json(
         {
           message: "The assignment has been deleted successfully",
-          delete: deleted,
+          delete: ok,
         },
         200
       );

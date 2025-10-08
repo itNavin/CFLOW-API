@@ -18,13 +18,11 @@ assignmentRouter.delete(
   AssignmentController.deleteAssignment
 )
 
-//For advisor and staff
 assignmentRouter.get(
   "/getAllAssignments/course/:courseId",
   AssignmentController.getAllAssignmentsByCourseId
 );
 
-//For student
 assignmentRouter.get(
   "/getStudentAssignmentByGroupId/course/:courseId",
   AssignmentController.getStudentAssignmentByGroupId

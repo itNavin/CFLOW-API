@@ -14,7 +14,6 @@ import {
 
 import { CourseMemberPayload } from "src/types/payload/courseMember.type";
 import { isValidUUID } from "src/types/uuid";
-import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { courseMemberMail } from "src/mail/courseMember.mail";
 
@@ -200,7 +199,6 @@ export const CourseMemberController = {
     }
   },
 
-  // GET /students/course/:courseId
   getStudentMembers: async (c: Context) => {
     try {
       const role = c.get("role");

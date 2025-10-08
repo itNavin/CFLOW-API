@@ -53,13 +53,17 @@ export const AnnouncementController = {
       //mail
       // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test(courseId);
-      const courseName = await mailRoles.coursename(courseId);
-      if (!courseName) {
-        return c.json({ error: "Course not found" }, 404);
-      }
-      const { subject, html, text } =
-        await announcementMail.createAnnouncementMail(courseName.name, created);
-      mailSentAndSummary(mailUsers, subject, html, text);
+      const courseRow = await mailRoles.coursename(courseId);
+      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return announcementMail.createAnnouncementMail(
+          courseRow.name,
+          created,
+          recipientName
+        );
+      });
 
       return c.json(
         {
@@ -125,13 +129,18 @@ export const AnnouncementController = {
       //mail
       // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test(courseId.courseId);
-      const courseName = await mailRoles.coursename(courseId.courseId);
-      if (!courseName) {
-        return c.json({ error: "Course not found" }, 404);
-      }
-      const { subject, html, text } =
-        await announcementMail.updateAnnouncementMail(courseName.name, updated);
-      mailSentAndSummary(mailUsers, subject, html, text);
+      const courseRow = await mailRoles.coursename(courseId.courseId);
+      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return announcementMail.updateAnnouncementMail(
+          courseRow.name,
+          updated,
+          recipientName
+        );
+      });
+
 
       return c.json(
         {
@@ -191,17 +200,19 @@ export const AnnouncementController = {
 
       //mail
       const mailUsers = await mailRoles.getStaffInCourse(deleted.courseId);
-      const courseName = await mailRoles.coursename(courseId.courseId);
-      if (!courseName) {
-        return c.json({ error: "Course not found" }, 404);
-      }
-      const { subject, html, text } =
-        await announcementMail.deleteAnnouncementMail(
+      const courseRow = await mailRoles.coursename(courseId.courseId);
+      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return announcementMail.deleteAnnouncementMail(
           userId,
-          courseName.name,
-          deleted
+          courseRow.name,
+          deleted,
+          recipientName
         );
-      mailSentAndSummary(mailUsers, subject, html, text);
+      });
+
       return c.json(
         {
           message: "The announcement has been deleted successfully",

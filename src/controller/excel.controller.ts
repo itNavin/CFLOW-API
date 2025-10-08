@@ -34,12 +34,10 @@ export const ImportController = {
         select: { name: true, program: true },
       });
 
-      // 2) Collect newly-created groupIds
       const groupIds = (result?.details ?? []).map(
         (d: { groupId: string }) => d.groupId
       );
 
-      // 3) Fetch every (student, group) pair for those groups
       const groupStudentRows = await prisma.groupMember.findMany({
         where: { groupId: { in: groupIds } },
         select: {
@@ -48,8 +46,8 @@ export const ImportController = {
             select: {
               codeNumber: true,
               projectName: true,
-              productName: true, // CS
-              company: true, // DSI
+              productName: true, 
+              company: true, 
             },
           },
           courseMember: {
@@ -60,7 +58,6 @@ export const ImportController = {
         },
       });
 
-      // 4) Bucket by groupId → { group, users[] }
       const byGroup = new Map<
         string,
         {
@@ -83,37 +80,36 @@ export const ImportController = {
         byGroup.set(row.groupId, g);
       }
 
-      // 5) Send one email per group, to all students in that group
       for (const [, bucket] of byGroup) {
-        const recipients = bucket.users.filter((u) => !!u.email); // keep only users with email
+        const recipients = bucket.users.filter((u) => !!u.email); 
         if (recipients.length === 0) continue;
 
-        // Build the message with the *group-specific* info
-        const { subject, html, text } = await GroupMail.createGroupStudentMail({
-          courseName: courseInfo?.name ?? "your course",
-          program: courseInfo?.program ?? "CS",
-          group: {
-            codeNumber: bucket.group.codeNumber ?? "",
-            projectName: bucket.group.projectName,
-            productName: bucket.group.productName,
-            company: bucket.group.company,
-          },
+        await mailSentAndSummary(recipients, async (u) => {
+          return GroupMail.createGroupStudentMail({
+            courseName: courseInfo?.name ?? "your course",
+            program: courseInfo?.program ?? "CS",
+            group: {
+              codeNumber: bucket.group.codeNumber ?? "",
+              projectName: bucket.group.projectName,
+              productName: bucket.group.productName,
+              company: bucket.group.company,
+            },
+            recipientName: u.name || "Student",
+          });
         });
-
-        await mailSentAndSummary(recipients, subject, html, text);
       }
 
       const advisorRows = await prisma.groupAdvisor.findMany({
         where: { groupId: { in: groupIds } },
         select: {
-          advisorRole: true, // "ADVISOR" | "CO_ADVISOR"
+          advisorRole: true, 
           groupId: true,
           group: {
             select: {
               codeNumber: true,
               projectName: true,
-              productName: true, // CS
-              company: true, // DSI
+              productName: true, 
+              company: true, 
               members: {
                 select: {
                   courseMember: {
@@ -127,13 +123,11 @@ export const ImportController = {
             },
           },
           courseMember: {
-            // the advisor's course member
             select: { user: { select: { id: true, name: true, email: true } } },
           },
         },
       });
 
-      // bucket: groupId => { group, advisors[], students[] }
       type PlainUser = { id: string; name: string; email: string | null };
       const advisorsByGroup = new Map<
         string,
@@ -169,7 +163,6 @@ export const ImportController = {
         advisorsByGroup.set(row.groupId, current);
       }
 
-      // send one email *per advisor*, with group context + student list
       for (const [, bucket] of advisorsByGroup) {
         for (const adv of bucket.advisors) {
           if (!adv.user.email) continue;
@@ -185,7 +178,7 @@ export const ImportController = {
                 productName: bucket.group.productName,
                 company: bucket.group.company,
               },
-              students: bucket.students, // [{id,name,email}]
+              students: bucket.students, 
             });
 
           await mailSentAndSummary([adv.user], subject, html, text);
@@ -194,10 +187,8 @@ export const ImportController = {
 
       const staffRecipients = await mailRoles.getStaffInCourse(courseId);
 
-      // Only proceed if there are staff emails
       if (Array.isArray(staffRecipients) && staffRecipients.length > 0) {
         for (const [, bucket] of advisorsByGroup) {
-          // Map advisors into the format staff mail expects
           const advisorsForStaff =
             (bucket.advisors ?? []).map((a) => ({
               name: a.user.name,
@@ -205,7 +196,6 @@ export const ImportController = {
               email: a.user.email ?? null,
             })) ?? [];
 
-          // Students already in bucket.students (PlainUser: {id,name,email})
           const studentsForStaff = bucket.students ?? [];
 
           const {

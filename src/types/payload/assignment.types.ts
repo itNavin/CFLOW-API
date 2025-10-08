@@ -26,5 +26,5 @@ export namespace AssignmentPayload {
 
 type DeliverablePayload = {
   name: string;
-  allowedFileTypes: string[]; // e.g. ["pdf", "docx"]
+  allowedFileTypes: string[]; 
 };

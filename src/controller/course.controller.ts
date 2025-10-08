@@ -5,6 +5,7 @@ import { isValidUUID } from "../types/uuid";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { courseMail } from "src/mail/course.mail";
+import { prisma } from "src/prisma";
 
 export const CourseController = {
   createCourse: async (c: Context) => {
@@ -45,11 +46,11 @@ export const CourseController = {
       //mail
       //const mailUsers = await mailRoles.getStaff();
       const mailUsers = await mailRoles.test2("stf02");
-      const { subject, html, text } = await courseMail.createCourseMail(
-        name,
-        created
-      );
-      await mailSentAndSummary(mailUsers, subject, html, text);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return courseMail.createCourseMail(name, created, recipientName);
+      });
 
       return c.json(
         {
@@ -117,12 +118,16 @@ export const CourseController = {
       //mail
       //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test2("stf02");
-      const { subject, html, text } = await courseMail.updateCourseMail(
-        courseName,
-        updated,
-        userId
-      );
-      await mailSentAndSummary(mailUsers, subject, html, text);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return courseMail.updateCourseMail(
+          courseName,
+          updated,
+          userId,
+          recipientName
+        );
+      });
 
       return c.json(
         {
@@ -178,7 +183,6 @@ export const CourseController = {
     }
   },
 
-  // GET /course/my-courses
   getCourseByUser: async (c: Context) => {
     try {
       const role = c.get("role");
@@ -249,6 +253,13 @@ export const CourseController = {
   },
   deleteCourseById: async (c: Context) => {
     try {
+      const userId = c.get("userId"); 
+      const actor = userId
+        ? await prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, email: true },
+          })
+        : null;
       const role = c.get("role");
       if (role !== "staff" && role !== "SUPER_ADMIN") {
         return c.json({ message: "Forbidden: STAFF or SUPER_ADMIN only" }, 403);
@@ -262,6 +273,20 @@ export const CourseController = {
       }
 
       const result = await CourseModel.deleteCourse(courseId);
+
+      const courseName = await CourseModel.getCourseById(courseId);
+
+      //mail
+      const mailUsers = await mailRoles.getStaff();
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return courseMail.deleteCourseMail(
+          courseName,
+          recipientName,
+          { deletedAt: new Date(), deletedBy: actor } 
+        );
+      });
 
       return c.json(
         {

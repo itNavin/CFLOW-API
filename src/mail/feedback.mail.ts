@@ -45,7 +45,6 @@ export const feedbackMail = {
       select: { name: true },
     });
 
-    // Show due date only if status !== "FINAL"
     const showDueDate = submission.status !== "FINAL";
     const dueDate = showDueDate
       ? pickValidDate(groupDue?.dueDate, assignmentRow?.dueDate)
@@ -66,7 +65,6 @@ export const feedbackMail = {
 
     const subject = `New feedback — ${assignmentName}`;
 
-    // Pre-build conditional HTML/text lines
     const dueDateHtmlLine = showDueDate
       ? `<p style="margin:0 0 6px;color:#111111;"><strong>Due date:</strong> ${escapeHtml(
           dueDateStr
@@ -283,19 +281,16 @@ export const feedbackMail = {
   },
 };
 
-// -------------------- helpers --------------------
-
 function getStatusMeta(raw: string): {
   label: string;
   colorHex: string;
   studentNote?: string;
 } {
-  // Normalize and handle possible alias "APPROVE_WITH_FEEDBACK"
   const s = String(raw).trim().toUpperCase();
   if (s === "FINAL") {
     return {
       label: "FINAL",
-      colorHex: "#16A34A", // green
+      colorHex: "#16A34A",
       studentNote:
         "This is the final version approved by your lecturer. You don’t need to submit any more revisions.",
     };
@@ -303,7 +298,7 @@ function getStatusMeta(raw: string): {
   if (s === "APPROVED_WITH_FEEDBACK" || s === "APPROVE_WITH_FEEDBACK") {
     return {
       label: "APPROVED_WITH_FEEDBACK",
-      colorHex: "#10B981", // emerald
+      colorHex: "#10B981", 
       studentNote:
         "Please submit one last time to finalize. The next submission will be marked as FINAL; no further feedback will be provided.",
     };
@@ -311,15 +306,14 @@ function getStatusMeta(raw: string): {
   if (s === "REJECTED") {
     return {
       label: "REJECTED",
-      colorHex: "#EF4444", // red
+      colorHex: "#EF4444", 
       studentNote:
         "Your submission was rejected. Please resubmit. Your lecturer will provide feedback to help you improve.",
     };
   }
-  // Default/fallback styling for other statuses
   return {
     label: s,
-    colorHex: "#374151", // gray-700
+    colorHex: "#374151", 
     studentNote: "",
   };
 }

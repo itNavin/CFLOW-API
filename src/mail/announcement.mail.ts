@@ -1,84 +1,71 @@
-import { prisma } from "src/prisma";
 import { formatBangkok } from "src/util/time";
+import { mailTemplates, escapeHtml } from "../mail/main.mail";
 
 export const announcementMail = {
-  async createAnnouncementMail(courseName: string, created: any) {
+  async createAnnouncementMail(
+    courseName: string,
+    created: any,
+    recipientName: string
+  ) {
     const subject = `New announcement: ${created.name} — ${courseName}`;
 
     const scheduleDate = toDateOrUndefined(created?.schedule);
     const createdAtDate = toDateOrUndefined(created?.createdAt);
-
     const whenRaw =
       scheduleDate && !isEpoch1970(scheduleDate) ? scheduleDate : createdAtDate;
-
     const when = whenRaw ? formatBangkok(whenRaw) : undefined;
 
-    const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="x-apple-disable-message-reformatting">
-    <style>
-      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
-      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
-    </style>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
-      <tr>
-        <td align="center" style="padding:24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
-            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-              <p style="margin:0 0 12px;color:#111111;">Dear user,</p>
-              <p style="margin:0 8px 8px 0;color:#111111;">There’s a new announcement in <strong>${escapeHtml(
-                courseName
-              )}</strong>.</p>
-              ${
-                when
-                  ? `<p style="margin:0 0 12px;color:#111111;"><strong>Created at:</strong> ${escapeHtml(
-                      when
-                    )}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;"><strong>${escapeHtml(
-                created.name
-              )}</strong></p>
-              ${
-                created.description
-                  ? `<p style="margin:0 0 12px;color:#111111;">${escapeHtml(
-                      created.description
-                    )}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`.trim();
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 8px 8px 0;color:#111111;">There’s a new announcement in <strong>${escapeHtml(
+      courseName
+    )}</strong>.</p>
+${
+  when
+    ? `<p style="margin:0 0 12px;color:#111111;"><strong>Created at:</strong> ${escapeHtml(
+        when
+      )}</p>`
+    : ""
+}
+<p style="margin:0 0 12px;color:#111111;"><strong>${escapeHtml(
+      created.name ?? ""
+    )}</strong></p>
+${
+  created.description
+    ? `<p style="margin:0 0 12px;color:#111111;">${escapeHtml(
+        created.description
+      )}</p>`
+    : ""
+}
+`.trim();
 
-    const text = [
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `New announcement in ${courseName}`,
+    });
+
+    const text = mailTemplates.textTemplate([
       subject,
       "",
-      "Dear user,",
+      `Dear ${recipientName},`,
       "",
       `There’s a new announcement in ${courseName}.`,
       when ? `Created at: ${when}` : "",
-      created.name ? `\n${created.name}` : "",
-      created.description ? `\n${created.description}` : "",
+      created?.name ? `\n${created.name}` : "",
+      created?.description ? `\n${created.description}` : "",
       "",
       "Best regards,",
       "C-Flow Team",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ]);
 
     return { subject, html, text };
   },
-  async updateAnnouncementMail(courseName: string, updated: any) {
+
+  async updateAnnouncementMail(
+    courseName: string,
+    updated: any,
+    recipientName: string
+  ) {
     const subject = `Announcement updated: ${updated.name} — ${courseName}`;
 
     const updatedAtDate = toDateOrUndefined(updated?.updatedAt);
@@ -87,155 +74,131 @@ export const announcementMail = {
         ? formatBangkok(updatedAtDate)
         : undefined;
 
-    const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="x-apple-disable-message-reformatting">
-    <style>
-      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
-      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
-    </style>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
-      <tr>
-        <td align="center" style="padding:24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
-            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-              <p style="margin:0 0 12px;color:#111111;">Dear user,</p>
-              <p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(
-                courseName
-              )}</strong> was updated.</p>
-              ${
-                when
-                  ? `<p style="margin:0 0 12px;color:#111111;"><strong>Updated at:</strong> ${escapeHtml(
-                      when
-                    )}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;"><strong>${escapeHtml(
-                updated.name ?? ""
-              )}</strong></p>
-              ${
-                updated.description
-                  ? `<p style="margin:0 0 12px;color:#111111;">${escapeHtml(
-                      updated.description
-                    )}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`.trim();
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(
+      courseName
+    )}</strong> was updated.</p>
+${
+  when
+    ? `<p style="margin:0 0 12px;color:#111111;"><strong>Updated at:</strong> ${escapeHtml(
+        when
+      )}</p>`
+    : ""
+}
+<p style="margin:0 0 12px;color:#111111;"><strong>${escapeHtml(
+      updated.name ?? ""
+    )}</strong></p>
+${
+  updated.description
+    ? `<p style="margin:0 0 12px;color:#111111;">${escapeHtml(
+        updated.description
+      )}</p>`
+    : ""
+}
+`.trim();
 
-    const text = [
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `Announcement updated in ${courseName}`,
+    });
+
+    const text = mailTemplates.textTemplate([
       subject,
       "",
-      "Dear user,",
+      `Dear ${recipientName},`,
       "",
       `An announcement in ${courseName} was updated.`,
       when ? `Updated at: ${when}` : "",
-      updated.name ? `\n${updated.name}` : "",
-      updated.description ? `\n${updated.description}` : "",
+      updated?.name ? `\n${updated.name}` : "",
+      updated?.description ? `\n${updated.description}` : "",
       "",
       "Best regards,",
       "C-Flow Team",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ]);
 
     return { subject, html, text };
   },
-  async deleteAnnouncementMail(userId: string, courseName: string, deleted: any) {
-  const UserName = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { name: true, email: true },
-  });
-  const deletedByName = UserName?.name || "Unknown";
-  const deletedByEmail = UserName?.email || "";
 
-  const subject = `Announcement deleted: ${deleted?.name ?? "(untitled)"} — ${courseName}`;
+  async deleteAnnouncementMail(
+    userId: string,
+    courseName: string,
+    deleted: any,
+    recipientName: string
+  ) {
+    const subject = `Announcement deleted: ${
+      deleted?.name ?? "(untitled)"
+    } — ${courseName}`;
 
-  // Prefer explicit deletedAt; otherwise fallback to updatedAt, then createdAt
-  const deletedAtDate =
-    toDateOrUndefined(deleted?.deletedAt) ??
-    toDateOrUndefined(deleted?.updatedAt) ??
-    toDateOrUndefined(deleted?.createdAt);
+    const deletedByName =
+      String(deleted?.deletedByName ?? deleted?.deletedBy?.name ?? "") ||
+      "Unknown";
+    const deletedByEmail =
+      String(deleted?.deletedByEmail ?? deleted?.deletedBy?.email ?? "") || "";
 
-  const when =
-    deletedAtDate && !isEpoch1970(deletedAtDate)
-      ? formatBangkok(deletedAtDate)
-      : undefined;
+    const deletedAtDate =
+      toDateOrUndefined(deleted?.deletedAt) ??
+      toDateOrUndefined(deleted?.updatedAt) ??
+      toDateOrUndefined(deleted?.createdAt);
 
-  const deletedByHtml = `<p style="margin:0 0 12px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(deletedByName)}${
-    deletedByEmail ? ` &lt;${escapeHtml(deletedByEmail)}&gt;` : ""
-  }</p>`;
+    const when =
+      deletedAtDate && !isEpoch1970(deletedAtDate)
+        ? formatBangkok(deletedAtDate)
+        : undefined;
 
-  const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="x-apple-disable-message-reformatting">
-    <style>
-      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
-      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
-    </style>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
-      <tr>
-        <td align="center" style="padding:24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
-            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-              <p style="margin:0 0 12px;color:#111111;">Dear user,</p>
-              <p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(courseName)}</strong> was deleted.</p>
-              ${when ? `<p style="margin:0 0 12px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(when)}</p>` : ""}
-              ${deletedByHtml}
-              <p style="margin:0 0 12px;color:#6b7280;"><strong>${escapeHtml(deleted?.name ?? "")}</strong></p>
-              ${
-                deleted?.description
-                  ? `<p style="margin:0 0 12px;color:#6b7280;">${escapeHtml(deleted.description)}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`.trim();
-
-  const deletedByText = `Deleted by: ${deletedByName}${
-    deletedByEmail ? ` <${deletedByEmail}>` : ""
-  }`;
-
-  const text = [
-    subject,
-    "",
-    "Dear user,",
-    "",
-    `An announcement in ${courseName} was deleted.`,
-    when ? `Deleted at: ${when}` : "",
-    deletedByText,
-    deleted?.name ? `\n${deleted.name}` : "",
-    deleted?.description ? `\n${deleted.description}` : "",
-    "",
-    "Best regards,",
-    "C-Flow Team",
-  ]
-    .filter(Boolean)
-    .join("\n");
-
-  return { subject, html, text };
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 8px 8px 0;color:#111111;">An announcement in <strong>${escapeHtml(
+      courseName
+    )}</strong> was deleted.</p>
+${
+  when
+    ? `<p style="margin:0 0 12px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(
+        when
+      )}</p>`
+    : ""
 }
+<p style="margin:0 0 12px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(
+      deletedByName
+    )}${deletedByEmail ? ` &lt;${escapeHtml(deletedByEmail)}&gt;` : ""}</p>
+<p style="margin:0 0 12px;color:#6b7280;"><strong>${escapeHtml(
+      deleted?.name ?? ""
+    )}</strong></p>
+${
+  deleted?.description
+    ? `<p style="margin:0 0 12px;color:#6b7280;">${escapeHtml(
+        deleted.description
+      )}</p>`
+    : ""
+}
+`.trim();
+
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `Announcement deleted in ${courseName}`,
+    });
+
+    const deletedByText = `Deleted by: ${deletedByName}${
+      deletedByEmail ? ` <${deletedByEmail}>` : ""
+    }`;
+
+    const text = mailTemplates.textTemplate([
+      subject,
+      "",
+      `Dear ${recipientName},`,
+      "",
+      `An announcement in ${courseName} was deleted.`,
+      when ? `Deleted at: ${when}` : "",
+      deletedByText,
+      deleted?.name ? `\n${deleted.name}` : "",
+      deleted?.description ? `\n${deleted.description}` : "",
+      "",
+      "Best regards,",
+      "C-Flow Team",
+    ]);
+
+    return { subject, html, text };
+  },
 };
 
 function toDateOrUndefined(v: unknown): Date | undefined {
@@ -243,15 +206,6 @@ function toDateOrUndefined(v: unknown): Date | undefined {
   const d = v instanceof Date ? v : new Date(v as any);
   return isNaN(d.getTime()) ? undefined : d;
 }
-
 function isEpoch1970(d: Date): boolean {
   return d.getFullYear() === 1970 || d.getUTCFullYear() === 1970;
-}
-
-function escapeHtml(s: string) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }
