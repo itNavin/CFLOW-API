@@ -41,3 +41,8 @@ assignmentRouter.get(
   "/getGroupByLecturerId/course/:courseId",
   AssignmentController.getGroupByLecturerId
 );
+
+assignmentRouter.get(
+  "/get/:assignmentId",
+  AssignmentController.getAssignmentById
+);
