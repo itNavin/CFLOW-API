@@ -1,10 +1,8 @@
-// src/util/mailSummary.ts
 import { sendEmail } from "src/lib/mailer";
 import { prisma } from "src/prisma";
 
 type BuiltMail = { subject: string; html: string; text: string };
 
-// Overloads (optional but nice for TS)
 export async function mailSentAndSummary(
   mailUsers: any[],
   subject: string,
@@ -33,7 +31,7 @@ export async function mailSentAndSummary(
       if (!to) return;
 
       const mail: BuiltMail = isBuilder
-        ? await arg2(u) // builder(u) -> { subject, html, text }
+        ? await arg2(u) 
         : {
             subject: arg2 as string,
             html: arg3 as string,
@@ -44,7 +42,6 @@ export async function mailSentAndSummary(
     })
   );
 
-  // Build summary
   const summary = results.reduce(
     (acc, r, i) => {
       if (r.status === "fulfilled") acc.sent.push(recipients[i]);
@@ -58,7 +55,6 @@ export async function mailSentAndSummary(
     { sent: [] as string[], failed: [] as Array<{ to: string; error: string }> }
   );
 
-  // Activity logs — keep same behavior; use the per-user subject/text when using builder
   const logs = (mailUsers ?? [])
     .map((u: any, i: number) => {
       const userId = u?.user?.id ?? u?.id;
@@ -69,11 +65,11 @@ export async function mailSentAndSummary(
           ? (results[i] as PromiseFulfilledResult<any>).value?.envelope
               ?.subject ??
             arg2?.name ??
-            "Email" // fallback
+            "Email" 
           : (arg2 as string);
 
       const description = isBuilder
-        ? "Email sent" // keep it simple; or you can store text too if you want
+        ? "Email sent" 
         : (arg4 as string);
 
       return { userId, title: subj, description, createdAt: new Date() };

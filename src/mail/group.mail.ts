@@ -1,4 +1,3 @@
-// src/mail/group.mail.ts
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
 import { formatBangkok } from "src/util/time";
 
@@ -10,7 +9,6 @@ type AdvisorInfo = {
 };
 
 export const GroupMail = {
-  // ---------- STUDENT ----------
   async createGroupStudentMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -20,7 +18,7 @@ export const GroupMail = {
       productName: string | null;
       company: string | null;
     };
-    recipientName: string; // 👈 personalize "Dear ..."
+    recipientName: string;
   }) {
     const { courseName, program, group, recipientName } = params;
 
@@ -78,8 +76,6 @@ ${companyLine}
 
     return { subject, html, text };
   },
-
-  // ---------- LECTURER (per advisor) ----------
   async createGroupLecturerMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -180,7 +176,6 @@ ${studentsHtml}
     return { subject, html, text };
   },
 
-  // ---------- STAFF (creation) ----------
   async createGroupStaffMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -302,7 +297,6 @@ ${studentsHtml}
     return { subject, html, text };
   },
 
-  // ---------- STAFF (deletion) ----------
   async deleteGroupStaffMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -434,7 +428,7 @@ ${studentsHtml}
 
     return { subject, html, text };
   },
-  // ---------- STUDENT (update) ----------
+
   async updateGroupStudentMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -444,9 +438,9 @@ ${studentsHtml}
       productName: string | null;
       company: string | null;
     };
-    students: PlainUser[]; // 👈 NEW
-    advisors: AdvisorInfo[]; // 👈 NEW
-    recipientName: string; // 👈 already used for "Dear ..."
+    students: PlainUser[]; 
+    advisors: AdvisorInfo[]; 
+    recipientName: string; 
   }) {
     const { courseName, program, group, students, advisors, recipientName } =
       params;
@@ -554,7 +548,6 @@ ${advisorsHtml}
     return { subject, html, text };
   },
 
-  // ---------- LECTURER (UPDATE) ----------
   async updateGroupLecturerMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;
@@ -566,7 +559,7 @@ ${advisorsHtml}
       company: string | null;
     };
     students: PlainUser[];
-    advisors: AdvisorInfo[]; // 👈 NEW (list all advisors)
+    advisors: AdvisorInfo[]; 
   }) {
     const { courseName, program, advisor, group, students, advisors } = params;
 
@@ -691,7 +684,6 @@ ${advisorsHtml}
     return { subject, html, text };
   },
 
-  // ---------- STAFF (UPDATE) ----------
   async updateGroupStaffMail(params: {
     courseName: string;
     program: "CS" | "DSI" | string;

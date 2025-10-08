@@ -49,7 +49,6 @@ export class GroupModel {
           ? data.productName.trim()
           : null;
 
-      // --- Uniqueness checks ---
       if (codeNumber) {
         const exists = await tx.group.findFirst({
           where: { courseId: data.courseId, codeNumber },
@@ -86,7 +85,6 @@ export class GroupModel {
         }
       }
 
-      // --- Helpers ---
       const validateCourseMembers = async (ids: string[]) => {
         if (!ids.length)
           return { existingIds: new Set<string>(), missing: [] as string[] };
@@ -100,7 +98,6 @@ export class GroupModel {
         return { existingIds, missing };
       };
 
-      // --- Members validation ---
       const memberPayload = data.memberIds ?? [];
       const memberIds = memberPayload.map((m) => m.id);
 
@@ -163,7 +160,6 @@ export class GroupModel {
         }
       }
 
-      // --- Advisors validation (existence in course only; add role checks if needed) ---
       const advisorIds = Array.from(new Set(data.advisorIds ?? []));
       const coAdvisorIds = Array.from(new Set(data.coAdvisorIds ?? []));
 
@@ -191,7 +187,6 @@ export class GroupModel {
         throw err;
       }
 
-      // --- Create group ---
       const newGroup = await tx.group.create({
         data: {
           courseId: data.courseId,
@@ -202,8 +197,6 @@ export class GroupModel {
         },
       });
 
-      // --- Backfill AssignmentDueDate for existing assignments in this course ---
-      // Uses the assignment's dueDate field
       const existingAssignments = await tx.assignment.findMany({
         where: { courseId: data.courseId },
         select: { id: true, dueDate: true },
@@ -216,11 +209,10 @@ export class GroupModel {
             groupId: newGroup.id,
             dueDate: a.dueDate,
           })),
-          skipDuplicates: true, // respects @@unique([assignmentId, groupId])
+          skipDuplicates: true,
         });
       }
 
-      // --- Insert members ---
       if (memberPayload.length) {
         const rows = memberPayload
           .filter((m) => memberExisting.has(m.id))
@@ -234,7 +226,6 @@ export class GroupModel {
         }
       }
 
-      // --- Insert advisors / co-advisors ---
       if (advisorExisting.size) {
         await tx.groupAdvisor.createMany({
           data: [...advisorExisting].map((courseMemberId) => ({

@@ -1,4 +1,3 @@
-// src/mail/announcement.mail.ts
 import { formatBangkok } from "src/util/time";
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
 
@@ -131,14 +130,12 @@ ${
       deleted?.name ?? "(untitled)"
     } — ${courseName}`;
 
-    // who deleted
     const deletedByName =
       String(deleted?.deletedByName ?? deleted?.deletedBy?.name ?? "") ||
       "Unknown";
     const deletedByEmail =
       String(deleted?.deletedByEmail ?? deleted?.deletedBy?.email ?? "") || "";
 
-    // Prefer explicit deletedAt; otherwise updatedAt; then createdAt
     const deletedAtDate =
       toDateOrUndefined(deleted?.deletedAt) ??
       toDateOrUndefined(deleted?.updatedAt) ??

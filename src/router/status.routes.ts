@@ -4,7 +4,6 @@ import { authMiddleware } from "src/middleware/auth";
 
 export const statusRouter = new Hono();
 
-// GET /status/course/:courseId?assignmentId=&groupId=&status=
 statusRouter.get(
   "/course/:courseId",
   StatusController.getAllGroupStatusInCourse

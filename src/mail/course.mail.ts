@@ -1,4 +1,3 @@
-// src/mail/course.mail.ts
 import { formatBangkok } from "src/util/time";
 import { prisma } from "../prisma";
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
@@ -7,7 +6,7 @@ export const courseMail = {
   createCourseMail: async (
     courseName: string,
     created: any,
-    recipientName: string // 👈 add this
+    recipientName: string
   ) => {
     const { createdBy } = await prisma.course.findUniqueOrThrow({
       where: { id: created.id },
@@ -66,7 +65,7 @@ ${
     courseName: string,
     updated: any,
     userId: string,
-    recipientName: string // 👈 add this
+    recipientName: string 
   ) => {
     const subject = `Course updated: ${courseName}`;
 

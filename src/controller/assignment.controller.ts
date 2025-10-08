@@ -284,7 +284,6 @@ export const AssignmentController = {
         return c.json({ error: "assignmentId is required" }, 400);
       }
 
-      // Fetch assignment & course to build email AFTER deletion
       const assignmentRow = await prisma.assignment.findUnique({
         where: { id: assignmentId },
         select: {
@@ -301,17 +300,15 @@ export const AssignmentController = {
         return c.json({ error: "Assignment not found" }, 404);
       }
 
-      // Perform deletion
       const ok = await AssignmentModel.deleteAssignment(assignmentId);
       if (!ok) {
         return c.json({ error: "Assignment not found" }, 404);
       }
 
-      // Mail staff in course
       const staff = await mailRoles.getStaffInCourse(assignmentRow.courseId);
       const courseRow = await mailRoles.coursename(assignmentRow.courseId);
       const deleter = await prisma.user.findUnique({
-        where: { id: c.get("userId") }, // if you store userId in context
+        where: { id: c.get("userId") },
         select: { name: true, email: true },
       });
 

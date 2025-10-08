@@ -43,17 +43,15 @@ export const getStaffNotInCourse = async (courseId: string) => {
   });
   if (!course) throw new Error("COURSE_NOT_FOUND");
 
-  // 1) Who is already in this course?
   const enrolled = await prisma.courseMember.findMany({
     where: { courseId: course.id },
     select: { userId: true },
   });
   const enrolledUserIds = enrolled.map((r) => r.userId);
 
-  // 2) Return staff NOT in that list
   return prisma.user.findMany({
     where: {
-      role: "staff", // or Role.staff
+      role: "staff", 
       id: { notIn: enrolledUserIds.length ? enrolledUserIds : ["___none___"] },
     },
     select: {
@@ -182,7 +180,6 @@ export const getStudentsNotInCourse = async (courseId: string) => {
 export const addMembers = async (courseId: string, userId: string) => {
   await ensureCourseExists(courseId);
 
-  // (Optional) also ensure user exists:
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) throw new Error("USER_NOT_FOUND");
 

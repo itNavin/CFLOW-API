@@ -1,5 +1,4 @@
 import { prisma } from "../prisma";
-import { Role, ClassProgram } from "@prisma/client";
 
 type UploadRow = {
   rowNumber: number;
@@ -20,7 +19,7 @@ export type ApiStudentRow = {
   lastnameEng?: string;
   lastnameEnd?: string;
   programNameEng?: string;
-  statusName?: string; // ← add this
+  statusName?: string; 
 };
 
 type CleanRow = {
@@ -31,7 +30,6 @@ type CleanRow = {
   program: "CS" | "DSI";
 };
 
-// Returns "CS" | "DSI" if recognized; otherwise null (=> skip row)
 function mapProgram(p?: string): "CS" | "DSI" | null {
   const s = (p ?? "").trim();
   if (!s) return null;
@@ -43,7 +41,6 @@ function mapProgram(p?: string): "CS" | "DSI" | null {
     return "DSI";
   }
 
-  // anything else -> skip
   return null;
 }
 
@@ -55,11 +52,10 @@ function normalizeAndDedupe(rows: ApiStudentRow[]): CleanRow[] {
     const id = String(r.studentId ?? "").trim();
     if (!id) continue;
 
-    // NEW: require exact status
     if ((r.statusName ?? "").trim() !== "กำลังศึกษาอยู่") continue;
 
     const program = mapProgram(r.programNameEng);
-    if (!program) continue; // skip unknown program
+    if (!program) continue; 
 
     const first = (r.firstnameEng ?? "").trim();
     const last = (r.lastnameEng ?? r.lastnameEnd ?? "").trim();
@@ -74,7 +70,6 @@ function normalizeAndDedupe(rows: ApiStudentRow[]): CleanRow[] {
     });
   }
 
-  // dedupe by id
   const m = new Map<string, CleanRow>();
   for (const row of out) if (!m.has(row.id)) m.set(row.id, row);
   return [...m.values()];
@@ -154,8 +149,8 @@ class UserModel {
         id: g.id,
         codeNumber: g.codeNumber,
         projectName: g.projectName,
-        productName: g.productName, // CS only
-        company: g.company, // DSI only
+        productName: g.productName, 
+        company: g.company, 
       },
     };
   }
@@ -244,7 +239,7 @@ class UserModel {
       const slice = clean.slice(i, i + CHUNK);
       const res = await prisma.user.createMany({
         data: slice,
-        skipDuplicates: true, // relies on unique indexes (id/email)
+        skipDuplicates: true, 
       });
       created += res.count;
     }
@@ -253,10 +248,10 @@ class UserModel {
     const skipped = prepared - created;
 
     return {
-      totalFromAPI: rows.length, // original payload size
-      prepared,                  // after normalize + client dedupe
-      created,                   // actually inserted
-      skipped,                   // duplicates ignored by DB uniques
+      totalFromAPI: rows.length, 
+      prepared,                 
+      created,                 
+      skipped,                  
     };
   }
 }

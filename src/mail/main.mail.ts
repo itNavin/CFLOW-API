@@ -1,16 +1,8 @@
-// src/mail/templates.ts
-
 type TemplateOptions = {
-  /** The HTML that goes *inside* the inner <td> — start from "Dear ..." */
   contentHtml: string;
-
-  /** Optional text-only footer string (defaults to "Best regards,<br/>C-Flow Team") */
   footerHtml?: string;
-
-  /** Optional preheader text (hidden preview text in many email clients) */
   preheader?: string;
 
-  /** Optional background color overrides */
   backgroundColor?: string; // outer background (default #f6f6f8)
   cardBgColor?: string; // inner card background (default #ffffff)
   cardBorderColor?: string; // inner card border (default #eaeaea)
@@ -18,11 +10,6 @@ type TemplateOptions = {
 };
 
 export const mailTemplates = {
-  /**
-   * Full HTML email shell (doctype → opening/closing tags),
-   * with your standard table-based layout.
-   * Inject `contentHtml` that begins at your first visible line (e.g., "Dear ...").
-   */
   template({
     contentHtml,
     footerHtml = "Best regards,<br/>C-Flow Team",
@@ -32,7 +19,6 @@ export const mailTemplates = {
     cardBorderColor = "#eaeaea",
     maxWidth = 600,
   }: TemplateOptions): string {
-    // Preheader: hidden snippet some clients display in preview
     const preheaderHtml = preheader
       ? `<span style="display:none !important;visibility:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#fff;max-height:0;max-width:0;opacity:0;overflow:hidden;">${escapeHtml(
           preheader
@@ -78,9 +64,6 @@ export const mailTemplates = {
 </html>`.trim();
   },
 
-  /**
-   * Plain-text companion (very lightweight)
-   */
   textTemplate(lines: Array<string | false | null | undefined>): string {
     return lines.filter(Boolean).join("\n");
   },

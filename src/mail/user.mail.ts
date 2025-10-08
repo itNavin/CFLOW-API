@@ -1,6 +1,5 @@
-// src/mail/user.mail.ts
 import { Role } from "../types/role";
-import { mailTemplates, escapeHtml } from "./main.mail"; // <- same folder as this file
+import { mailTemplates, escapeHtml } from "./main.mail"; 
 
 type UserMailPayload = {
   user: {

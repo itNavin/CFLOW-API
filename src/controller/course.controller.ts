@@ -182,7 +182,6 @@ export const CourseController = {
     }
   },
 
-  // GET /course/my-courses
   getCourseByUser: async (c: Context) => {
     try {
       const role = c.get("role");

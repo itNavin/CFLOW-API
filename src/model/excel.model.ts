@@ -197,7 +197,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         select: { id: true, codeNumber: true, projectName: true },
       });
 
-      // --- Advisors & Co-Advisors ---
       const advisorRefs: {
         courseMemberId: string;
         groupId: string;
@@ -259,7 +258,6 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
         });
       }
 
-      // --- Students ---
       for (const m of payload.members) {
         if (!m.studentId || !m.name) {
           throw new Error(

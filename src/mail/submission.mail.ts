@@ -1,16 +1,14 @@
-// src/mail/submission.mail.ts
 import { prisma } from "src/prisma";
 import { formatBangkok } from "src/util/time";
 import { mailTemplates, escapeHtml } from "./main.mail";
 
 export const submissionMail = {
-  // ---------- STUDENT ----------
   createStudentSubmissionMail: async (
     assignment: any,
     groupId: string,
     groupName: string,
     submissionId: string,
-    recipientName: string // 👈 personalize greeting
+    recipientName: string
   ) => {
     const assignmentDueDate = await prisma.assignmentDueDate.findUnique({
       where: { assignmentId_groupId: { assignmentId: assignment.id, groupId } },
@@ -44,13 +42,11 @@ export const submissionMail = {
 
     const subject = `Submission received — ${assignment.name}`;
 
-    // Timing badge
     const timelinessLabel = submission.missed ? "LATE" : "ON TIME";
     const timelinessColor = submission.missed ? "#EF4444" : "#16A34A";
     const timelinessHtmlLine = `<p style="margin:0 0 6px;color:${timelinessColor};"><strong>${timelinessLabel} submission</strong></p>`;
     const timelinessTextLine = `${timelinessLabel} submission`;
 
-    // Status (student)
     const statusColor =
       submission.status === "SUBMITTED" ? "#1D4ED8" : "#111111";
     const statusHtmlLine = `<p style="margin:0 0 4px;color:#111111;"><strong>Status:</strong> <span style="color:${statusColor};">${escapeHtml(
@@ -106,13 +102,12 @@ ${statusNoteHtml}
     return { subject, html, text };
   },
 
-  // ---------- LECTURER ----------
   createLecturerSubmissionMail: async (
     assignment: any,
     groupId: string,
     groupName: string,
     submissionId: string,
-    recipientName: string // 👈 personalize greeting
+    recipientName: string 
   ) => {
     const assignmentDueDate = await prisma.assignmentDueDate.findUnique({
       where: { assignmentId_groupId: { assignmentId: assignment.id, groupId } },
@@ -149,13 +144,11 @@ ${statusNoteHtml}
 
     const subject = `New submission — ${assignment.name}`;
 
-    // Timing badge
     const timelinessLabel = submission.missed ? "LATE" : "ON TIME";
     const timelinessColor = submission.missed ? "#EF4444" : "#16A34A";
     const timelinessHtmlLine = `<p style="margin:0 0 6px;color:${timelinessColor};"><strong>${timelinessLabel} submission</strong></p>`;
     const timelinessTextLine = `${timelinessLabel} submission`;
 
-    // Status (lecturer: neutral color)
     const statusHtmlLine = `<p style="margin:0 0 4px;color:#111111;"><strong>Status:</strong> ${escapeHtml(
       statusLabel
     )}</p>`;
@@ -214,7 +207,6 @@ ${statusNoteHtml}
   },
 };
 
-// ----------------- helpers -----------------
 function pickValidDate(
   ...candidates: Array<Date | string | undefined>
 ): Date | undefined {

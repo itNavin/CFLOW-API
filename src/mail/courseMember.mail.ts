@@ -3,8 +3,6 @@ import { formatBangkok } from "src/util/time";
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
 
 export const courseMemberMail = {
-  // recipientName = the user who got added
-  // addedByUserId = the staff/lecturer who added them
   addMemberMail: async (
     courseName: string,
     recipientName: string,

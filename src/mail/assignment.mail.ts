@@ -158,7 +158,6 @@ ${
     return { subject, html, text };
   },
 
-  // Staff-only notification
   async deleteAssignmentMail(
     courseName: string,
     deletedAssignment: {
@@ -175,7 +174,6 @@ ${
       deletedAssignment?.name ?? "(untitled)"
     } — ${courseName}`;
 
-    // pick a timestamp to show
     const deletedAtDate =
       toDateOrUndefined((deletedAssignment as any)?.deletedAt) ??
       toDateOrUndefined(deletedAssignment?.updatedAt) ??

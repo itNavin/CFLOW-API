@@ -170,14 +170,6 @@ class CourseModel {
         })
       ).count;
 
-      // if (tx.activityLog) {
-      //   counts.activityLogs = (
-      //     await tx.activityLog.deleteMany({
-      //       where: { courseId },
-      //     })
-      //   ).count;
-      // }
-
       counts.announcements = (
         await tx.announcement.deleteMany({
           where: { courseId },
