@@ -2,6 +2,19 @@ import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
 
 export class GroupModel {
+  static async getGroupIdByUserAndCourse(userId: string, courseId: string) {
+  const courseMember = await prisma.courseMember.findUnique({
+    where: { courseId_userId: { courseId, userId } },
+    select: { id: true },
+  });
+  if (!courseMember) return null;
+
+  const groupMember = await prisma.groupMember.findFirst({
+    where: { courseMemberId: courseMember.id },
+    select: { groupId: true },
+  });
+  return groupMember?.groupId ?? null;
+}
   static async getGroupAdvisorsAndCoAdvisorsById(groupId: string) {
     return prisma.groupAdvisor.findMany({
       where: { groupId },

@@ -4,6 +4,9 @@ import { SubmissionPayload } from "src/types/payload/submission.type";
 import { isValidUUID } from "../types/uuid";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { submissionMail } from "src/mail/submission.mail";
+import { prisma } from "src/prisma";
+import GroupModel from "src/model/group.model";
 
 export const SubmissionController = {
   hasSubmission: async (c: Context) => {
@@ -84,15 +87,23 @@ export const SubmissionController = {
       if (!isValidUUID(assignmentId)) {
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
       }
-      const courseId = await SubmissionModel.getCourseIdByAssignment(assignmentId);
+      const courseId = await SubmissionModel.getCourseIdByAssignment(
+        assignmentId
+      );
       if (!courseId) {
-        return c.json({ error: "No course found for the given assignmentId" }, 400);
+        return c.json(
+          { error: "No course found for the given assignmentId" },
+          400
+        );
       }
 
       const comment = body?.comment.trim();
       if (comment) {
         if (comment.length > 500) {
-          return c.json({ error: "comment must be at most 500 characters" }, 400);
+          return c.json(
+            { error: "comment must be at most 500 characters" },
+            400
+          );
         }
       }
 
@@ -104,6 +115,76 @@ export const SubmissionController = {
       });
 
       c.header("Location", `/submission/${created.id}`);
+
+      const groupId = await GroupModel.getGroupIdByUserAndCourse(userId, courseId);
+      if (!groupId) {
+        throw new Error("User is not part of any group in this course");
+      }
+      const groupName = await SubmissionModel.getGroupNameById(groupId);
+      if (!groupName) {
+        throw new Error("Group not found");
+      }
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+      });
+      //mail
+      // after creating the submission and having: assignment, groupId, groupName, created.id (submissionId)
+
+      // 1) Students in the group (with emails)
+      const studentRecipients = await prisma.groupMember
+        .findMany({
+          where: { groupId },
+          select: {
+            courseMember: {
+              select: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        })
+        .then((rows) =>
+          rows.map((r) => r.courseMember.user).filter((u) => !!u.email)
+        );
+
+      // 2) Advisors for the group (with emails)
+      const advisorRecipients = await prisma.groupAdvisor
+        .findMany({
+          where: { groupId },
+          select: {
+            advisorRole: true,
+            courseMember: {
+              select: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        })
+        .then((rows) =>
+          rows.map((r) => r.courseMember.user).filter((u) => !!u.email)
+        );
+
+      // Send to students (personalized)
+      await mailSentAndSummary(studentRecipients, async (u) => {
+        return submissionMail.createStudentSubmissionMail(
+          assignment,
+          groupId,
+          groupName.projectName,
+          created.id,
+          u.name || "Student"
+        );
+      });
+
+      // Send to lecturers/advisors (personalized)
+      await mailSentAndSummary(advisorRecipients, async (u) => {
+        return submissionMail.createLecturerSubmissionMail(
+          assignment,
+          groupId,
+          groupName.projectName,
+          created.id,
+          u.name || "Lecturer"
+        );
+      });
+
       return c.json(
         {
           message: "Submission created successfully",
