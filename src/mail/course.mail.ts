@@ -65,7 +65,7 @@ ${
     courseName: string,
     updated: any,
     userId: string,
-    recipientName: string 
+    recipientName: string
   ) => {
     const subject = `Course updated: ${courseName}`;
 
@@ -117,6 +117,92 @@ ${
       "A course has been updated in C-Flow.",
       primaryValue ? `${primaryLabel}: ${primaryValue}` : "",
       `Updated by: ${userName}${userEmail ? ` (${userEmail})` : ""}`,
+      `Course: ${courseName}`,
+      "",
+      "Best regards,",
+      "C-Flow Team",
+    ]);
+
+    return { subject, html, text };
+  },
+  
+  deleteCourseMail: async (
+    courseNameLike: string | { name?: string } | null | undefined,
+    recipientName: string,
+    deletedAtOrOpts?:
+      | Date
+      | string
+      | {
+          deletedAt?: Date | string;
+          deletedBy?: { name?: string | null; email?: string | null } | null;
+        }
+  ) => {
+    const courseName =
+      typeof courseNameLike === "string"
+        ? courseNameLike
+        : courseNameLike?.name ?? "(unknown course)";
+
+    const opts =
+      deletedAtOrOpts &&
+      typeof deletedAtOrOpts === "object" &&
+      !("toISOString" in (deletedAtOrOpts as any))
+        ? (deletedAtOrOpts as {
+            deletedAt?: Date | string;
+            deletedBy?: { name?: string | null; email?: string | null } | null;
+          })
+        : {
+            deletedAt: deletedAtOrOpts as Date | string | undefined,
+            deletedBy: undefined,
+          };
+
+    const when = opts.deletedAt
+      ? formatBangkok(new Date(opts.deletedAt))
+      : formatBangkok(new Date());
+
+    const deletedByName = opts.deletedBy?.name || undefined;
+    const deletedByEmail = opts.deletedBy?.email || undefined;
+
+    const subject = `Course deleted: ${courseName}`;
+
+    const deletedByLineHtml =
+      deletedByName || deletedByEmail
+        ? `<p style="margin:0 0 8px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(
+            deletedByName ?? "Unknown"
+          )}${deletedByEmail ? ` (${escapeHtml(deletedByEmail)})` : ""}</p>`
+        : "";
+
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 8px 8px 0;color:#111111;">A course was deleted in <strong>C-Flow</strong>.</p>
+<p style="margin:0 0 8px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(
+      when
+    )}</p>
+${deletedByLineHtml}
+<p style="margin:0 0 12px;color:#111111;"><strong>Course:</strong> ${escapeHtml(
+      courseName
+    )}</p>
+`.trim();
+
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `Course deleted: ${courseName}`,
+    });
+
+    const deletedByLineText =
+      deletedByName || deletedByEmail
+        ? `Deleted by: ${deletedByName ?? "Unknown"}${
+            deletedByEmail ? ` (${deletedByEmail})` : ""
+          }`
+        : undefined;
+
+    const text = mailTemplates.textTemplate([
+      subject,
+      "",
+      `Dear ${recipientName},`,
+      "",
+      "A course was deleted in C-Flow.",
+      `Deleted at: ${when}`,
+      deletedByLineText ?? "",
       `Course: ${courseName}`,
       "",
       "Best regards,",
