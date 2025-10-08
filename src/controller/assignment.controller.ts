@@ -608,6 +608,14 @@ export const AssignmentController = {
       if (!assignment) {
         return c.json({ message: "Assignment not found" }, 404);
       }
+
+      return c.json(
+        {
+          message: "Assignment retrieved successfully",
+          assignment: assignment,
+        },
+        200
+      );
     } catch (error) {
       console.error({
         context: "getAssignmentById",
