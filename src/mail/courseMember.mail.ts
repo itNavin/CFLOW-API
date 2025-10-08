@@ -1,5 +1,6 @@
 import { prisma } from "src/prisma";
 import { formatBangkok } from "src/util/time";
+import { mailTemplates, escapeHtml } from "../mail/main.mail";
 
 export const courseMemberMail = {
   // recipientName = the user who got added
@@ -19,42 +20,22 @@ export const courseMemberMail = {
 
     const subject = `Added to course: ${courseName}`;
 
-    const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="x-apple-disable-message-reformatting">
-    <style>
-      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
-      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
-    </style>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
-      <tr>
-        <td align="center" style="padding:24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
-            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-              <p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(
-                recipientName
-              )},</p>
-              <p style="margin:0 0 12px;color:#111111;">You have been added to <strong>${escapeHtml(
-                courseName
-              )}</strong>.</p>
-              <p style="margin:0 0 12px;color:#111111;"><strong>Added by:</strong> ${escapeHtml(
-                addedByName
-              )}${addedByEmail ? ` (${escapeHtml(addedByEmail)})` : ""}</p>
-              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`.trim();
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 0 12px;color:#111111;">You have been added to <strong>${escapeHtml(
+      courseName
+    )}</strong>.</p>
+<p style="margin:0 0 12px;color:#111111;"><strong>Added by:</strong> ${escapeHtml(
+      addedByName
+    )}${addedByEmail ? ` (${escapeHtml(addedByEmail)})` : ""}</p>
+`.trim();
 
-    const text = [
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `You’ve been added to ${courseName}`,
+    });
+
+    const text = mailTemplates.textTemplate([
       subject,
       "",
       `Dear ${recipientName},`,
@@ -64,7 +45,7 @@ export const courseMemberMail = {
       "",
       "Best regards,",
       "C-Flow Team",
-    ].join("\n");
+    ]);
 
     return { subject, html, text };
   },
@@ -87,49 +68,29 @@ export const courseMemberMail = {
 
     const subject = `Removed from course: ${courseName}`;
 
-    const html = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="x-apple-disable-message-reformatting">
-    <style>
-      a, a:visited, a:hover, a:active { color:#111111 !important; text-decoration:none !important; }
-      a[x-apple-data-detectors] { color:inherit !important; text-decoration:none !important; }
-    </style>
-  </head>
-  <body style="margin:0;padding:0;background:#f6f6f8;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f6f6f8;">
-      <tr>
-        <td align="center" style="padding:24px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border:1px solid #eaeaea;border-radius:12px;">
-            <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
-              <p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(
-                recipientName
-              )},</p>
-              <p style="margin:0 0 12px;color:#111111;">You have been removed from <strong>${escapeHtml(
-                courseName
-              )}</strong>.</p>
-              ${
-                removedAtStr
-                  ? `<p style="margin:0 0 8px;color:#111111;"><strong>Removed at:</strong> ${escapeHtml(
-                      removedAtStr
-                    )}</p>`
-                  : ""
-              }
-              <p style="margin:0 0 12px;color:#111111;"><strong>Removed by:</strong> ${escapeHtml(
-                deletedByName
-              )}${deletedByEmail ? ` (${escapeHtml(deletedByEmail)})` : ""}</p>
-              <p style="margin:0 0 12px;color:#111111;">Best regards,<br/>C-Flow Team</p>
-            </td></tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`.trim();
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
+<p style="margin:0 0 12px;color:#111111;">You have been removed from <strong>${escapeHtml(
+      courseName
+    )}</strong>.</p>
+${
+  removedAtStr
+    ? `<p style="margin:0 0 8px;color:#111111;"><strong>Removed at:</strong> ${escapeHtml(
+        removedAtStr
+      )}</p>`
+    : ""
+}
+<p style="margin:0 0 12px;color:#111111;"><strong>Removed by:</strong> ${escapeHtml(
+      deletedByName
+    )}${deletedByEmail ? ` (${escapeHtml(deletedByEmail)})` : ""}</p>
+`.trim();
 
-    const text = [
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `You’ve been removed from ${courseName}`,
+    });
+
+    const text = mailTemplates.textTemplate([
       subject,
       "",
       `Dear ${recipientName},`,
@@ -142,18 +103,8 @@ export const courseMemberMail = {
       "",
       "Best regards,",
       "C-Flow Team",
-    ]
-      .filter(Boolean)
-      .join("\n");
+    ]);
 
     return { subject, html, text };
   },
 };
-
-function escapeHtml(s: string) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
