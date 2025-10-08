@@ -45,11 +45,11 @@ export const CourseController = {
       //mail
       //const mailUsers = await mailRoles.getStaff();
       const mailUsers = await mailRoles.test2("stf02");
-      const { subject, html, text } = await courseMail.createCourseMail(
-        name,
-        created
-      );
-      await mailSentAndSummary(mailUsers, subject, html, text);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return courseMail.createCourseMail(name, created, recipientName);
+      });
 
       return c.json(
         {
@@ -117,12 +117,16 @@ export const CourseController = {
       //mail
       //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test2("stf02");
-      const { subject, html, text } = await courseMail.updateCourseMail(
-        courseName,
-        updated,
-        userId
-      );
-      await mailSentAndSummary(mailUsers, subject, html, text);
+
+      await mailSentAndSummary(mailUsers, async (u) => {
+        const recipientName = u?.user?.name || u?.name || "User";
+        return courseMail.updateCourseMail(
+          courseName,
+          updated,
+          userId,
+          recipientName
+        );
+      });
 
       return c.json(
         {

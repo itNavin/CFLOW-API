@@ -1,20 +1,50 @@
+// src/util/mailSummary.ts
 import { sendEmail } from "src/lib/mailer";
 import { prisma } from "src/prisma";
 
-export const mailSentAndSummary = async (
+type BuiltMail = { subject: string; html: string; text: string };
+
+// Overloads (optional but nice for TS)
+export async function mailSentAndSummary(
   mailUsers: any[],
   subject: string,
   html: string,
   text: string
-) => {
+): Promise<void>;
+export async function mailSentAndSummary(
+  mailUsers: any[],
+  build: (u: any) => Promise<BuiltMail> | BuiltMail
+): Promise<void>;
+
+export async function mailSentAndSummary(
+  mailUsers: any[],
+  arg2: any,
+  arg3?: string,
+  arg4?: string
+) {
+  const isBuilder = typeof arg2 === "function";
   const recipients: string[] = (mailUsers ?? [])
-    .map((u: any) => u?.user?.email?.trim() || u?.email?.trim())
+    .map((u: any) => u?.user?.email?.trim?.() || u?.email?.trim?.())
     .filter(Boolean);
 
   const results = await Promise.allSettled(
-    recipients.map((to) => sendEmail(to, subject, html, text))
+    (mailUsers ?? []).map(async (u: any, i: number) => {
+      const to = recipients[i];
+      if (!to) return;
+
+      const mail: BuiltMail = isBuilder
+        ? await arg2(u) // builder(u) -> { subject, html, text }
+        : {
+            subject: arg2 as string,
+            html: arg3 as string,
+            text: arg4 as string,
+          };
+
+      return sendEmail(to, mail.subject, mail.html, mail.text);
+    })
   );
 
+  // Build summary
   const summary = results.reduce(
     (acc, r, i) => {
       if (r.status === "fulfilled") acc.sent.push(recipients[i]);
@@ -25,28 +55,43 @@ export const mailSentAndSummary = async (
         });
       return acc;
     },
-    {
-      sent: [] as string[],
-      failed: [] as Array<{ to: string; error: string }>,
-    }
+    { sent: [] as string[], failed: [] as Array<{ to: string; error: string }> }
   );
 
+  // Activity logs — keep same behavior; use the per-user subject/text when using builder
   const logs = (mailUsers ?? [])
-    .map((u: any) => ({
-      userId: u?.user?.id ?? u?.id, 
-      title: subject,
-      description: text,
-      createdAt: new Date(),
-    }))
-    .filter((l) => !!l.userId); 
+    .map((u: any, i: number) => {
+      const userId = u?.user?.id ?? u?.id;
+      if (!userId) return null;
+
+      const subj =
+        isBuilder && results[i].status === "fulfilled"
+          ? (results[i] as PromiseFulfilledResult<any>).value?.envelope
+              ?.subject ??
+            arg2?.name ??
+            "Email" // fallback
+          : (arg2 as string);
+
+      const description = isBuilder
+        ? "Email sent" // keep it simple; or you can store text too if you want
+        : (arg4 as string);
+
+      return { userId, title: subj, description, createdAt: new Date() };
+    })
+    .filter(Boolean) as Array<{
+    userId: string;
+    title: string;
+    description: string;
+    createdAt: Date;
+  }>;
 
   if (logs.length) {
     try {
       await prisma.activityLog.createMany({ data: logs });
     } catch (e) {
       console.error("[activityLog] createMany error:", e);
-      // don't throw—email summary should still return
     }
   }
+
   console.log("email summary:", summary);
-};
+}
