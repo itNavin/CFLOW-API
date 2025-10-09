@@ -378,6 +378,7 @@ class AssignmentModel {
           include: { group: true },
           orderBy: { id: "asc" },
         },
+        assignmentFiles: true,
         submissions: {
           where: { groupId },
           include: {
