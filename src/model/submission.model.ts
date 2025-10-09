@@ -162,7 +162,7 @@ class SubmissionModel {
       data: {
         submissionId: data.submissionId,
         deliverableId: data.deliverableId,
-        fileUrl: [data.fileUrl],
+        fileUrl: data.fileUrl,
       },
     });
   }

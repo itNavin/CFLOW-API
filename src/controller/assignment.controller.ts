@@ -7,7 +7,7 @@ import { assignmentMail } from "src/mail/assignment.mail";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import SubmissionModel from "src/model/submission.model";
-import { get } from "http";
+import { StorageController } from "./storage.controller";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
@@ -158,16 +158,35 @@ export const AssignmentController = {
         return c.json({ error: "Forbidden: STAFF only" }, 403);
       }
 
-      const body = await c.req.json<AssignmentPayload.UpdateAssignment>();
+      // ---- read form-data instead of JSON
+      const form = await c.req.formData();
 
-      const assignmentId = body.assignmentId;
-      if (!assignmentId) {
-        return c.json({ error: "assignmentId is required" }, 400);
-      }
+      // helpers
+      const getStr = (key: string) => {
+        const v = form.get(key);
+        return typeof v === "string" ? v.trim() : "";
+      };
+      const mustStr = (key: string, label?: string) => {
+        const v = getStr(key);
+        if (!v) throw new Error(`${label ?? key} is required`);
+        return v;
+      };
+      const parseISODate = (key: string, label?: string) => {
+        const raw = mustStr(key, label ?? key);
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) {
+          throw new Error(`${label ?? key} must be a valid ISO datetime`);
+        }
+        return d;
+      };
+
+      // ---- fields from form-data
+      const assignmentId = mustStr("assignmentId", "assignmentId");
       if (!isValidUUID(assignmentId)) {
         return c.json({ error: "assignmentId must be a valid UUID" }, 400);
       }
 
+      // cannot update once there are submissions
       const hasSubmission = await prisma.submission.findFirst({
         where: { assignmentId },
         select: { id: true },
@@ -182,42 +201,78 @@ export const AssignmentController = {
         );
       }
 
-      const name = (body.name ?? "").trim();
-      if (!name) {
-        return c.json({ error: "name is required" }, 400);
-      }
+      const name = mustStr("name", "name");
+      const description = getStr("description") ?? "";
 
-      const description = (body.description ?? "").trim();
+      const endDate = parseISODate("endDate", "endDate");
+      const schedule = parseISODate("schedule", "schedule");
+      const dueDate = parseISODate("dueDate", "dueDate");
 
-      const endDateStr = body.endDate;
-      if (!endDateStr) {
-        return c.json({ error: "endDate is required" }, 400);
-      }
-      const scheduleStr = body.schedule;
-      if (!scheduleStr) {
-        return c.json({ error: "schedule is required" }, 400);
-      }
-      const dueDateStr = body.dueDate;
-      if (!dueDateStr) {
-        return c.json({ error: "dueDate is required" }, 400);
-      }
+      // ---- deliverables parsing (supports two formats)
+      type Deliverable = { name: string; allowedFileTypes: string[] };
 
-      const endDate = new Date(endDateStr);
-      const schedule = new Date(scheduleStr);
-      const dueDate = new Date(dueDateStr);
+      const parseRequiredDeliverables = (): Deliverable[] => {
+        // Prefer a JSON string field "deliverables"
+        const rawJson = form.get("deliverables");
+        if (typeof rawJson === "string") {
+          let arr: any;
+          try {
+            arr = JSON.parse(rawJson);
+          } catch (e: any) {
+            throw new Error(
+              `Invalid deliverables JSON: ${e?.message ?? String(e)}`
+            );
+          }
+          if (!Array.isArray(arr))
+            throw new Error("deliverables must be an array");
+          return arr.map((d, i) => {
+            const name = String(d?.name ?? "").trim();
+            if (!name) throw new Error(`deliverables[${i}].name is required`);
+            const allowedFileTypes = Array.isArray(d?.allowedFileTypes)
+              ? d.allowedFileTypes
+                  .map((t: any) => String(t).trim())
+                  .filter(Boolean)
+              : [];
+            return { name, allowedFileTypes };
+          });
+        }
 
-      if (isNaN(endDate.getTime())) {
-        return c.json({ error: "endDate must be a valid ISO datetime" }, 400);
-      }
-      if (isNaN(schedule.getTime())) {
-        return c.json({ error: "schedule must be a valid ISO datetime" }, 400);
-      }
-      if (isNaN(dueDate.getTime())) {
-        return c.json({ error: "dueDate must be a valid ISO datetime" }, 400);
-      }
+        // Fallback: indexed fields deliverables[0][name], deliverables[0][allowedFileTypes][]
+        const indices = new Set<number>();
+        for (const key of Array.from(form.keys())) {
+          const m = key.match(
+            /^deliverables\[(\d+)\]\[(name|allowedFileTypes)\](\[\])?$/
+          );
+          if (m) indices.add(Number(m[1]));
+        }
+        if (indices.size === 0) {
+          throw new Error(
+            "deliverables is required (send JSON field 'deliverables' or indexed keys)"
+          );
+        }
 
-      const deliverables = body.deliverables;
+        const out: Deliverable[] = [];
+        for (const i of Array.from(indices).sort((a, b) => a - b)) {
+          const nameKey = `deliverables[${i}][name]`;
+          const dn = form.get(nameKey);
+          const name = typeof dn === "string" ? dn.trim() : "";
+          if (!name) throw new Error(`${nameKey} is required`);
 
+          const aftKey = `deliverables[${i}][allowedFileTypes][]`;
+          const allowedFileTypes = form
+            .getAll(aftKey)
+            .filter((v): v is string => typeof v === "string")
+            .map((v) => v.trim())
+            .filter(Boolean);
+
+          out.push({ name, allowedFileTypes });
+        }
+        return out;
+      };
+
+      const deliverables = parseRequiredDeliverables();
+
+      // then call model
       const updated = await AssignmentModel.updateAssignment({
         assignmentId,
         name,
@@ -225,26 +280,91 @@ export const AssignmentController = {
         endDate,
         schedule,
         dueDate,
-        deliverables,
+        deliverables, // ALWAYS present → replace in DB to match input
       });
 
       if (!updated) {
         return c.json({ error: "Assignment not found" }, 404);
       }
 
-      const courseId = await SubmissionModel.getCourseIdByAssignment(
+      // ---- FILES: replace-mode using storageController.uploadAssignmentFile ----
+
+      // We need courseId to namespace uploads
+      const assignmentRow = await prisma.assignment.findUnique({
+        where: { id: assignmentId },
+        select: { courseId: true },
+      });
+      if (!assignmentRow) return c.json({ error: "Assignment not found" }, 404);
+      const courseId = assignmentRow.courseId;
+
+      // 1) Parse keepUrls (existing URLs that should remain)
+      let keepUrls: string[] = [];
+      const keepRaw = getStr("keepUrls"); // e.g. '["http://.../file1.pdf"]'
+      if (keepRaw) {
+        try {
+          const arr = JSON.parse(keepRaw);
+          if (!Array.isArray(arr)) throw new Error("keepUrls must be an array");
+          keepUrls = arr.map((s: any) => String(s)).filter(Boolean);
+        } catch (e: any) {
+          return c.json(
+            { error: `Invalid keepUrls JSON: ${e?.message ?? String(e)}` },
+            400
+          );
+        }
+      }
+
+      // 2) Upload any new files via storageController (no direct MinIO here)
+      // Accept both "files" and "files[]", and avoid brittle instanceof checks
+      const isFileLike = (v: any): v is File =>
+        v &&
+        typeof v === "object" &&
+        typeof v.name === "string" &&
+        typeof v.arrayBuffer === "function";
+
+      const merged = [...form.getAll("files"), ...form.getAll("files[]")];
+      const newFiles = merged.filter(isFileLike); // <— instead of instanceof File
+
+      const uploadedUrls: string[] = [];
+      for (const file of newFiles) {
+        const url = await StorageController.uploadAssignmentFileCore({
+          courseId,
+          assignmentId,
+          file,
+        });
+        uploadedUrls.push(url);
+      }
+
+      // 3) Final URLs = keep + new
+      const finalUrls = [...keepUrls, ...uploadedUrls];
+
+      // 4) Persist exactly finalUrls as ONE ROW PER URL
+      // (simple, deterministic approach: clear and reinsert)
+      await prisma.assignmentFile.deleteMany({ where: { assignmentId } });
+
+      if (finalUrls.length > 0) {
+        await prisma.assignmentFile.createMany({
+          data: finalUrls.map((url) => ({
+            assignmentId,
+            fileUrl: url, // <-- one URL per row
+          })),
+        });
+      }
+
+      // ---- mail fan-out (unchanged)
+      const mailCourseId = await SubmissionModel.getCourseIdByAssignment(
         assignmentId
       );
-      if (!courseId) {
+      if (!mailCourseId) {
         return c.json({ error: "Course not found" }, 404);
       }
 
-      const mailUsers = await mailRoles.test(courseId);
-      const courseRow = await mailRoles.coursename(courseId);
+      const mailUsers = await mailRoles.test(mailCourseId);
+      const courseRow = await mailRoles.coursename(mailCourseId);
       if (!courseRow) return c.json({ error: "Course not found" }, 404);
 
       await mailSentAndSummary(mailUsers, async (u) => {
-        const recipientName = u?.user?.name || u?.name || "User";
+        const recipientName =
+          (u as any)?.user?.name || (u as any)?.name || "User";
         return assignmentMail.updateAssignmentMail(
           courseRow.name,
           updated,
@@ -259,7 +379,13 @@ export const AssignmentController = {
         },
         200
       );
-    } catch (error) {
+    } catch (error: any) {
+      // convert thrown validation errors from helpers
+      const msg = typeof error?.message === "string" ? error.message : null;
+      if (msg?.includes("required") || msg?.includes("must be a valid")) {
+        return c.json({ error: msg }, 400);
+      }
+
       console.error({
         context: "updateAssignment",
         error: error instanceof Error ? error.message : String(error),
@@ -627,5 +753,5 @@ export const AssignmentController = {
         500
       );
     }
-  }
+  },
 };
