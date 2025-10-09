@@ -244,6 +244,25 @@ export const StorageController = {
       );
     }
   },
+  uploadCourseFileCore: async (params: {
+    courseId: string;
+    announcementId?: string;
+    file: File;
+  }): Promise<string> => {
+    const { courseId, announcementId, file } = params;
+
+    const ext = getExtension(file.name);
+    const uniqueFileName = `${uuidv4()}.${ext}`;
+    const objectKey = announcementId
+      ? `course-${courseId}/file/announcement-${announcementId}/${uniqueFileName}`
+      : `course-${courseId}/file/${uniqueFileName}`;
+
+    const fileBuffer = Buffer.from(await file.arrayBuffer());
+    const mime = ALLOW_EXT_TO_MIME[ext] || "application/octet-stream";
+    const putKey = await uploadToMinio(objectKey, fileBuffer, mime);
+    const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${putKey}`;
+    return absoluteFileUrl;
+  },
 
   uploadAssignmentFile: async (c: Context) => {
     try {

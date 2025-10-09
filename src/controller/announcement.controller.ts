@@ -6,6 +6,8 @@ import { mailRoles } from "src/util/mailRole";
 import { announcementMail } from "src/mail/announcement.mail";
 import { sendEmail } from "src/lib/mailer";
 import { mailSentAndSummary } from "src/util/mailSummary";
+import { prisma } from "src/prisma";
+import { StorageController } from "./storage.controller";
 
 export const AnnouncementController = {
   createAnnouncement: async (c: Context) => {
@@ -90,32 +92,47 @@ export const AnnouncementController = {
       if (role !== "staff" && role !== "lecturer" && role !== "SUPER_ADMIN") {
         return c.json({ message: "Forbidden: STAFF and LECTURER only" }, 403);
       }
-      const body = await c.req.json<AnnouncementPayload.UpdateAnnouncement>();
-      const announcementId = body.announcementId;
-      if (!announcementId) {
-        return c.json({ message: "announcementId is required" }, 400);
-      }
-      if (!isValidUUID(announcementId)) {
-        return c.json({ message: "Invalid announcementId format" }, 400);
-      }
-      const name = body.name ? body.name.trim() : undefined;
-      const description = body.description
-        ? body.description.trim()
-        : undefined;
-      const scheduleStr = body.schedule;
-      const schedule = new Date(scheduleStr);
-      if (!name) return c.json({ message: "name is required" }, 400);
 
-      const courseId = await AnnouncementModel.getCourseIdByAnnouncementId(
+      const form = await c.req.formData();
+
+      // helpers
+      const getStr = (key: string) => {
+        const v = form.get(key);
+        return typeof v === "string" ? v.trim() : "";
+      };
+      const mustStr = (key: string, label?: string) => {
+        const v = getStr(key);
+        if (!v) throw new Error(`${label ?? key} is required`);
+        return v;
+      };
+
+      // ---- fields from form-data ----
+      const announcementId = mustStr("announcementId", "announcementId");
+      if (!isValidUUID(announcementId)) {
+        return c.json({ error: "announcementId must be a valid UUID" }, 400);
+      }
+
+      const name = mustStr("name", "name");
+      const description = getStr("description") ?? "";
+      const scheduleStr = getStr("schedule");
+      const schedule = new Date(scheduleStr);
+      if (isNaN(schedule.getTime())) {
+        return c.json({ error: "schedule must be a valid ISO datetime" }, 400);
+      }
+
+      // ---- find related course ----
+      const courseRow = await AnnouncementModel.getCourseIdByAnnouncementId(
         announcementId
       );
-      if (!courseId) {
+      if (!courseRow) {
         return c.json(
           { message: "Course not found for this announcement" },
           404
         );
       }
+      const courseId = courseRow.courseId;
 
+      // ---- update main announcement ----
       const updated = await AnnouncementModel.updateAnnouncement(
         announcementId,
         name,
@@ -126,21 +143,79 @@ export const AnnouncementController = {
         return c.json({ message: "Announcement not found" }, 404);
       }
 
-      //mail
-      // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
-      const mailUsers = await mailRoles.test(courseId.courseId);
-      const courseRow = await mailRoles.coursename(courseId.courseId);
-      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+      // ---- FILE HANDLING ----
+      const uploadedFiles: { name: string; filepath: string }[] = [];
+      const newFiles = form
+        .getAll("files")
+        .filter((f) => f instanceof File) as File[];
 
-      await mailSentAndSummary(mailUsers, async (u) => {
-        const recipientName = u?.user?.name || u?.name || "User";
-        return announcementMail.updateAnnouncementMail(
-          courseRow.name,
-          updated,
-          recipientName
-        );
+      for (const file of newFiles) {
+        const url = await StorageController.uploadCourseFileCore({
+          courseId,
+          announcementId,
+          file,
+        });
+
+        const newRecord = await prisma.file.create({
+          data: {
+            name: file.name,
+            filepath: url,
+            createdById: c.get("userId"),
+            courseId,
+            announcementId,
+          },
+        });
+
+        uploadedFiles.push({ name: file.name, filepath: newRecord.filepath });
+      }
+
+      const existingFiles = await prisma.file.findMany({
+        where: { announcementId },
+        select: { id: true, filepath: true },
       });
 
+      const keepUrlsRaw = form.get("keepUrls");
+      let keepUrls: string[] = [];
+
+      if (keepUrlsRaw) {
+        try {
+          const parsed = JSON.parse(keepUrlsRaw as string);
+          if (Array.isArray(parsed)) {
+            keepUrls = parsed.map((u) => String(u));
+          }
+        } catch {
+          console.warn("Invalid keepUrls JSON");
+        }
+      }
+
+      const finalKeptUrls = [
+        ...keepUrls,
+        ...uploadedFiles.map((f) => f.filepath),
+      ];
+      const toDelete = existingFiles.filter(
+        (f) => !finalKeptUrls.includes(f.filepath)
+      );
+
+      if (toDelete.length) {
+        await prisma.file.deleteMany({
+          where: { id: { in: toDelete.map((f) => f.id) } },
+        });
+      }
+
+      //mail
+      // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
+      const mailUsers = await mailRoles.test(courseId);
+      const courseInfo = await mailRoles.coursename(courseId);
+      if (courseInfo) {
+        await mailSentAndSummary(mailUsers, async (u) => {
+          const recipientName = u?.user?.name || u?.name || "User";
+          return announcementMail.updateAnnouncementMail(
+            courseInfo.name,
+            updated,
+            recipientName
+          );
+        });
+      }
 
       return c.json(
         {
@@ -149,12 +224,16 @@ export const AnnouncementController = {
         },
         200
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error({
         context: "updateAnnouncement",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
+      const msg = typeof error?.message === "string" ? error.message : null;
+      if (msg?.includes("required") || msg?.includes("valid")) {
+        return c.json({ error: msg }, 400);
+      }
       return c.json(
         { message: "Internal server error. Please try again later." },
         500
