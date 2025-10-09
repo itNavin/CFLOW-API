@@ -319,6 +319,7 @@ export const StorageController = {
       const assignmentFile = await prisma.assignmentFile.create({
         data: {
           assignmentId,
+          name: file.name,
           fileUrl: url,
         },
       });
@@ -531,6 +532,7 @@ export const StorageController = {
         submissionId,
         deliverableId,
         fileUrl: absoluteFileUrl,
+        name: file.name,
       });
 
       //mail
@@ -701,6 +703,7 @@ export const StorageController = {
         feedbackId,
         deliverableId,
         fileUrl: absoluteFileUrl,
+        name: file.name,
       });
 
       const userId = c.get("userId");

@@ -159,6 +159,7 @@ model Assignment {
 model AssignmentFile {
   id           String   @id @default(uuid()) @db.Uuid
   assignmentId String   @db.Uuid
+  name        String
   fileUrl      String
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
@@ -230,6 +231,7 @@ model SubmissionFile {
   id            String   @id @default(uuid()) @db.Uuid
   submissionId  String   @db.Uuid
   deliverableId String   @db.Uuid
+  name          String
   fileUrl       String
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
@@ -251,6 +253,7 @@ model FeedbackFile {
   id            String   @id @default(uuid()) @db.Uuid
   feedbackId    String   @db.Uuid
   deliverableId String   @db.Uuid
+  name          String
   fileUrl       String
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 

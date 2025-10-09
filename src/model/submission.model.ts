@@ -157,12 +157,14 @@ class SubmissionModel {
     submissionId: string;
     deliverableId: string;
     fileUrl: string;
+    name: string;
   }) {
     return prisma.submissionFile.create({
       data: {
         submissionId: data.submissionId,
         deliverableId: data.deliverableId,
         fileUrl: data.fileUrl,
+        name: data.name,
       },
     });
   }
