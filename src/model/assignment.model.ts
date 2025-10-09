@@ -246,7 +246,7 @@ class AssignmentModel {
         },
       });
 
-      if (Array.isArray(data.deliverables)) {
+      if (data.deliverables) {
         await tx.allowedFileType.deleteMany({
           where: { deliverable: { assignmentId: data.assignmentId } },
         });
@@ -254,17 +254,12 @@ class AssignmentModel {
           where: { assignmentId: data.assignmentId },
         });
 
-        for (let i = 0; i < data.deliverables.length; i++) {
-          const d = data.deliverables[i];
+        for (const d of data.deliverables) {
           const created = await tx.deliverable.create({
-            data: {
-              assignmentId: data.assignmentId,
-              name: (d.name ?? "").trim(),
-            },
+            data: { assignmentId: data.assignmentId, name: d.name.trim() },
           });
-
           const norm = normalizeAllowedFileTypes(d.allowedFileTypes);
-          if (norm.length > 0) {
+          if (norm.length) {
             await tx.allowedFileType.createMany({
               data: norm.map((r) => ({
                 deliverableId: created.id,
@@ -307,6 +302,7 @@ class AssignmentModel {
       });
       if (!existing) return null;
 
+      // 1) Delete feedback → submissions → allowed file types → deliverables → due dates
       const feedbackRes = await tx.feedback.deleteMany({
         where: { submission: { assignmentId } },
       });
@@ -327,6 +323,15 @@ class AssignmentModel {
         where: { assignmentId },
       });
 
+      // 2) Delete assignment files (this is what was blocking the delete)
+      const assignmentFileRes = await tx.assignmentFile.deleteMany({
+        where: { assignmentId },
+      });
+
+      // (Optional) If you also want to remove objects from storage,
+      // fetch the URLs BEFORE deleteMany and remove them via your storage layer.
+
+      // 3) Finally delete the assignment
       const deletedAssignment = await tx.assignment.delete({
         where: { id: assignmentId },
         select: { id: true, name: true },
@@ -340,6 +345,7 @@ class AssignmentModel {
           allowedFileTypes: aftRes.count,
           deliverables: deliverableRes.count,
           assignmentDueDates: dueDateRes.count,
+          assignmentFiles: assignmentFileRes.count, // <-- added
         },
         deletedAssignment,
       };
@@ -369,6 +375,7 @@ class AssignmentModel {
         },
         assignmentDueDates: {
           where: { groupId },
+          include: { group: true },
           orderBy: { id: "asc" },
         },
         submissions: {
@@ -418,9 +425,9 @@ class AssignmentModel {
         },
         submissions: {
           where: { groupId },
-          select: { id: true, status: true, submittedAt: true }, 
+          select: { id: true, status: true, submittedAt: true },
           take: 1,
-          orderBy: { submittedAt: "desc" }, 
+          orderBy: { submittedAt: "desc" },
         },
       },
       orderBy: { id: "asc" },
@@ -440,7 +447,7 @@ class AssignmentModel {
         dueDate,
       };
 
-      const latest = a.submissions[0]; 
+      const latest = a.submissions[0];
 
       if (!latest) {
         openTasks.push(base);
@@ -467,6 +474,7 @@ class AssignmentModel {
       where: { id: assignmentId },
       include: {
         deliverables: { include: { allowedFileTypes: true } },
+        assignmentFiles: true,
       },
     });
   }

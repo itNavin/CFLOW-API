@@ -290,24 +290,17 @@ export const StorageController = {
         return c.json({ error: "No file uploaded" }, 400);
       }
 
-      const fileExtension = file.name.split(".").pop();
-      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-
-      const fileNameBase = `course-${courseId}/assignment-${assignmentId}`;
-      const fullObjectKey = `${fileNameBase}/${uniqueFileName}`;
-
-      const fileBuffer = await file.arrayBuffer();
-      const uploadResult = await uploadToMinio(
-        fullObjectKey,
-        Buffer.from(fileBuffer)
-      );
-
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${uploadResult}`;
+      // Reuse the same core logic via helper (below)
+      const url = await StorageController.uploadAssignmentFileCore({
+        courseId,
+        assignmentId,
+        file,
+      });
 
       const assignmentFile = await prisma.assignmentFile.create({
         data: {
           assignmentId,
-          fileUrl: [absoluteFileUrl],
+          fileUrl: url,
         },
       });
 
@@ -316,7 +309,7 @@ export const StorageController = {
           message: "Assignment file uploaded successfully",
           file: {
             originalName: file.name,
-            url: absoluteFileUrl,
+            url,
           },
           assignmentFile,
           uploadedBy: userId,
@@ -334,6 +327,34 @@ export const StorageController = {
         500
       );
     }
+  },
+
+  // --- NEW: core uploader used by other controllers (returns URL only) ---
+  uploadAssignmentFileCore: async (params: {
+    courseId: string;
+    assignmentId: string;
+    file: File;
+  }): Promise<string> => {
+    const { courseId, assignmentId, file } = params;
+
+    const fileExtension = file.name.includes(".")
+      ? file.name.split(".").pop()
+      : undefined;
+    const uniqueFileName = fileExtension
+      ? `${uuidv4()}.${fileExtension}`
+      : uuidv4(); // fallback if no extension
+
+    const fileNameBase = `course-${courseId}/assignment-${assignmentId}`;
+    const fullObjectKey = `${fileNameBase}/${uniqueFileName}`;
+
+    const fileBuffer = await file.arrayBuffer();
+    const objectKey = await uploadToMinio(
+      fullObjectKey,
+      Buffer.from(fileBuffer)
+    );
+    const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${objectKey}`;
+
+    return absoluteFileUrl;
   },
 
   uploadSubmissionFile: async (c: Context) => {
@@ -493,7 +514,6 @@ export const StorageController = {
         fileUrl: absoluteFileUrl,
       });
 
-        
       //mail
       //const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
       //   groupId
@@ -519,7 +539,7 @@ export const StorageController = {
         return submissionMail.createLecturerSubmissionMail(
           assignment,
           groupId,
-          groupName, 
+          groupName,
           submissionId,
           name
         );
@@ -591,7 +611,10 @@ export const StorageController = {
         return c.json({ error: "groupId must be a valid UUID" }, 400);
       const groupName = await SubmissionModel.getGroupNameById(groupId);
       if (!groupName)
-        return c.json({ error: "Cannot find group with the given groupId" }, 400);
+        return c.json(
+          { error: "Cannot find group with the given groupId" },
+          400
+        );
 
       const file = formData.get("file") as File | null;
       if (!file) return c.json({ error: "No file uploaded" }, 400);
@@ -687,8 +710,8 @@ export const StorageController = {
         text: text2,
       } = await feedbackMail.createLecturerFeedbackMail(
         assignment.name,
-        groupName.projectName
-        ,submissionId,
+        groupName.projectName,
+        submissionId,
         userId
       );
       await mailSentAndSummary(mailLecturerUsersSubmission, sub2, html2, text2);

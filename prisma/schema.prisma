@@ -159,7 +159,7 @@ model Assignment {
 model AssignmentFile {
   id           String   @id @default(uuid()) @db.Uuid
   assignmentId String   @db.Uuid
-  fileUrl      String[]
+  fileUrl      String
   createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
   assignment Assignment @relation(fields: [assignmentId], references: [id])
@@ -230,7 +230,7 @@ model SubmissionFile {
   id            String   @id @default(uuid()) @db.Uuid
   submissionId  String   @db.Uuid
   deliverableId String   @db.Uuid
-  fileUrl       String[]
+  fileUrl       String
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
   submission  Submission  @relation(fields: [submissionId], references: [id])
@@ -251,7 +251,7 @@ model FeedbackFile {
   id            String   @id @default(uuid()) @db.Uuid
   feedbackId    String   @db.Uuid
   deliverableId String   @db.Uuid
-  fileUrl       String[]
+  fileUrl       String
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
   feedback    Feedback    @relation(fields: [feedbackId], references: [id])
