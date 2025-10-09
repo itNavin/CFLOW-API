@@ -287,7 +287,7 @@ export const AssignmentController = {
         return c.json({ error: "Assignment not found" }, 404);
       }
 
-      // ---- FILES: replace-mode using storageController.uploadAssignmentFile ----
+      // ---- FILES: preserve kept rows + add new rows with names ----
 
       // We need courseId to namespace uploads
       const assignmentRow = await prisma.assignment.findUnique({
@@ -313,42 +313,68 @@ export const AssignmentController = {
         }
       }
 
-      // 2) Upload any new files via storageController (no direct MinIO here)
-      // Accept both "files" and "files[]", and avoid brittle instanceof checks
+      // 2) Fetch existing rows so we can preserve names for kept URLs
+      const existingFiles = await prisma.assignmentFile.findMany({
+        where: { assignmentId },
+        select: { id: true, fileUrl: true, name: true },
+      });
+      const existingByUrl = new Map(existingFiles.map((r) => [r.fileUrl, r]));
+
+      // 3) Gather new uploads (accept both files and files[])
       const isFileLike = (v: any): v is File =>
         v &&
         typeof v === "object" &&
-        typeof v.name === "string" &&
-        typeof v.arrayBuffer === "function";
+        typeof (v as any).name === "string" &&
+        typeof (v as any).arrayBuffer === "function";
 
-      const merged = [...form.getAll("files"), ...form.getAll("files[]")];
-      const newFiles = merged.filter(isFileLike); // <— instead of instanceof File
+      const mergedInputs = [...form.getAll("files"), ...form.getAll("files[]")];
+      const newFiles = mergedInputs.filter(isFileLike) as File[];
 
-      const uploadedUrls: string[] = [];
-      for (const file of newFiles) {
+      // upload and remember URL + original filename
+      type Uploaded = { url: string; name: string };
+      const uploaded: Uploaded[] = [];
+      for (const f of newFiles) {
         const url = await StorageController.uploadAssignmentFileCore({
           courseId,
           assignmentId,
-          file,
+          file: f,
         });
-        uploadedUrls.push(url);
+        uploaded.push({ url, name: f.name });
       }
 
-      // 3) Final URLs = keep + new
-      const finalUrls = [...keepUrls, ...uploadedUrls];
+      // 4) Compute final URL set
+      const finalUrls = new Set<string>([
+        ...keepUrls,
+        ...uploaded.map((u) => u.url),
+      ]);
 
-      // 4) Persist exactly finalUrls as ONE ROW PER URL
-      // (simple, deterministic approach: clear and reinsert)
-      await prisma.assignmentFile.deleteMany({ where: { assignmentId } });
+      // 5) Delete rows that are NOT in final set
+      const toDeleteIds = existingFiles
+        .filter((r) => !finalUrls.has(r.fileUrl))
+        .map((r) => r.id);
 
-      if (finalUrls.length > 0) {
-        await prisma.assignmentFile.createMany({
-          data: finalUrls.map((url) => ({
-            assignmentId,
-            fileUrl: url, // <-- one URL per row
-          })),
+      if (toDeleteIds.length) {
+        await prisma.assignmentFile.deleteMany({
+          where: { id: { in: toDeleteIds } },
         });
       }
+
+      // 6) Create rows for new URLs only (those not already in DB)
+      //    Use the original filename from the upload
+      const existingUrlSet = new Set(existingFiles.map((r) => r.fileUrl));
+      const toCreate = uploaded
+        .filter((u) => !existingUrlSet.has(u.url))
+        .map((u) => ({
+          assignmentId,
+          fileUrl: u.url,
+          name: u.name, // <-- save original filename here
+        }));
+
+      if (toCreate.length) {
+        await prisma.assignmentFile.createMany({ data: toCreate });
+      }
+
+      // (Kept rows remain untouched, so their names are preserved)
 
       // ---- mail fan-out (unchanged)
       const mailCourseId = await SubmissionModel.getCourseIdByAssignment(

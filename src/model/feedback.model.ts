@@ -108,12 +108,14 @@ class FeedbackModel {
     feedbackId: string;
     deliverableId: string;
     fileUrl: string;
+    name: string;
   }) {
     return prisma.feedbackFile.create({
       data: {
         feedbackId: data.feedbackId,
         deliverableId: data.deliverableId,
-        fileUrl: [data.fileUrl],
+        fileUrl: data.fileUrl,
+        name: data.name,
       },
     });
   }
