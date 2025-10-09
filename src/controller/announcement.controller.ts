@@ -314,7 +314,7 @@ export const AnnouncementController = {
 
   getAllAnnouncement: async (c: Context) => {
     try {
-      const role = c.get("role"); // "student" | "lecturer" | "staff" | "SUPER_ADMIN" | ...
+      const role = c.get("role"); 
       const courseId = c.req.param("courseId");
       if (!courseId) {
         return c.json({ error: "courseId is required" }, 400);
@@ -323,15 +323,12 @@ export const AnnouncementController = {
         return c.json({ error: "courseId must be a valid UUID" }, 400);
       }
 
-      // Role-based visibility:
-      // - students: only published (schedule <= now)
-      // - staff/lecturer/SUPER_ADMIN: see all
       const publishedOnly =
         role === "student"
           ? true
           : role === "staff" || role === "lecturer" || role === "SUPER_ADMIN"
           ? false
-          : true; // safe default for any other/unknown roles
+          : true; 
 
       const rows = await AnnouncementModel.getAllAnnouncement(
         courseId,
