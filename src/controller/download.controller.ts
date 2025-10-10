@@ -51,6 +51,7 @@ export const DownloadController = {
         submissionFileId
       );
       if (!url) return c.json({ message: "File not found" }, 404);
+      console.log("url", url);
 
       return c.json(
         {
