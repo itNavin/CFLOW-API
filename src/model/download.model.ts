@@ -1,30 +1,45 @@
+// model/download.model.ts
 import { prisma } from "../prisma";
+import {
+  extractObjectKeyFromAbsoluteUrl,
+  guessMimeFromName,
+} from "../util/storage";
 
 export class DownloadModel {
-  static async getFileDownloadUrl(fileId: string){
+  static async getFileKeyAndMeta(fileId: string) {
+    // File table uses 'filepath' (absolute URL)
     const row = await prisma.file.findUnique({
       where: { id: fileId },
-      select: { filepath: true },
+      select: { filepath: true, name: true }, // if you have 'name'; else drop it
     });
-    return row?.filepath;
+    if (!row?.filepath) return null;
+    const objectKey = extractObjectKeyFromAbsoluteUrl(row.filepath);
+    const filename = row.name ?? objectKey.split("/").pop() ?? "file";
+    const mime = guessMimeFromName(filename);
+    return { objectKey, filename, mime };
   }
 
-  static async getSubmissionFileDownloadUrl(submissionFileId: string) {
+  static async getSubmissionKeyAndMeta(submissionFileId: string) {
     const row = await prisma.submissionFile.findUnique({
       where: { id: submissionFileId },
-      select: { fileUrl: true },
+      select: { fileUrl: true, name: true },
     });
-    console.log("row", row);
-    return row?.fileUrl;
+    if (!row?.fileUrl) return null;
+    const objectKey = extractObjectKeyFromAbsoluteUrl(row.fileUrl);
+    const filename = row.name ?? objectKey.split("/").pop() ?? "file";
+    const mime = guessMimeFromName(filename);
+    return { objectKey, filename, mime };
   }
 
-  static async getFeedbackFileDownloadUrl(
-    feedbackFileId: string
-  ){
+  static async getFeedbackKeyAndMeta(feedbackFileId: string) {
     const row = await prisma.feedbackFile.findUnique({
       where: { id: feedbackFileId },
-      select: { fileUrl: true },
+      select: { fileUrl: true, name: true },
     });
-    return row?.fileUrl;
+    if (!row?.fileUrl) return null;
+    const objectKey = extractObjectKeyFromAbsoluteUrl(row.fileUrl);
+    const filename = row.name ?? objectKey.split("/").pop() ?? "file";
+    const mime = guessMimeFromName(filename);
+    return { objectKey, filename, mime };
   }
 }

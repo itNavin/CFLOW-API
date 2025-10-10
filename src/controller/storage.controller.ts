@@ -14,7 +14,7 @@ import { group } from "console";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024;
 
-const ALLOW_EXT_TO_MIME: Record<string, string> = {
+export const ALLOW_EXT_TO_MIME: Record<string, string> = {
   pdf: "application/pdf",
   txt: "text/plain",
   csv: "text/csv",
