@@ -34,15 +34,8 @@ export const courseMemberMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `You have been added to ${courseName}.`,
       `Added by: ${addedByName}${addedByEmail ? ` (${addedByEmail})` : ""}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -89,18 +82,11 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `You have been removed from ${courseName}.`,
       removedAtStr ? `Removed at: ${removedAtStr}` : "",
       `Removed by: ${deletedByName}${
         deletedByEmail ? ` (${deletedByEmail})` : ""
       }`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

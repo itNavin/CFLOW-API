@@ -45,17 +45,10 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `There’s a new announcement in ${courseName}.`,
       when ? `Created at: ${when}` : "",
       created?.name ? `\n${created.name}` : "",
       created?.description ? `\n${created.description}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -104,17 +97,10 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `An announcement in ${courseName} was updated.`,
       when ? `Updated at: ${when}` : "",
       updated?.name ? `\n${updated.name}` : "",
       updated?.description ? `\n${updated.description}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -183,18 +169,11 @@ ${
     }`;
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `An announcement in ${courseName} was deleted.`,
       when ? `Deleted at: ${when}` : "",
       deletedByText,
       deleted?.name ? `\n${deleted.name}` : "",
       deleted?.description ? `\n${deleted.description}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

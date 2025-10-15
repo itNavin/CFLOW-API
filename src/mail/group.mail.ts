@@ -66,19 +66,12 @@ ${companyLine}
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `Your group has been created in ${courseName} (${program}).`,
       `Group code: ${group.codeNumber || "-"}`,
       `${nameLabel}: ${displayName}`,
       group.company ? `Company: ${group.company}` : "",
       "",
       "Please keep this information for your records. You’ll receive further updates from your course team.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -157,10 +150,6 @@ ${studentsHtml}
         : ["(No students listed)"];
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${advisor.name || "Lecturer"},`,
-      "",
       `A new group has been created in ${courseName} (${program}).`,
       `Your role: ${advisor.role}`,
       `Group code: ${group.codeNumber || "-"}`,
@@ -171,9 +160,6 @@ ${studentsHtml}
       ...studentLines,
       "",
       "Please review this group at your earliest convenience and reach out to students if coordination is needed.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -272,10 +258,6 @@ ${studentsHtml}
       : ["(No students listed)"];
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      "Dear staff,",
-      "",
       `A new group has been created in ${courseName} (${program}).`,
       `Group code: ${group.codeNumber || "-"}`,
       `${nameLabel}: ${displayName}`,
@@ -288,9 +270,6 @@ ${studentsHtml}
       ...studentLines,
       "",
       "This email is for your records and coordination purposes.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -401,10 +380,6 @@ ${studentsHtml}
       : ["(No students listed)"];
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      "Dear staff,",
-      "",
       `A group in ${courseName} (${program}) was deleted.`,
       when ? `Deleted at: ${when}` : "",
       `Group code: ${group.codeNumber || "-"}`,
@@ -418,9 +393,6 @@ ${studentsHtml}
       ...studentLines,
       "",
       "This email is for your records and coordination purposes.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -435,21 +407,19 @@ ${studentsHtml}
       productName: string | null;
       company: string | null;
     };
-    students: PlainUser[]; // [{id,name,email|null}]
-    advisors: AdvisorInfo[]; // [{name, role, email?}]
+    students: PlainUser[];
+    advisors: AdvisorInfo[]; 
     recipientName: string;
   }) {
     const { courseName, program, group, students, advisors, recipientName } =
       params;
 
-    // Decide which name to display based on program
     const isCS = (program || "").toUpperCase() === "CS";
     const displayName = isCS
       ? group.productName || group.projectName
       : group.projectName;
     const nameLabel = isCS ? "Product name" : "Project name";
 
-    // Use the *displayed* name consistently
     const subject = `Group updated: ${displayName} — ${courseName}`;
 
     const companyLine = group.company
@@ -521,10 +491,6 @@ ${advisorsHtml}
       : ["(No advisors listed)"];
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `Your group in ${courseName} (${program}) has been updated.`,
       `Group code: ${group.codeNumber || "-"}`,
       `${nameLabel}: ${displayName}`,
@@ -537,9 +503,6 @@ ${advisorsHtml}
       ...advisorLines,
       "",
       "If any further action is required, your course team will let you know.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -654,10 +617,6 @@ ${advisorsHtml}
       : ["(No advisors listed)"];
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${advisor.name || "Lecturer"},`,
-      "",
       `A group in ${courseName} (${program}) has been updated.`,
       `Your role: ${advisor.role}`,
       `Group code: ${group.codeNumber || "-"}`,
@@ -671,9 +630,6 @@ ${advisorsHtml}
       ...advisorLines,
       "",
       "Please review any changes and coordinate with students if needed.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

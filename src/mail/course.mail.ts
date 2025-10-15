@@ -45,17 +45,10 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       "A new course has been created in C-Flow.",
       createdAt ? `Created at: ${createdAt}` : "",
       `Created by: ${creatorName}${creatorEmail ? ` (${creatorEmail})` : ""}`,
       `Course: ${courseName}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -110,17 +103,10 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       "A course has been updated in C-Flow.",
       primaryValue ? `${primaryLabel}: ${primaryValue}` : "",
       `Updated by: ${userName}${userEmail ? ` (${userEmail})` : ""}`,
       `Course: ${courseName}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -196,17 +182,10 @@ ${deletedByLineHtml}
         : undefined;
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       "A course was deleted in C-Flow.",
       `Deleted at: ${when}`,
       deletedByLineText ?? "",
       `Course: ${courseName}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

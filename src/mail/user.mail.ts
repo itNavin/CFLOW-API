@@ -66,19 +66,7 @@ export const userMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${user.name},`,
-      "",
-      "You have been registered as a Solar Lecturer in the C-Flow system.",
-      `Username (ID): ${user.id}`,
-      `Temporary password: ${tempPassword}`,
-      "",
-      "Update your password (link expires in 60 minutes):",
-      updateLink,
-      "",
-      "Best regards,",
-      "C-Flow Team",
+      "You have been registered as a Solar Lecturer in the C-Flow system. Check out your temporary password and update your password via Email (link expires in 60 minutes):",
     ]);
 
     return { subject, html, text };
@@ -121,15 +109,7 @@ export const userMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      "Password Reset Link",
-      "",
-      `Dear ${user.name},`,
-      "",
-      "Here is your new password reset link (expires in 60 minutes):",
-      updateLink,
-      "",
-      "Best regards,",
-      "C-Flow Team",
+      "Check out your new password reset link via Email (expires in 60 minutes):",
     ]);
 
     return { subject, html, text };
@@ -168,19 +148,10 @@ export const userMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${mailUser.user.name},`,
-      "",
       "Your Staff account has been created.",
       `Username (ID): ${mailUser.user.id}`,
       `Email: ${mailUser.user.email}`,
       `Name: ${mailUser.user.name}`,
-      "",
-      "Please log in using your username (ID) and email.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -219,19 +190,10 @@ export const userMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${mailUser.user.name},`,
-      "",
       "Your Lecturer account has been created.",
       `Username (ID): ${mailUser.user.id}`,
       `Email: ${mailUser.user.email}`,
       `Name: ${mailUser.user.name}`,
-      "",
-      "Please log in using your username (ID) and email.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
