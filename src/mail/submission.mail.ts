@@ -82,10 +82,6 @@ ${statusNoteHtml}
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `Assignment: ${assignment.name}`,
       `Due date: ${dueDateStr}`,
       timelinessTextLine,
@@ -94,9 +90,6 @@ ${statusNoteHtml}
       `Version: ${versionLabel}`,
       `Status: ${statusLabel}`,
       "Note: Your submission was received successfully. Please wait for your lecturer’s review.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -185,10 +178,6 @@ ${statusNoteHtml}
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `Assignment: ${assignment.name}`,
       `Due date: ${dueDateStr}`,
       `End date: ${endDateStr}`,
@@ -198,9 +187,6 @@ ${statusNoteHtml}
       `Version: ${versionLabel}`,
       `Status: ${statusLabel}`,
       "Note: Please review and provide feedback at your earliest convenience. The student may need to revise based on your comments.",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

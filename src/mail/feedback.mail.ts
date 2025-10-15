@@ -128,10 +128,6 @@ export const feedbackMail = {
 </html>`.trim();
 
     const textLines = [
-      subject,
-      "",
-      "Dear user,",
-      "",
       `Assignment: ${assignmentName}`,
       dueDateTextLine,
       `Feedback date: ${feedbackDateStr}`,
@@ -139,9 +135,6 @@ export const feedbackMail = {
       `Version: ${versionLabel}`,
       `Status: ${statusLabel}`,
       studentNote?.trim() ? `Note: ${studentNote}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ].filter(Boolean);
 
     const text = textLines.join("\n");
@@ -261,10 +254,6 @@ export const feedbackMail = {
 </html>`.trim();
 
     const text = [
-      subject,
-      "",
-      `Dear ${lecturer?.name ?? "user"},`,
-      "",
       `Assignment: ${assignmentName}`,
       `Due date: ${dueDateStr}`,
       `End date: ${endDateStr}`,
@@ -272,9 +261,6 @@ export const feedbackMail = {
       `Group: ${projectName}`,
       `Version: ${versionLabel}`,
       `Status: ${statusLabel}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ].join("\n");
 
     return { subject, html, text };

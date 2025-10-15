@@ -59,18 +59,11 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `There’s a new assignment in ${courseName}.`,
       primaryTimeValue ? `${primaryTimeLabel}: ${primaryTimeValue}` : "",
       `Due date: ${dueDateStr}`,
       created?.name ? `\n${created.name}` : "",
       created?.description ? `\n${created.description}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -140,19 +133,12 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `An assignment in ${courseName} has been updated.`,
       updatedAtStr ? `Updated at: ${updatedAtStr}` : "",
       scheduleStr ? `Schedule: ${scheduleStr}` : "",
       `Due date: ${dueDateStr}`,
       updated?.name ? `\n${updated.name}` : "",
       updated?.description ? `\n${updated.description}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };
@@ -212,19 +198,12 @@ ${
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${recipientName},`,
-      "",
       `An assignment in ${courseName} was deleted.`,
       when ? `Deleted at: ${when}` : "",
       `Deleted by: ${deletedByName}${
         deletedByEmail ? ` <${deletedByEmail}>` : ""
       }`,
       deletedAssignment?.name ? `\n${deletedAssignment.name}` : "",
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
 
     return { subject, html, text };

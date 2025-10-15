@@ -23,16 +23,10 @@ export const authMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      subject,
-      "",
-      `Dear ${name},`,
-      "",
       "We noticed a new login to your C-Flow account.",
       `Time: ${when}`,
-      "",
-      "Best regards,",
-      "C-Flow Team",
     ]);
+
 
     return { subject, html, text };
   },
