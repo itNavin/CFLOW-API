@@ -2,6 +2,18 @@ import { sendEmail } from "src/lib/mailer";
 import { prisma } from "src/prisma";
 
 type BuiltMail = { subject: string; html: string; text: string };
+type SentResult = {
+  to: string;
+  subject: string;
+  text: string;
+  sendResult: any;
+};
+
+function isFulfilled<T>(
+  r: PromiseSettledResult<T>
+): r is PromiseFulfilledResult<T> {
+  return r.status === "fulfilled";
+}
 
 export async function mailSentAndSummary(
   mailUsers: any[],
@@ -25,34 +37,28 @@ export async function mailSentAndSummary(
     .map((u: any) => u?.user?.email?.trim?.() || u?.email?.trim?.())
     .filter(Boolean);
 
-  const results = await Promise.allSettled(
+  const results = await Promise.allSettled<SentResult>(
     (mailUsers ?? []).map(async (u: any, i: number) => {
       const to = recipients[i];
-      if (!to) return;
+      if (!to) return Promise.reject(new Error("Missing recipient"));
 
       const mail: BuiltMail = isBuilder
-        ? await arg2(u) 
+        ? await arg2(u)
         : {
             subject: arg2 as string,
             html: arg3 as string,
             text: arg4 as string,
           };
 
-      return sendEmail(to, mail.subject, mail.html, mail.text);
-    })
-  );
+      const sendResult = await sendEmail(
+        to,
+        mail.subject,
+        mail.html,
+        mail.text
+      );
 
-  const summary = results.reduce(
-    (acc, r, i) => {
-      if (r.status === "fulfilled") acc.sent.push(recipients[i]);
-      else
-        acc.failed.push({
-          to: recipients[i],
-          error: String((r as PromiseRejectedResult).reason),
-        });
-      return acc;
-    },
-    { sent: [] as string[], failed: [] as Array<{ to: string; error: string }> }
+      return { to, subject: mail.subject, text: mail.text, sendResult };
+    })
   );
 
   const logs = (mailUsers ?? [])
@@ -60,19 +66,21 @@ export async function mailSentAndSummary(
       const userId = u?.user?.id ?? u?.id;
       if (!userId) return null;
 
-      const subj =
-        isBuilder && results[i].status === "fulfilled"
-          ? (results[i] as PromiseFulfilledResult<any>).value?.envelope
-              ?.subject ??
-            arg2?.name ??
-            "Email" 
-          : (arg2 as string);
+      const r = results[i];
+      if (!r) return null;
 
-      const description = isBuilder
-        ? "Email sent" 
-        : (arg4 as string);
+      let title: string;
+      let description: string;
 
-      return { userId, title: subj, description, createdAt: new Date() };
+      if (isFulfilled(r)) {
+        title = r.value.subject;
+        description = r.value.text.slice(0, 200); 
+      } else {
+        title = isBuilder ? arg2?.name ?? "Email" : (arg2 as string);
+        description = "Email failed to send";
+      }
+
+      return { userId, title, description, createdAt: new Date() };
     })
     .filter(Boolean) as Array<{
     userId: string;
@@ -89,5 +97,5 @@ export async function mailSentAndSummary(
     }
   }
 
-  console.log("email summary:", summary);
+  console.log("email summary:", logs);
 }
