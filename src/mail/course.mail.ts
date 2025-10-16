@@ -115,7 +115,7 @@ ${
   },
   
 deleteCourseMail: async (
-    courseNameLike: CourseNameLike,
+    courseName: string,
     recipientName: string,
     deletedAtOrOpts?:
       | Date
@@ -126,10 +126,6 @@ deleteCourseMail: async (
         }
   ) => {
   // Normalize to a definite string
-  const courseName: string =
-    typeof courseNameLike === "string"
-      ? courseNameLike.trim()
-      : (courseNameLike?.name ?? "").trim() || "(untitled)";
 
   const opts =
     deletedAtOrOpts &&
