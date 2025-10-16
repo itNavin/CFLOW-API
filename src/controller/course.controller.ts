@@ -274,7 +274,8 @@ export const CourseController = {
 
       const result = await CourseModel.deleteCourse(courseId);
 
-      const courseName = await CourseModel.getCourseById(courseId);
+      const courseNameArray = await CourseModel.getCourseById(courseId);
+      const courseName = courseNameArray?.name || "Unknown";
 
       //mail
       const mailUsers = await mailRoles.getStaff();
