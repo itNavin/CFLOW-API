@@ -2,6 +2,8 @@ import { formatBangkok } from "src/util/time";
 import { prisma } from "../prisma";
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
 
+type CourseNameLike = string | { name?: string | null } | null | undefined;
+
 export const courseMail = {
   createCourseMail: async (
     courseName: string,
@@ -112,8 +114,8 @@ ${
     return { subject, html, text };
   },
   
-  deleteCourseMail: async (
-    courseNameLike: string | { name?: string } | null | undefined,
+deleteCourseMail: async (
+    courseNameLike: CourseNameLike,
     recipientName: string,
     deletedAtOrOpts?:
       | Date
@@ -123,73 +125,71 @@ ${
           deletedBy?: { name?: string | null; email?: string | null } | null;
         }
   ) => {
-    const courseName =
-      typeof courseNameLike === "string"
-        ? courseNameLike
-        : courseNameLike?.name ?? "(unknown course)";
+  // Normalize to a definite string
+  const courseName: string =
+    typeof courseNameLike === "string"
+      ? courseNameLike.trim()
+      : (courseNameLike?.name ?? "").trim() || "(untitled)";
 
-    const opts =
-      deletedAtOrOpts &&
-      typeof deletedAtOrOpts === "object" &&
-      !("toISOString" in (deletedAtOrOpts as any))
-        ? (deletedAtOrOpts as {
-            deletedAt?: Date | string;
-            deletedBy?: { name?: string | null; email?: string | null } | null;
-          })
-        : {
-            deletedAt: deletedAtOrOpts as Date | string | undefined,
-            deletedBy: undefined,
-          };
+  const opts =
+    deletedAtOrOpts &&
+    typeof deletedAtOrOpts === "object" &&
+    !("toISOString" in (deletedAtOrOpts as any))
+      ? (deletedAtOrOpts as {
+          deletedAt?: Date | string;
+          deletedBy?: { name?: string | null; email?: string | null } | null;
+        })
+      : {
+          deletedAt: deletedAtOrOpts as Date | string | undefined,
+          deletedBy: undefined,
+        };
 
-    const when = opts.deletedAt
+  const when =
+    opts.deletedAt != null
       ? formatBangkok(new Date(opts.deletedAt))
       : formatBangkok(new Date());
 
-    const deletedByName = opts.deletedBy?.name || undefined;
-    const deletedByEmail = opts.deletedBy?.email || undefined;
+  const deletedByName = opts.deletedBy?.name ?? undefined;
+  const deletedByEmail = opts.deletedBy?.email ?? undefined;
 
-    const subject = `Course deleted: ${courseName}`;
+  const subject = `Course deleted: ${courseName}`;
 
-    const deletedByLineHtml =
-      deletedByName || deletedByEmail
-        ? `<p style="margin:0 0 8px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(
-            deletedByName ?? "Unknown"
-          )}${deletedByEmail ? ` (${escapeHtml(deletedByEmail)})` : ""}</p>`
-        : "";
+  const deletedByLineHtml =
+    deletedByName || deletedByEmail
+      ? `<p style="margin:0 0 8px;color:#111111;"><strong>Deleted by:</strong> ${escapeHtml(
+          deletedByName ?? "Unknown"
+        )}${deletedByEmail ? ` (${escapeHtml(deletedByEmail)})` : ""}</p>`
+      : "";
 
-    const contentHtml = `
+  const contentHtml = `
 <p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(recipientName)},</p>
 <p style="margin:0 8px 8px 0;color:#111111;">A course was deleted in <strong>C-Flow</strong>.</p>
-<p style="margin:0 0 8px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(
-      when
-    )}</p>
+<p style="margin:0 0 8px;color:#111111;"><strong>Deleted at:</strong> ${escapeHtml(when)}</p>
 ${deletedByLineHtml}
-<p style="margin:0 0 12px;color:#111111;"><strong>Course:</strong> ${escapeHtml(
-      courseName
-    )}</p>
+<p style="margin:0 0 12px;color:#111111;"><strong>Course:</strong> ${escapeHtml(courseName)}</p>
 `.trim();
 
-    const html = mailTemplates.template({
-      contentHtml,
-      preheader: `Course deleted: ${courseName}`,
-    });
+  const html = mailTemplates.template({
+    contentHtml,
+    preheader: `Course deleted: ${courseName}`,
+  });
 
-    const deletedByLineText =
-      deletedByName || deletedByEmail
-        ? `Deleted by: ${deletedByName ?? "Unknown"}${
-            deletedByEmail ? ` (${deletedByEmail})` : ""
-          }`
-        : undefined;
+  const deletedByLineText =
+    deletedByName || deletedByEmail
+      ? `Deleted by: ${deletedByName ?? "Unknown"}${
+          deletedByEmail ? ` (${deletedByEmail})` : ""
+        }`
+      : undefined;
 
-    const text = mailTemplates.textTemplate([
-      "A course was deleted in C-Flow.",
-      `Deleted at: ${when}`,
-      deletedByLineText ?? "",
-      `Course: ${courseName}`,
-    ]);
+  const text = mailTemplates.textTemplate([
+    "A course was deleted in C-Flow.",
+    `Deleted at: ${when}`,
+    deletedByLineText ?? "",
+    `Course: ${courseName}`,
+  ]);
 
-    return { subject, html, text };
-  },
+  return { subject, html, text };
+}
 };
 
 function toDateOrUndefined(v: unknown): Date | undefined {
