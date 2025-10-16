@@ -271,11 +271,15 @@ export const CourseController = {
       if (!isValidUUID(courseId)) {
         return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
-
+      const course = await CourseModel.getCourseById(courseId);
+      console.log("course", course);
+      const courseName = course?.name || "Unknown";
+      console.log("courseName", courseName);
+      
       const result = await CourseModel.deleteCourse(courseId);
+      console.log("result", result);
 
-      const courseNameArray = await CourseModel.getCourseById(courseId);
-      const courseName = courseNameArray?.name || "Unknown";
+
 
       //mail
       const mailUsers = await mailRoles.getStaff();
