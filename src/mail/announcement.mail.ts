@@ -1,5 +1,6 @@
 import { formatBangkok } from "src/util/time";
 import { mailTemplates, escapeHtml } from "../mail/main.mail";
+import { prisma } from "src/prisma";
 
 export const announcementMail = {
   async createAnnouncementMail(
@@ -115,12 +116,15 @@ ${
     const subject = `Announcement deleted: ${
       deleted?.name ?? "(untitled)"
     } — ${courseName}`;
+    const deleter = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, email: true },
+    });
 
     const deletedByName =
-      String(deleted?.deletedByName ?? deleted?.deletedBy?.name ?? "") ||
-      "Unknown";
+      String(deleter?.name) || "Unknown";
     const deletedByEmail =
-      String(deleted?.deletedByEmail ?? deleted?.deletedBy?.email ?? "") || "";
+      String(deleter?.email) || "";
 
     const deletedAtDate =
       toDateOrUndefined(deleted?.deletedAt) ??
