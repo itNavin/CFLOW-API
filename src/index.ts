@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 import { mainRouter } from "./router/main.routes";
+import { publicRouter } from "./router/public.routes";
 import { prisma } from "./prisma";
 import { serveStatic } from "@hono/node-server/serve-static";
 import path from "node:path";
@@ -32,6 +33,7 @@ app.use(
 );
 
 app.get("/", (c) => c.text("Hello Hono!"));
+app.route("/api/public", publicRouter);
 app.route("", mainRouter);
 
 export default {

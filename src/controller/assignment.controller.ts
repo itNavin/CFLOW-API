@@ -8,6 +8,7 @@ import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import SubmissionModel from "src/model/submission.model";
 import { StorageController } from "./storage.controller";
+import { ensureOrigin } from "src/util/storage";
 
 export const AssignmentController = {
   getGroupByLecturerId: async (c: Context) => {
@@ -160,6 +161,7 @@ export const AssignmentController = {
 
       // ---- read form-data instead of JSON
       const form = await c.req.formData();
+      const requestOrigin = ensureOrigin(new URL(c.req.url).origin);
 
       // helpers
       const getStr = (key: string) => {
@@ -338,6 +340,7 @@ export const AssignmentController = {
           courseId,
           assignmentId,
           file: f,
+          origin: requestOrigin,
         });
         uploaded.push({ url, name: f.name });
       }
