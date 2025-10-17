@@ -1,18 +1,5 @@
 import { prisma } from "../prisma";
 
-type UploadRow = {
-  rowNumber: number;
-  id: string; 
-  email: string; 
-  name: string; 
-};
-
-type UploadArgs = {
-  rows: UploadRow[];
-  role: "student" | "lecturer" | "staff" | "SUPER_ADMIN";
-  program: "CS" | "DSI" | "BOTH"; 
-};
-
 export type ApiStudentRow = {
   studentId?: string | number;
   firstnameEng?: string;
@@ -149,13 +136,18 @@ class UserModel {
         id: g.id,
         codeNumber: g.codeNumber,
         projectName: g.projectName,
-        productName: g.productName, 
-        company: g.company, 
+        productName: g.productName,
+        company: g.company,
       },
     };
   }
 
-  static async createStaffUser(id: string, email: string, name: string, program: "CS" | "DSI" | "BOTH") {
+  static async createStaffUser(
+    id: string,
+    email: string,
+    name: string,
+    program: "CS" | "DSI" | "BOTH"
+  ) {
     return prisma.user.create({
       data: {
         id,
@@ -228,7 +220,13 @@ class UserModel {
     const clean = normalizeAndDedupe(rows);
 
     if (clean.length === 0) {
-      return { totalFromAPI: rows.length, prepared: 0, created: 0, skipped: 0, errors: [] as any[] };
+      return {
+        totalFromAPI: rows.length,
+        prepared: 0,
+        created: 0,
+        skipped: 0,
+        errors: [] as any[],
+      };
     }
 
     // If your dataset can be very large, use chunked createMany to keep each call < ~1s.
@@ -239,7 +237,7 @@ class UserModel {
       const slice = clean.slice(i, i + CHUNK);
       const res = await prisma.user.createMany({
         data: slice,
-        skipDuplicates: true, 
+        skipDuplicates: true,
       });
       created += res.count;
     }
@@ -248,11 +246,21 @@ class UserModel {
     const skipped = prepared - created;
 
     return {
-      totalFromAPI: rows.length, 
-      prepared,                 
-      created,                 
-      skipped,                  
+      totalFromAPI: rows.length,
+      prepared,
+      created,
+      skipped,
     };
+  }
+
+  static async updateUserStatus(
+    targetUserId: string,
+    status: "ACTIVE" | "RESIGNED" | "RETIRED" | "GRADUATED"
+  ) {
+    return prisma.user.update({
+      where: { id: targetUserId },
+      data: { status },
+    });
   }
 }
 

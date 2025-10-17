@@ -1,6 +1,5 @@
 import { Context } from "hono";
 import UserModel from "../model/user.model";
-import * as XLSX from "xlsx";
 import { isValidUUID } from "src/types/uuid";
 import { prisma } from "../prisma";
 import { mailRoles } from "src/util/mailRole";
@@ -8,11 +7,8 @@ import { mailSentAndSummary } from "src/util/mailSummary";
 import { userMail } from "src/mail/user.mail";
 import { randomBytes, createHash } from "crypto";
 import crypto from "node:crypto";
-import { create } from "node:domain";
 import { Role } from "../types/role";
 
-const Roles = new Set(["student", "lecturer", "staff", "super_admin"]);
-const Programs = new Set(["CS", "DSI", "BOTH"]);
 function makeToken() {
   const raw = randomBytes(32).toString("hex");
   const hash = createHash("sha256").update(raw).digest("hex");
@@ -407,4 +403,41 @@ export const UserController = {
       );
     }
   },
+
+  updateUserStatus: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const userId = c.get("userId");
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
+      const body = await c.req.json();
+      const { targetUserId, status } = body;
+      if (!targetUserId || !status) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+      const updatedUser = await UserModel.updateUserStatus(
+        targetUserId,
+        status
+      );
+      return c.json(
+        {
+          message: `${targetUserId} status updated to ${status} successfully`,
+          user: updatedUser,
+        },
+        200
+      );
+    } catch (error) {
+      console.error({
+        context: "updateUserStatus",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  }
 };
