@@ -33,7 +33,7 @@ app.use(
 );
 
 app.get("/", (c) => c.text("Hello Hono!"));
-app.route("/api/public", publicRouter);
+app.route("/public", publicRouter);
 app.route("", mainRouter);
 
 export default {
