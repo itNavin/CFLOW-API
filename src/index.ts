@@ -7,7 +7,7 @@ import { prisma } from "./prisma";
 import { serveStatic } from "@hono/node-server/serve-static";
 import path from "node:path";
 
-const app = new Hono({ strict: false });
+const app = new Hono({ strict: false }).basePath("/api");
 
 prisma.$connect().catch((e: Error) => {
   throw new Error(`Error connecting to database : ${e}`);
