@@ -12,6 +12,7 @@ import { authMail } from "src/mail/auth.mail";
 import { userMail } from "src/mail/user.mail";
 import crypto, { verify } from "node:crypto";
 import { verifyResetTokenAndGetUserId } from "./user.controller";
+import { AuthModel } from "src/model/auth.model";
 
 const ROLE_MAP: Record<string, Role> = {
   student: "student",
@@ -49,6 +50,14 @@ export const AuthController = {
 
     if (!username || !password) {
       return c.json({ message: "Username and password are required" }, 400);
+    }
+
+    const userStatus = await AuthModel.getUserStatusById(username);
+    if (!userStatus) {
+      return c.json({ message: "Invalid credentials" }, 401);
+    }
+    if (userStatus.status !== "ACTIVE") {
+      return c.json({ message: `Access denied.`}, 403);
     }
 
     try {

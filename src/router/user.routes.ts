@@ -24,3 +24,5 @@ userRouter.get("/all-users", UserController.getAllUsers);
 // userRouter.post("/update-solar-password", UserController.updateSolarPassword);
 
 userRouter.get("/fetchStudentData", UserController.fetchStudentData);
+
+userRouter.post("/update-user-status", UserController.updateUserStatus);

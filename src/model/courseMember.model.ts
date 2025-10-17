@@ -53,6 +53,7 @@ export const getStaffNotInCourse = async (courseId: string) => {
     where: {
       role: "staff", 
       id: { notIn: enrolledUserIds.length ? enrolledUserIds : ["___none___"] },
+      status: "ACTIVE"
     },
     select: {
       id: true,
@@ -113,6 +114,7 @@ export const getAdvisorNotInCourse = async (courseId: string) => {
       classMemberships: {
         none: { courseId },
       },
+      status: "ACTIVE"
     },
     select: {
       id: true,
@@ -164,6 +166,7 @@ export const getStudentsNotInCourse = async (courseId: string) => {
       classMemberships: {
         none: { courseId },
       },
+      status: "ACTIVE"
     },
     select: {
       id: true,
