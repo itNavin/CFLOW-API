@@ -11,24 +11,13 @@ import { mailSentAndSummary } from "src/util/mailSummary";
 import { submissionMail } from "src/mail/submission.mail";
 import { feedbackMail } from "src/mail/feedback.mail";
 import { group } from "console";
+import {
+  ALLOW_EXT_TO_MIME,
+  buildPublicFileUrl,
+  ensureOrigin,
+} from "src/util/storage";
 
 const MAX_SIZE_BYTES = 25 * 1024 * 1024;
-
-export const ALLOW_EXT_TO_MIME: Record<string, string> = {
-  pdf: "application/pdf",
-  txt: "text/plain",
-  csv: "text/csv",
-  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  png: "image/png",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  webp: "image/webp",
-  md: "text/markdown",
-  json: "application/json",
-  zip: "application/zip",
-};
 
 const BLOCK_EXT = new Set([
   // macro-enabled Office
@@ -138,6 +127,7 @@ export const StorageController = {
         return c.json({ error: "Forbidden: lecturer and staff only" }, 403);
       }
 
+      const origin = getRequestOrigin(c);
       const formData = await c.req.formData();
 
       const courseId = String(formData.get("courseId") ?? "");
@@ -214,11 +204,11 @@ export const StorageController = {
         finalMime
       );
 
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${putKey}`;
+      const publicUrl = buildPublicFileUrl(putKey, file.name, origin);
 
       const newFile = await FileModel.createFile({
         name: file.name,
-        filepath: absoluteFileUrl,
+        filepath: publicUrl,
         createdById: userId,
         courseId,
         announcementId: announcementId || null,
@@ -248,8 +238,9 @@ export const StorageController = {
     courseId: string;
     announcementId?: string;
     file: File;
+    origin?: string;
   }): Promise<string> => {
-    const { courseId, announcementId, file } = params;
+    const { courseId, announcementId, file, origin } = params;
 
     const ext = getExtension(file.name);
     const uniqueFileName = `${uuidv4()}.${ext}`;
@@ -260,12 +251,12 @@ export const StorageController = {
     const fileBuffer = Buffer.from(await file.arrayBuffer());
     const mime = ALLOW_EXT_TO_MIME[ext] || "application/octet-stream";
     const putKey = await uploadToMinio(objectKey, fileBuffer, mime);
-    const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${putKey}`;
-    return absoluteFileUrl;
+    return buildPublicFileUrl(putKey, file.name, origin);
   },
 
   uploadAssignmentFile: async (c: Context) => {
     try {
+      const origin = getRequestOrigin(c);
       const userId = c.get("userId");
       const role = c.get("role");
       if (role !== "staff" && role !== "SUPER_ADMIN") {
@@ -314,6 +305,7 @@ export const StorageController = {
         courseId,
         assignmentId,
         file,
+        origin,
       });
 
       const assignmentFile = await prisma.assignmentFile.create({
@@ -354,8 +346,9 @@ export const StorageController = {
     courseId: string;
     assignmentId: string;
     file: File;
+    origin?: string;
   }): Promise<string> => {
-    const { courseId, assignmentId, file } = params;
+    const { courseId, assignmentId, file, origin } = params;
 
     const fileExtension = file.name.includes(".")
       ? file.name.split(".").pop()
@@ -372,13 +365,12 @@ export const StorageController = {
       fullObjectKey,
       Buffer.from(fileBuffer)
     );
-    const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${objectKey}`;
-
-    return absoluteFileUrl;
+    return buildPublicFileUrl(objectKey, file.name, origin);
   },
 
   uploadSubmissionFile: async (c: Context) => {
     try {
+      const origin = getRequestOrigin(c);
       const formData = await c.req.formData();
 
       const role = c.get("role");
@@ -526,12 +518,12 @@ export const StorageController = {
         Buffer.from(buf),
         finalMime
       );
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${putKey}`;
+      const publicUrl = buildPublicFileUrl(putKey, file.name, origin);
 
       const newFile = await SubmissionModel.createSubmissionFile({
         submissionId,
         deliverableId,
-        fileUrl: absoluteFileUrl,
+        fileUrl: publicUrl,
         name: file.name,
       });
 
@@ -586,6 +578,7 @@ export const StorageController = {
 
   uploadFeedbackFile: async (c: Context) => {
     try {
+      const origin = getRequestOrigin(c);
       const formData = await c.req.formData();
 
       const role = c.get("role");
@@ -697,12 +690,12 @@ export const StorageController = {
         finalMime
       );
 
-      const absoluteFileUrl = `http://${Bun.env.MINIO_ENDPOINT}:9000/${Bun.env.MINIO_BUCKET}/${putKey}`;
+      const publicUrl = buildPublicFileUrl(putKey, file.name, origin);
 
       const newFile = await FeedbackModel.createFeedbackFile({
         feedbackId,
         deliverableId,
-        fileUrl: absoluteFileUrl,
+        fileUrl: publicUrl,
         name: file.name,
       });
 
@@ -756,3 +749,7 @@ export const StorageController = {
     }
   },
 };
+function getRequestOrigin(c: Context): string {
+  const url = new URL(c.req.url);
+  return ensureOrigin(url.origin);
+}

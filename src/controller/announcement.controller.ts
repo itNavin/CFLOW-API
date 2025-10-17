@@ -8,6 +8,7 @@ import { sendEmail } from "src/lib/mailer";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { prisma } from "src/prisma";
 import { StorageController } from "./storage.controller";
+import { ensureOrigin } from "src/util/storage";
 
 export const AnnouncementController = {
   createAnnouncement: async (c: Context) => {
@@ -94,6 +95,7 @@ export const AnnouncementController = {
       }
 
       const form = await c.req.formData();
+      const requestOrigin = ensureOrigin(new URL(c.req.url).origin);
 
       // helpers
       const getStr = (key: string) => {
@@ -154,6 +156,7 @@ export const AnnouncementController = {
           courseId,
           announcementId,
           file,
+          origin: requestOrigin,
         });
 
         const newRecord = await prisma.file.create({
