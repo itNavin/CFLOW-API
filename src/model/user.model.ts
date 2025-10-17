@@ -254,11 +254,11 @@ class UserModel {
   }
 
   static async updateUserStatus(
-    targetUserId: string,
+    targetUserIds: string[],
     status: "ACTIVE" | "RESIGNED" | "RETIRED" | "GRADUATED"
   ) {
-    return prisma.user.update({
-      where: { id: targetUserId },
+    return prisma.user.updateMany({
+      where: { id: { in: targetUserIds } },
       data: { status },
     });
   }
