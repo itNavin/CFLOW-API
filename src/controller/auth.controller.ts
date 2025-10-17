@@ -62,12 +62,17 @@ export const AuthController = {
               name: true,
               role: true,
               password: true,
+              status: true,
             },
           });
         })();
 
         if (!user || !user.password) {
           return c.json({ message: "Invalid credentials" }, 401);
+        }
+
+        if(user.status !== "ACTIVE") {
+          return c.json({ message: `Access denied.`}, 403);
         }
 
         const ok = await bcrypt.compare(password, user.password);
