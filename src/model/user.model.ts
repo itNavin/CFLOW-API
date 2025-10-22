@@ -64,6 +64,19 @@ function normalizeAndDedupe(rows: ApiStudentRow[]): CleanRow[] {
 
 
 class UserModel {
+  static async getAllStudentYears(){
+    const students = await prisma.user.findMany({
+      where: { role: "student" },
+      select: { id: true },
+    });
+
+    const years = new Set<string>();
+    for (const s of students) {
+      const id = (s.id ?? "").trim();
+      if (/^\d{2}/.test(id)) years.add(id.slice(0, 2));
+    }
+     return [...years].sort((a, b) => Number(a) - Number(b));
+  }
   static async getStudentProjectByCourse(userId: string, courseId: string) {
     const cm = await prisma.courseMember.findFirst({
       where: { courseId, userId },

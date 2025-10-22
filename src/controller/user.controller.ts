@@ -42,6 +42,28 @@ export async function markResetTokenUsed(rawToken: string): Promise<void> {
 }
 
 export const UserController = {
+  getAllStudentYears: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const years = await UserModel.getAllStudentYears();
+      return c.json(
+        {
+          message: "get all student years successfully",
+          years,
+        },
+        200
+      );
+    } catch (err: any) {
+      const status = err?.status ?? 500;
+      const message = err?.message ?? "Internal server error";
+      if (status >= 500) console.error("getAllStudentYears error:", err);
+      return c.json({ message }, status);
+    }
+  },
+
   getMyProjectByCourse: async (c: Context) => {
     try {
       const userId = c.get("userId");
