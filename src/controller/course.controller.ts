@@ -33,7 +33,7 @@ export const CourseController = {
       if (name.length > 100) {
         return c.json({ message: "Course name too long" }, 400);
       }
-      if (description.length > 500) {
+      if (description != null && description.length > 500) {
         return c.json({ message: "Course description too long" }, 400);
       }
 

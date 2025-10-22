@@ -5,7 +5,7 @@ import { ClassProgram } from "../types/program";
 class CourseModel {
   static async createCourse(
     name: string,
-    description: string,
+    description: string | null,
     program: "CS" | "DSI",
     createdById: string
   ) {
