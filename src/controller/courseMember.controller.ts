@@ -397,6 +397,67 @@ export const CourseMemberController = {
       if (!actorUserId) {
         return c.json({ message: "Unauthorized" }, 401);
       }
+      
+      const toDelete = await prisma.courseMember.findMany({
+        where: { id: { in: courseMemberIds } },
+        select: { id: true, courseId: true, user: { select: { role: true } } },
+      });
+      if (toDelete.length === 0) {
+        return c.json({ message: "No matching course members found" }, 404);
+      }
+
+      const impactedCourseIds = Array.from(
+        new Set(toDelete.map((m) => m.courseId))
+      );
+
+      const currentStaffCounts = await prisma.courseMember.groupBy({
+        by: ["courseId"],
+        where: {
+          courseId: { in: impactedCourseIds },
+          user: { role: "staff" },
+        },
+        _count: { _all: true },
+      });
+      const currentMap = new Map<string, number>(
+        currentStaffCounts.map((r) => [r.courseId, r._count._all])
+      );
+
+      const deletingMap = new Map<string, number>();
+      for (const m of toDelete) {
+        if (m.user.role === "staff") {
+          deletingMap.set(m.courseId, (deletingMap.get(m.courseId) ?? 0) + 1);
+        }
+      }
+
+      const violations: Array<{
+        courseId: string;
+        current: number;
+        deleting: number;
+        remaining: number;
+      }> = [];
+      for (const courseId of impactedCourseIds) {
+        const current = currentMap.get(courseId) ?? 0;
+        const deleting = deletingMap.get(courseId) ?? 0;
+        const remaining = current - deleting;
+        if (deleting > 0 && remaining < 1) {
+          violations.push({ courseId, current, deleting, remaining });
+        }
+      }
+
+      if (violations.length > 0) {
+        const courseNames = await prisma.course.findMany({
+          where: { id: { in: violations.map((v) => v.courseId) } },
+          select: { id: true, name: true },
+        });
+        const nameMap = new Map(courseNames.map((c) => [c.id, c.name]));
+
+        return c.json(
+          {
+            message: "Each course must have at least one staff member.",
+          },
+          400
+        );
+      }
 
       const coursename = await prisma.courseMember
         .findFirst({
