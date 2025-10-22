@@ -3,6 +3,8 @@ import { UserController } from "../controller/user.controller";
 
 export const userRouter = new Hono();
 
+userRouter.get("/getAllStudentYears", UserController.getAllStudentYears);
+
 userRouter.get(
   "/my-project/course/:courseId",
   UserController.getMyProjectByCourse
