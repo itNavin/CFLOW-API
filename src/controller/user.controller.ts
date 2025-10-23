@@ -203,7 +203,6 @@ export const UserController = {
       });
       await mailSentAndSummary([createLecturerUser], subject, html, text);
 
-
       return c.json(
         {
           message: "Lecturer user created successfully",
@@ -304,6 +303,49 @@ export const UserController = {
     } catch (error) {
       console.error({
         context: "createSolarLecturerUser",
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return c.json(
+        { message: "Internal server error. Please try again later." },
+        500
+      );
+    }
+  },
+
+  updateStaffAndLecturer: async (c: Context) => {
+    try {
+      const role = c.get("role");
+      if (role !== "staff") {
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
+      }
+      const body = await c.req.json();
+      const { id, name, email } = body;
+      if (!id || !name || !email) {
+        return c.json({ message: "Missing required fields" }, 400);
+      }
+      const isNameExisting = await prisma.user.findUnique({
+        where: { name },
+        select: { id: true },
+      });
+      const isEmailExisting = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (isNameExisting && isNameExisting.id !== id) {
+        return c.json({ message: "Name already in use" }, 400);
+      }
+      if (isEmailExisting && isEmailExisting.id !== id) {
+        return c.json({ message: "Email already in use" }, 400);
+      }
+
+      const updated = await UserModel.updateStaffAndLecturer(id, name, email);
+      if (!updated) return c.json({ message: "User not found" }, 404);
+
+      return c.json({ message: "User updated successfully" }, 200);
+    } catch (error) {
+      console.error({
+        context: "updateStaffAndLecturer",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -482,5 +524,5 @@ export const UserController = {
         500
       );
     }
-  }
+  },
 };
