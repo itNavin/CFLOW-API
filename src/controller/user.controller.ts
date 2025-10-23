@@ -116,6 +116,13 @@ export const UserController = {
       if (!email || !name || !program) {
         return c.json({ message: "Missing required fields" }, 400);
       }
+      const isExisting = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (isExisting) {
+        return c.json({ message: "Email already in use" }, 400);
+      }
       const id = email.split("@")[0];
       const createStaffUser = await UserModel.createStaffUser(
         id,
