@@ -28,3 +28,5 @@ userRouter.get("/all-users", UserController.getAllUsers);
 userRouter.get("/fetchStudentData", UserController.fetchStudentData);
 
 userRouter.post("/update-user-status", UserController.updateUserStatus);
+
+userRouter.post("/update-staff-lecturer", UserController.updateStaffAndLecturer);

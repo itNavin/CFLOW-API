@@ -208,6 +208,13 @@ class UserModel {
     });
   }
 
+  static async updateStaffAndLecturer(id: string, name:string, email:string){
+    return prisma.user.update({
+      where: { id },
+      data: { name, email },
+    });
+  }
+
   static async updateSolarPassword(id: string, newPassword: string) {
     return prisma.user.update({
       where: { id },
