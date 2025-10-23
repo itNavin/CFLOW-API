@@ -223,6 +223,7 @@ class UserModel {
         name: true,
         role: true,
         program: true,
+        status: true,
         createdAt: true,
       },
       orderBy: [{ role: "asc" }, { name: "asc" }],

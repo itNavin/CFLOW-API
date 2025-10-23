@@ -155,7 +155,7 @@ export const AssignmentController = {
   updateAssignment: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "staff" && role !== "SUPER_ADMIN") {
+      if (role !== "staff") {
         return c.json({ error: "Forbidden: STAFF only" }, 403);
       }
 
