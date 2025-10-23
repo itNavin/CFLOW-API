@@ -93,6 +93,26 @@ function normalizeAllowedFileTypes(
 ): Array<{ mime: string; type: string }> {
   if (!Array.isArray(list) || list.length === 0) return [];
 
+  const normalizeExtension = (raw: string) => {
+    const key = raw.replace(/^\./, "").toLowerCase();
+    return EXT_TO_MIME[key] ?? null;
+  };
+
+  const normalizeMime = (raw: string) => {
+    const lower = raw.toLowerCase();
+    if (!lower.includes("/")) return null;
+    const [, subtype] = lower.split("/", 2);
+    if (!subtype) return null;
+    const extCandidate = subtype.includes(".")
+      ? subtype.split(".").pop()!
+      : subtype;
+    const mapped = normalizeExtension(extCandidate);
+    if (mapped) {
+      return { mime: mapped.mime, type: mapped.label };
+    }
+    return { mime: lower, type: subtype.toUpperCase() };
+  };
+
   const normalized: Array<{ mime: string; type: string }> = [];
 
   for (const item of list) {
@@ -103,13 +123,17 @@ function normalizeAllowedFileTypes(
       if (!val) continue;
 
       if (val.includes("/")) {
-        normalized.push({
-          mime: val.toLowerCase(),
-          type: val.split("/")[1].toUpperCase(),
-        });
+        const mapped = normalizeMime(val);
+        if (mapped) {
+          normalized.push(mapped);
+        } else {
+          normalized.push({
+            mime: val.toLowerCase(),
+            type: val.split("/")[1].toUpperCase(),
+          });
+        }
       } else {
-        const key = val.toLowerCase();
-        const mapped = EXT_TO_MIME[key];
+        const mapped = normalizeExtension(val);
         if (!mapped) {
           throw new Error(
             `Unknown file type/extension: "${item}". Send a known extension or a MIME string.`
@@ -124,8 +148,17 @@ function normalizeAllowedFileTypes(
       if (!mime || !mime.includes("/")) {
         throw new Error(`Invalid MIME: "${item?.mime}"`);
       }
-      const type = item.type?.trim() || mime.split("/")[1].toUpperCase();
-      normalized.push({ mime, type });
+      const mapped = normalizeMime(mime);
+      if (mapped) {
+        const type = item.type?.trim();
+        normalized.push({
+          mime: mapped.mime,
+          type: type || mapped.type,
+        });
+      } else {
+        const type = item.type?.trim() || mime.split("/")[1].toUpperCase();
+        normalized.push({ mime, type });
+      }
     }
   }
 
