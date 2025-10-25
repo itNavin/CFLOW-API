@@ -11,6 +11,191 @@ function sOrNull(v: any): string | null {
   return t === "" ? null : t;
 }
 
+export type WorkbookValidationIssue = {
+  row: number;
+  column: string;
+  message: string;
+};
+
+function readWorkbookRows(fileBuffer: Buffer): Row[] {
+  const wb = XLSX.read(fileBuffer, { type: "buffer" });
+  const sheetName = wb.SheetNames[0];
+  if (!sheetName) return [];
+  const ws = wb.Sheets[sheetName];
+  return XLSX.utils.sheet_to_json<Row>(ws, { defval: "", raw: false });
+}
+
+export async function validateWorkbook(
+  courseId: string,
+  fileBuffer: Buffer
+): Promise<WorkbookValidationIssue[]> {
+  const issues: WorkbookValidationIssue[] = [];
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { program: true },
+  });
+
+  if (!course) {
+    issues.push({
+      row: 0,
+      column: "courseId",
+      message: "Course not found",
+    });
+    return issues;
+  }
+
+  const rows = readWorkbookRows(fileBuffer);
+  if (rows.length === 0) {
+    issues.push({
+      row: 0,
+      column: "Sheet",
+      message: "Excel is empty",
+    });
+    return issues;
+  }
+
+  const carryByGroup = new Map<
+    string,
+    {
+      projectName?: string;
+      productName?: string | null;
+      company?: string | null;
+    }
+  >();
+
+  let currentGroupCode: string | null = null;
+  const seenStudentIds = new Map<string, number>();
+  const missingProjectGroups = new Set<string>();
+  const missingProductGroups = new Set<string>();
+  const missingCompanyGroups = new Set<string>();
+
+  rows.forEach((raw, idx) => {
+    const excelRow = idx + 2;
+    const rawGroup = s(raw["Group No."]);
+    const rawProject = s(raw["Project name"]);
+    const rawProduct = s(raw["Product name"]);
+    const rawCompany = s(raw["Company"]);
+    const rawAdvisor = s(raw["Advisor"]);
+    const rawCoAdvisor = s(raw["Co-advisor"]);
+    const studentId = s(raw["Student ID"]);
+    const fullName = s(raw["Name"]);
+    const role = s(raw["Role"]);
+
+    const rowHasContent =
+      rawGroup ||
+      rawProject ||
+      rawProduct ||
+      rawCompany ||
+      rawAdvisor ||
+      rawCoAdvisor ||
+      studentId ||
+      fullName ||
+      role;
+    if (!rowHasContent) {
+      issues.push({
+        row: excelRow,
+        column: "Row",
+        message: `Row ${excelRow}: Entire row is empty but must contain data`,
+      });
+      return;
+    }
+
+    if (rawGroup) currentGroupCode = rawGroup;
+    const groupCode = currentGroupCode;
+
+    if (!groupCode) {
+      issues.push({
+        row: excelRow,
+        column: "Group No.",
+        message: `Row ${excelRow}: Missing required field "Group No."`,
+      });
+      return;
+    }
+
+    if (!carryByGroup.has(groupCode)) carryByGroup.set(groupCode, {});
+    const carry = carryByGroup.get(groupCode)!;
+
+    if (rawProject) {
+      carry.projectName = rawProject;
+      missingProjectGroups.delete(groupCode);
+    }
+    if (course.program === "CS" && rawProduct) {
+      carry.productName = rawProduct;
+      missingProductGroups.delete(groupCode);
+    }
+    if (course.program === "DSI" && rawCompany) {
+      carry.company = rawCompany;
+      missingCompanyGroups.delete(groupCode);
+    }
+
+    if (!carry.projectName && !missingProjectGroups.has(groupCode)) {
+      issues.push({
+        row: excelRow,
+        column: "Project name",
+        message: `Row ${excelRow}: Column "Project name" is required for group "${groupCode}"`,
+      });
+      missingProjectGroups.add(groupCode);
+    }
+
+    if (
+      course.program === "CS" &&
+      !carry.productName &&
+      !missingProductGroups.has(groupCode)
+    ) {
+      issues.push({
+        row: excelRow,
+        column: "Product name",
+        message: `Row ${excelRow}: Column "Product name" is required for group "${groupCode}"`,
+      });
+      missingProductGroups.add(groupCode);
+    }
+
+    if (
+      course.program === "DSI" &&
+      !carry.company &&
+      !missingCompanyGroups.has(groupCode)
+    ) {
+      issues.push({
+        row: excelRow,
+        column: "Company",
+        message: `Row ${excelRow}: Column "Company" is required for group "${groupCode}"`,
+      });
+      missingCompanyGroups.add(groupCode);
+    }
+
+    const hasMemberData = !!(studentId || fullName || role);
+    if (hasMemberData && !studentId) {
+      issues.push({
+        row: excelRow,
+        column: "Student ID",
+        message: `Row ${excelRow}: Column "Student ID" cannot be empty when a student entry is provided`,
+      });
+    }
+    if (hasMemberData && !fullName) {
+      issues.push({
+        row: excelRow,
+        column: "Name",
+        message: `Row ${excelRow}: Column "Name" cannot be empty when a student entry is provided`,
+      });
+    }
+
+    if (studentId) {
+      if (seenStudentIds.has(studentId)) {
+        const prevRow = seenStudentIds.get(studentId)!;
+        issues.push({
+          row: excelRow,
+          column: "Student ID",
+          message: `Row ${excelRow}: Student ID "${studentId}" also appears in row ${prevRow}`,
+        });
+      } else {
+        seenStudentIds.set(studentId, excelRow);
+      }
+    }
+  });
+
+  return issues;
+}
+
 export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
   const course = await prisma.course.findUnique({
     where: { id: courseId },
@@ -18,10 +203,7 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
   });
   if (!course) throw new Error("Course not found");
 
-  const wb = XLSX.read(fileBuffer, { type: "buffer" });
-  const sheetName = wb.SheetNames[0];
-  const ws = wb.Sheets[sheetName];
-  const rows = XLSX.utils.sheet_to_json<Row>(ws, { defval: "", raw: false });
+  const rows = readWorkbookRows(fileBuffer);
   if (rows.length === 0) throw new Error("Excel is empty");
 
   type AccGroup = {
