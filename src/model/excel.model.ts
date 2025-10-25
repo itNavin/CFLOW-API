@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { prisma } from "../prisma";
 
 type Row = Record<string, any>;
+type SheetRow = Row & { __rowNum__?: number };
 
 function s(v: any): string {
   return typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim();
@@ -17,12 +18,24 @@ export type WorkbookValidationIssue = {
   message: string;
 };
 
-function readWorkbookRows(fileBuffer: Buffer): Row[] {
+function readWorkbookRows(fileBuffer: Buffer): SheetRow[] {
   const wb = XLSX.read(fileBuffer, { type: "buffer" });
   const sheetName = wb.SheetNames[0];
   if (!sheetName) return [];
   const ws = wb.Sheets[sheetName];
-  return XLSX.utils.sheet_to_json<Row>(ws, { defval: "", raw: false });
+  const rows = XLSX.utils.sheet_to_json<SheetRow>(ws, {
+    defval: "",
+    raw: false,
+  });
+  return rows.map((row, idx) => ({
+    ...row,
+    __rowNum__: typeof row.__rowNum__ === "number" ? row.__rowNum__ : idx + 1,
+  }));
+}
+
+function getExcelRowNumber(row: SheetRow, idx: number): number {
+  if (typeof row.__rowNum__ === "number") return row.__rowNum__ + 1;
+  return idx + 2;
 }
 
 export async function validateWorkbook(
@@ -70,7 +83,7 @@ export async function validateWorkbook(
   const missingCompanyGroups = new Set<string>();
 
   rows.forEach((raw, idx) => {
-    const excelRow = idx + 2;
+    const excelRow = getExcelRowNumber(raw, idx);
     const rawGroup = s(raw["Group No."]);
     const rawProject = s(raw["Project name"]);
     const rawProduct = s(raw["Product name"]);
@@ -244,7 +257,7 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
   let currentGroupCode: string | null = null;
 
   rows.forEach((raw, idx) => {
-    const excelRow = idx + 2;
+    const excelRow = getExcelRowNumber(raw, idx);
 
     const rawGroup = s(raw["Group No."]);
     const rawProject = s(raw["Project name"]);
