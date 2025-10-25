@@ -28,9 +28,12 @@ export const ImportController = {
     try {
       const validationIssues = await validateWorkbook(courseId, buf);
       if (validationIssues.length > 0) {
+        const combinedMessage = validationIssues
+          .map((issue) => issue.message)
+          .join(", ");
         return c.json(
           {
-            message: validationIssues,
+            message: combinedMessage,
           },
           400
         );
