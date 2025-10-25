@@ -81,6 +81,14 @@ export async function validateWorkbook(
   const missingProjectGroups = new Set<string>();
   const missingProductGroups = new Set<string>();
   const missingCompanyGroups = new Set<string>();
+  const studentIdRows = new Map<string, number[]>();
+  const advisorEntries: Array<{
+    name: string;
+    row: number;
+    column: "Advisor" | "Co-advisor";
+  }> = [];
+  const advisorNameSet = new Set<string>();
+  const advisorQueryNames: string[] = [];
 
   rows.forEach((raw, idx) => {
     const excelRow = getExcelRowNumber(raw, idx);
@@ -193,6 +201,9 @@ export async function validateWorkbook(
     }
 
     if (studentId) {
+      const rowsForStudent = studentIdRows.get(studentId) ?? [];
+      rowsForStudent.push(excelRow);
+      studentIdRows.set(studentId, rowsForStudent);
       if (seenStudentIds.has(studentId)) {
         const prevRow = seenStudentIds.get(studentId)!;
         issues.push({
@@ -204,7 +215,73 @@ export async function validateWorkbook(
         seenStudentIds.set(studentId, excelRow);
       }
     }
+
+    if (rawAdvisor) {
+      advisorEntries.push({ name: rawAdvisor, row: excelRow, column: "Advisor" });
+      const normalized = rawAdvisor.toLowerCase();
+      if (!advisorNameSet.has(normalized)) {
+        advisorNameSet.add(normalized);
+        advisorQueryNames.push(rawAdvisor);
+      }
+    }
+    if (rawCoAdvisor) {
+      advisorEntries.push({
+        name: rawCoAdvisor,
+        row: excelRow,
+        column: "Co-advisor",
+      });
+      const normalized = rawCoAdvisor.toLowerCase();
+      if (!advisorNameSet.has(normalized)) {
+        advisorNameSet.add(normalized);
+        advisorQueryNames.push(rawCoAdvisor);
+      }
+    }
   });
+
+  if (studentIdRows.size > 0) {
+    const studentIds = Array.from(studentIdRows.keys());
+    const existingStudents = await prisma.user.findMany({
+      where: { id: { in: studentIds } },
+      select: { id: true },
+    });
+    const existingStudentIds = new Set(existingStudents.map((s) => s.id));
+
+    for (const [studentId, rows] of studentIdRows.entries()) {
+      if (!existingStudentIds.has(studentId)) {
+        for (const row of rows) {
+          issues.push({
+            row,
+            column: "Student ID",
+            message: `Row ${row}: Student ID "${studentId}" not found in users`,
+          });
+        }
+      }
+    }
+  }
+
+  if (advisorEntries.length > 0 && advisorQueryNames.length > 0) {
+    const advisorRecords = await prisma.user.findMany({
+      where: {
+        OR: advisorQueryNames.map((name) => ({
+          name: { equals: name, mode: "insensitive" },
+        })),
+      },
+      select: { name: true },
+    });
+    const existingAdvisorNames = new Set(
+      advisorRecords.map((a) => a.name.toLowerCase())
+    );
+
+    for (const entry of advisorEntries) {
+      if (!existingAdvisorNames.has(entry.name.toLowerCase())) {
+        issues.push({
+          row: entry.row,
+          column: entry.column,
+          message: `Row ${entry.row}: ${entry.column} "${entry.name}" not found in users`,
+        });
+      }
+    }
+  }
 
   return issues;
 }
