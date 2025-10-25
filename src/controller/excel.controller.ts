@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { prisma } from "../prisma";
 import fs from "node:fs";
 import path from "node:path";
-import { enrollFromWorkbook } from "../model/excel.model";
+import { enrollFromWorkbook, validateWorkbook } from "../model/excel.model";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { GroupMail } from "src/mail/group.mail";
@@ -26,6 +26,16 @@ export const ImportController = {
     const buf = Buffer.from(arrayBuf);
 
     try {
+      const validationIssues = await validateWorkbook(courseId, buf);
+      if (validationIssues.length > 0) {
+        return c.json(
+          {
+            message: validationIssues,
+          },
+          400
+        );
+      }
+
       const result = await enrollFromWorkbook(courseId, buf);
 
       //mail
