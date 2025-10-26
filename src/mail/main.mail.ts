@@ -46,7 +46,7 @@ export const mailTemplates = {
               <td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
                 <div style="text-align:center;margin-bottom:16px;">
                   <img 
-                    src="http://localhost:8000/email-assets/SIT-LOGO.png" 
+                    src="http://c-flow.sit.kmutt.ac.th/api/public/files/Y291cnNlLTUxOGNmNDMwLTE1MWQtNDQzMS04NDkwLWM4MTFhZGM0M2Y2MS9maWxlLzcwOTJjMzU3LWNjMDAtNGNkMS1hZmViLTA1MDYyYjA3NzY0My5wbmc/Poster%20sitportfolio.png" 
                     alt="SIT Logo"
                     width="120"
                     style="display:inline-block;border:0;outline:none;text-decoration:none;width:120px;max-width:100%;"
