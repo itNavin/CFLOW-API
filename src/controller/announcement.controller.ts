@@ -32,13 +32,11 @@ export const AnnouncementController = {
       const name = body.name ? body.name.trim() : undefined;
       const description = body.description
         ? body.description.trim()
-        : undefined;
+        : null;
 
       const scheduleStr = body.schedule;
       const schedule = new Date(scheduleStr);
       if (!name) return c.json({ error: "name is required" }, 400);
-      if (!description)
-        return c.json({ error: "description is required" }, 400);
       if (!schedule || isNaN(schedule.getTime())) {
         return c.json(
           { error: "schedule must be a valid ISO datetime string" },
