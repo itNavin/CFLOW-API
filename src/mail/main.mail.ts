@@ -1,3 +1,6 @@
+export const MAIL_SIT_LOGO_CID = "sit-logo";
+export const MAIL_CFLOW_LOGO_CID = "cflow-logo";
+
 type TemplateOptions = {
   contentHtml: string;
   footerHtml?: string;
@@ -45,12 +48,26 @@ export const mailTemplates = {
             <tr>
               <td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#111111;">
                 <div style="text-align:center;margin-bottom:16px;">
-                  <img 
-                    src="http://c-flow.sit.kmutt.ac.th/api/public/files/Y291cnNlLTUxOGNmNDMwLTE1MWQtNDQzMS04NDkwLWM4MTFhZGM0M2Y2MS9maWxlLzcwOTJjMzU3LWNjMDAtNGNkMS1hZmViLTA1MDYyYjA3NzY0My5wbmc/Poster%20sitportfolio.png" 
-                    alt="SIT Logo"
-                    width="120"
-                    style="display:inline-block;border:0;outline:none;text-decoration:none;width:120px;max-width:100%;"
-                  />
+                  <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+                    <tr>
+                      <td style="padding:0 6px;">
+                        <img 
+                          src="cid:${MAIL_SIT_LOGO_CID}" 
+                          alt="SIT Logo"
+                          width="70"
+                          style="display:block;border:0;outline:none;text-decoration:none;width:70px;height:auto;max-width:25vw;"
+                        />
+                      </td>
+                      <td style="padding:0 6px;">
+                        <img 
+                          src="cid:${MAIL_CFLOW_LOGO_CID}" 
+                          alt="C-Flow Logo"
+                          width="70"
+                          style="display:block;border:0;outline:none;text-decoration:none;width:70px;height:auto;max-width:25vw;"
+                        />
+                      </td>
+                    </tr>
+                  </table>
                 </div>
                 ${contentHtml}
                 <p style="margin:0 0 12px;color:#111111;">${footerHtml}</p>

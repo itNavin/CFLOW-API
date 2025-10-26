@@ -1,7 +1,13 @@
 import { sendEmail } from "src/lib/mailer";
+import type Mail from "nodemailer/lib/mailer";
 import { prisma } from "src/prisma";
 
-type BuiltMail = { subject: string; html: string; text: string };
+type BuiltMail = {
+  subject: string;
+  html: string;
+  text: string;
+  attachments?: Mail.Attachment[];
+};
 type SentResult = {
   to: string;
   subject: string;
@@ -50,12 +56,9 @@ export async function mailSentAndSummary(
             text: arg4 as string,
           };
 
-      const sendResult = await sendEmail(
-        to,
-        mail.subject,
-        mail.html,
-        mail.text
-      );
+      const sendResult = await sendEmail(to, mail.subject, mail.html, mail.text, {
+        attachments: mail.attachments,
+      });
 
       return { to, subject: mail.subject, text: mail.text, sendResult };
     })
