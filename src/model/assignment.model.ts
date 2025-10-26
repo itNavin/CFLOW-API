@@ -27,7 +27,7 @@ type AssignmentsByGroupLite = {
 export type CreateAssignmentInput = {
   courseId: string;
   name: string;
-  description: string;
+  description: string | null;
   endDate: Date;
   schedule: Date;
   dueDate: Date;
@@ -40,7 +40,7 @@ export type CreateAssignmentInput = {
 export type UpdateAssignmentInput = {
   assignmentId: string;
   name: string;
-  description: string;
+  description: string | null;
   endDate: Date;
   schedule: Date;
   dueDate: Date;
