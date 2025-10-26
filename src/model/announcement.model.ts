@@ -4,7 +4,7 @@ class AnnouncementModel {
   static async createAnnouncement(data: {
     courseId: string;
     name: string;
-    description: string;
+    description: string | null;
     schedule: Date;
     userId: string;
   }) {
