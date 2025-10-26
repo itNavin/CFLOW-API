@@ -76,7 +76,7 @@ export const AssignmentController = {
       if (!name) {
         return c.json({ error: "name is required" }, 400);
       }
-      const description = body.description.trim();
+      const description = body.description;
 
       const endDateStr = body.endDate;
       if (!endDateStr) {
@@ -168,6 +168,12 @@ export const AssignmentController = {
         const v = form.get(key);
         return typeof v === "string" ? v.trim() : "";
       };
+      const getOptionalStr = (key: string) => {
+        const v = form.get(key);
+        if (typeof v !== "string") return null;
+        const trimmed = v.trim();
+        return trimmed.length ? trimmed : null;
+      };
       const mustStr = (key: string, label?: string) => {
         const v = getStr(key);
         if (!v) throw new Error(`${label ?? key} is required`);
@@ -204,7 +210,7 @@ export const AssignmentController = {
       }
 
       const name = mustStr("name", "name");
-      const description = getStr("description") ?? "";
+      const description = getOptionalStr("description");
 
       const endDate = parseISODate("endDate", "endDate");
       const schedule = parseISODate("schedule", "schedule");

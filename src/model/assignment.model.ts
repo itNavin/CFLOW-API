@@ -272,7 +272,7 @@ class AssignmentModel {
         where: { id: data.assignmentId },
         data: {
           name: data.name,
-          description: data.description ?? "",
+          description: data.description,
           endDate: data.endDate,
           schedule: data.schedule,
           dueDate: data.dueDate,
