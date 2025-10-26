@@ -41,7 +41,7 @@ const transporter = nodemailer.createTransport({
 
 const inlineImageConfigs = [
   { filename: "SIT-LOGO.png", cid: MAIL_SIT_LOGO_CID },
-  { filename: "C-FLOW-LOGO.png", cid: MAIL_CFLOW_LOGO_CID },
+  { filename: "C-Flow-LOGO.png", cid: MAIL_CFLOW_LOGO_CID },
 ] as const;
 
 const inlineLogoAttachments: Mail.Attachment[] = inlineImageConfigs
