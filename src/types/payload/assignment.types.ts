@@ -2,7 +2,7 @@ export namespace AssignmentPayload {
   export type CreateAssignment = {
     courseId: string;
     name: string;
-    description: string;
+    description: string | null;
     endDate: string;
     schedule: string;
     dueDate: string;
