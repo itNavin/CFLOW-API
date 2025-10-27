@@ -1,7 +1,10 @@
 // controller/download.controller.ts
 import type { Context } from "hono";
 import { DownloadModel } from "src/model/download.model";
-import { presignGetObject } from "src/util/storage";
+import {
+  buildPublicFileUrl,
+  ensureOrigin,
+} from "src/util/storage";
 import { isValidUUID } from "src/types/uuid";
 
 function getMode(c: Context): "inline" | "download" {
@@ -21,10 +24,11 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const url = await presignGetObject(meta.objectKey, {
-        disposition: mode === "download" ? "attachment" : "inline",
-        filename: meta.filename,
-        mime: meta.mime,
+      const originCandidate =
+        c.req.header("origin") ?? new URL(c.req.url).origin;
+      const origin = ensureOrigin(originCandidate);
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+        mode,
       });
 
       return c.json({ message: "OK", url }, 200);
@@ -54,10 +58,11 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const url = await presignGetObject(meta.objectKey, {
-        disposition: mode === "download" ? "attachment" : "inline",
-        filename: meta.filename,
-        mime: meta.mime,
+      const originCandidate =
+        c.req.header("origin") ?? new URL(c.req.url).origin;
+      const origin = ensureOrigin(originCandidate);
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+        mode,
       });
 
       return c.json({ message: "OK", url }, 200);
@@ -82,10 +87,11 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const url = await presignGetObject(meta.objectKey, {
-        disposition: mode === "download" ? "attachment" : "inline",
-        filename: meta.filename,
-        mime: meta.mime,
+      const originCandidate =
+        c.req.header("origin") ?? new URL(c.req.url).origin;
+      const origin = ensureOrigin(originCandidate);
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+        mode,
       });
 
       return c.json({ message: "OK", url }, 200);

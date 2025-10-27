@@ -16,16 +16,16 @@ export const FeedbackController = {
     try {
       const role = c.get("role");
       if (role !== "lecturer") {
-        return c.json({ error: "Forbidden: LECTURER only" }, 403);
+        return c.json({ message: "Forbidden: LECTURER only" }, 403);
       }
 
       const body = await c.req.json<FeedbackPayload.CreateFeedback>();
       const submissionId = body.submissionId;
       if (!submissionId) {
-        return c.json({ error: "submissionId is required" }, 400);
+        return c.json({ message: "submissionId is required" }, 400);
       }
       if (!isValidUUID(submissionId)) {
-        return c.json({ error: "submissionId must be a valid UUID" }, 400);
+        return c.json({ message: "submissionId must be a valid UUID" }, 400);
       }
 
       const comment = body.comment?.trim();
@@ -44,12 +44,12 @@ export const FeedbackController = {
       let newDueDate: Date | undefined;
       if (newStatus !== "FINAL") {
         if (!newDueDateStr)
-          return c.json({ error: "newDueDate is required" }, 400);
+          return c.json({ message: "newDueDate is required" }, 400);
 
         const parsed = new Date(newDueDateStr);
         if (isNaN(parsed.getTime()))
           return c.json(
-            { error: "newDueDate must be a valid ISO datetime" },
+            { message: "newDueDate must be a valid ISO datetime" },
             400
           );
         newDueDate = parsed;

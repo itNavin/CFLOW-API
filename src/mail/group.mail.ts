@@ -274,6 +274,115 @@ ${studentsHtml}
 
     return { subject, html, text };
   },
+  async updateGroupStaffMail(params: {
+    courseName: string;
+    program: "CS" | "DSI" | string;
+    group: {
+      codeNumber: string;
+      projectName: string;
+      productName: string | null;
+      company: string | null;
+    };
+    advisors: Array<{
+      name: string;
+      role: "ADVISOR" | "CO_ADVISOR";
+      email?: string | null;
+    }>;
+    students: Array<{ id: string; name: string; email: string | null }>;
+  }) {
+    const { courseName, program, group, advisors, students } = params;
+
+    const displayName = getDisplayedGroupName(program, group);
+    const isCS = (program || "").toUpperCase() === "CS";
+    const nameLabel = isCS ? "Product name" : "Project name";
+
+    const subject = `Group updated: ${displayName} - ${courseName}`;
+
+    const companyLine = group.company
+      ? `<p style="margin:0 0 6px;color:#111111;"><strong>Company:</strong> ${escapeHtml(
+          group.company
+        )}</p>`
+      : "";
+
+    const advisorsHtml = advisors.length
+      ? `
+<p style="margin:12px 0 6px;color:#111111;"><strong>Advisors:</strong></p>
+<ul style="margin:0 0 12px 18px;padding:0;color:#111111;">
+  ${advisors
+    .map((a) => {
+      const email = a.email ? ` &lt;${escapeHtml(a.email)}&gt;` : "";
+      return `<li style="margin:0 4px 4px 0;">${escapeHtml(
+        a.role
+      )} - ${escapeHtml(a.name)}${email}</li>`;
+    })
+    .join("")}
+</ul>`
+      : `<p style="margin:12px 0 12px;color:#6b7280;">(No advisors listed)</p>`;
+
+    const studentsHtml = students.length
+      ? `
+<p style="margin:12px 0 6px;color:#111111;"><strong>Students:</strong></p>
+<ul style="margin:0 0 12px 18px;padding:0;color:#111111;">
+  ${students
+    .map((s) => {
+      const email = s.email ? ` &lt;${escapeHtml(s.email)}&gt;` : "";
+      return `<li style="margin:0 4px 4px 0;">${escapeHtml(
+        s.name
+      )}${email}</li>`;
+    })
+    .join("")}
+</ul>`
+      : `<p style="margin:12px 0 12px;color:#6b7280;">(No students listed)</p>`;
+
+    const contentHtml = `
+<p style="margin:0 0 12px;color:#111111;">Dear staff,</p>
+<p style="margin:0 8px 8px 0;color:#111111;">A group in <strong>${escapeHtml(
+      courseName
+    )}</strong> (${escapeHtml(program)}) has been updated.</p>
+<p style="margin:0 0 6px;color:#111111;"><strong>Group code:</strong> ${escapeHtml(
+      group.codeNumber || "-"
+    )}</p>
+<p style="margin:0 0 6px;color:#111111;"><strong>${escapeHtml(
+      nameLabel
+    )}:</strong> ${escapeHtml(displayName)}</p>
+${companyLine}
+${advisorsHtml}
+${studentsHtml}
+<p style="margin:12px 0 12px;color:#111111;">Please review these updates and coordinate with advisors or students if required.</p>
+`.trim();
+
+    const html = mailTemplates.template({
+      contentHtml,
+      preheader: `Group updated: ${displayName}`,
+    });
+
+    const advisorLines = advisors.length
+      ? advisors.map(
+          (a) => `- ${a.role} - ${a.name}${a.email ? ` <${a.email}>` : ""}`
+        )
+      : ["(No advisors listed)"];
+
+    const studentLines = students.length
+      ? students.map((s) => `- ${s.name}${s.email ? ` <${s.email}>` : ""}`)
+      : ["(No students listed)"];
+
+    const text = mailTemplates.textTemplate([
+      `A group in ${courseName} (${program}) has been updated.`,
+      `Group code: ${group.codeNumber || "-"}`,
+      `${nameLabel}: ${displayName}`,
+      group.company ? `Company: ${group.company}` : "",
+      "",
+      "Advisors:",
+      ...advisorLines,
+      "",
+      "Students:",
+      ...studentLines,
+      "",
+      "Please review these updates and coordinate with advisors or students if required.",
+    ]);
+
+    return { subject, html, text };
+  },
 
   async deleteGroupStaffMail(params: {
     courseName: string;

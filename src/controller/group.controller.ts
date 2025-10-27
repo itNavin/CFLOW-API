@@ -23,11 +23,11 @@ export const GroupController = {
         return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       if (!body?.projectName) {
-        return c.json({ error: "projectName is required" }, 400);
+        return c.json({ message: "projectName is required" }, 400);
       }
 
       const newGroup = await GroupModel.createGroup({
@@ -203,10 +203,10 @@ export const GroupController = {
       );
     } catch (error: any) {
       if (error?.status >= 400 && error?.status < 500) {
-        return c.json({ error: error.message }, 400);
+        return c.json({ message: error.message }, 400);
       }
       if (error?.code === "P2002") {
-        return c.json({ error: "Duplicate codeNumber in this course" }, 409);
+        return c.json({ message: "Duplicate codeNumber in this course" }, 409);
       }
       console.error({
         context: "createCourse",
@@ -232,7 +232,7 @@ export const GroupController = {
         return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const groups = await GroupModel.getAllGroups(courseId);
@@ -267,7 +267,7 @@ export const GroupController = {
         return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const students = await GroupModel.getStudentNoInGroup(courseId);
@@ -302,12 +302,12 @@ export const GroupController = {
 
       const courseId = String(body.courseId ?? "").trim();
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const groupId = String(body.groupId ?? "").trim();
       if (!isValidUUID(groupId)) {
-        return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid groupId (UUID expected)" }, 400);
       }
 
       const payload = {
@@ -483,10 +483,10 @@ export const GroupController = {
         200
       );
     } catch (error: any) {
-      if (error?.status === 404) return c.json({ error: error.message }, 404);
-      if (error?.status === 400) return c.json({ error: error.message }, 400);
+      if (error?.status === 404) return c.json({ message: error.message }, 404);
+      if (error?.status === 400) return c.json({ message: error.message }, 400);
       if (error?.code === "P2002") {
-        return c.json({ error: "Duplicate codeNumber in this course" }, 409);
+        return c.json({ message: "Duplicate codeNumber in this course" }, 409);
       }
       console.error({
         context: "createCourse",
@@ -509,7 +509,7 @@ export const GroupController = {
       const body = await c.req.json<{ groupId: string }>();
       const groupId = body.groupId;
       if (!isValidUUID(groupId)) {
-        return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid groupId (UUID expected)" }, 400);
       }
 
       const groupRow = await prisma.group.findUnique({
@@ -523,7 +523,7 @@ export const GroupController = {
           company: true,
         },
       });
-      if (!groupRow) return c.json({ error: "Group not found" }, 404);
+      if (!groupRow) return c.json({ message: "Group not found" }, 404);
 
       const courseInfo = await prisma.course.findUnique({
         where: { id: groupRow.courseId },
@@ -561,7 +561,7 @@ export const GroupController = {
 
       const ok = await GroupModel.deleteGroup(groupId);
       if (!ok) {
-        return c.json({ error: "Group not found" }, 404);
+        return c.json({ message: "Group not found" }, 404);
       }
 
       if (Array.isArray(staffRecipients) && staffRecipients.length > 0) {

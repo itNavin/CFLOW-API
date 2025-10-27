@@ -70,29 +70,29 @@ export const SubmissionController = {
     try {
       const role = c.get("role");
       if (role !== "student") {
-        return c.json({ error: "Forbidden: STUDENT only" }, 403);
+        return c.json({ message: "Forbidden: STUDENT only" }, 403);
       }
 
       const userId = c.get("userId");
       if (!userId) {
-        return c.json({ error: "userId is required" }, 400);
+        return c.json({ message: "userId is required" }, 400);
       }
 
       const body = await c.req.json<SubmissionPayload.CreateSubmission>();
 
       const assignmentId = body.assignmentId;
       if (!assignmentId) {
-        return c.json({ error: "assignmentId is required" }, 400);
+        return c.json({ message: "assignmentId is required" }, 400);
       }
       if (!isValidUUID(assignmentId)) {
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
       }
       const courseId = await SubmissionModel.getCourseIdByAssignment(
         assignmentId
       );
       if (!courseId) {
         return c.json(
-          { error: "No course found for the given assignmentId" },
+          { message: "No course found for the given assignmentId" },
           400
         );
       }
@@ -101,7 +101,7 @@ export const SubmissionController = {
       if (comment) {
         if (comment.length > 500) {
           return c.json(
-            { error: "comment must be at most 500 characters" },
+            { message: "comment must be at most 500 characters" },
             400
           );
         }
@@ -128,8 +128,8 @@ export const SubmissionController = {
         typeof error?.message === "string"
           ? error.message
           : "Failed to create submission";
-      if (msg.includes("already FINAL")) return c.json({ error: msg }, 409);
-      if (msg.includes("No due date found")) return c.json({ error: msg }, 400);
+      if (msg.includes("already FINAL")) return c.json({ message: msg }, 409);
+      if (msg.includes("No due date found")) return c.json({ message: msg }, 400);
       console.error("Error creating submission:", error);
       console.error({
         context: "createSubmission",
