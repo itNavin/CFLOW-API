@@ -74,12 +74,19 @@ function tryDecodePublicFilePath(pathname: string): string | null {
 export function buildPublicFileUrl(
   objectKey: string,
   filename?: string,
-  origin?: string
+  origin?: string,
+  options?: {
+    mode?: "inline" | "download";
+  }
 ): string {
   const encodedKey = toBase64Url(objectKey);
   const namePart = filename ? `/${encodeURIComponent(filename)}` : "";
   const baseOrigin = ensureOrigin(origin);
-  return `${baseOrigin}${PUBLIC_FILES_ROUTE_PREFIX}/${encodedKey}${namePart}`;
+  const params = new URLSearchParams();
+  if (options?.mode) params.set("mode", options.mode);
+  const query = params.toString();
+  const queryPart = query ? `?${query}` : "";
+  return `${baseOrigin}${PUBLIC_FILES_ROUTE_PREFIX}/${encodedKey}${namePart}${queryPart}`;
 }
 
 export function extractObjectKeyFromAbsoluteUrl(url: string): string {
@@ -168,5 +175,4 @@ export function ensureOrigin(originCandidate?: string): string {
     "";
   return fallback.replace(/\/+$/, "");
 }
-
 
