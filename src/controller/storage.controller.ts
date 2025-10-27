@@ -124,27 +124,27 @@ export const StorageController = {
       const userId = c.get("userId");
       const role = c.get("role");
       if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: lecturer and staff only" }, 403);
+        return c.json({ message: "Forbidden: lecturer and staff only" }, 403);
       }
 
       const origin = getRequestOrigin(c);
       const formData = await c.req.formData();
 
       const courseId = String(formData.get("courseId") ?? "");
-      if (!courseId) return c.json({ error: "courseId is required" }, 400);
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const announcementIdRaw = formData.get("announcementId");
       const announcementId =
         typeof announcementIdRaw === "string" ? announcementIdRaw.trim() : "";
       if (announcementId && !isValidUUID(announcementId)) {
-        return c.json({ error: "announcementId must be a valid UUID" }, 400);
+        return c.json({ message: "announcementId must be a valid UUID" }, 400);
       }
 
       const file = formData.get("file") as File | null;
-      if (!file) return c.json({ error: "No file uploaded" }, 400);
+      if (!file) return c.json({ message: "No file uploaded" }, 400);
 
       if (file.size > MAX_SIZE_BYTES) {
         return c.json(
@@ -160,13 +160,13 @@ export const StorageController = {
       const ext = getExtension(file.name);
       if (!ext || BLOCK_EXT.has(ext)) {
         return c.json(
-          { error: `Disallowed file extension: .${ext || "(none)"}` },
+          { message: `Disallowed file extension: .${ext || "(none)"}` },
           400
         );
       }
       const allowedMimeByExt = ALLOW_EXT_TO_MIME[ext];
       if (!allowedMimeByExt) {
-        return c.json({ error: `File type not allowed: .${ext}` }, 400);
+        return c.json({ message: `File type not allowed: .${ext}` }, 400);
       }
 
       const arrayBuf = await file.arrayBuffer();
@@ -177,7 +177,7 @@ export const StorageController = {
       const clientType = (file.type || "").toLowerCase();
       if (clientType && BLOCK_MIME.has(clientType)) {
         return c.json(
-          { error: `Dangerous MIME is not allowed: ${clientType}` },
+          { message: `Dangerous MIME is not allowed: ${clientType}` },
           400
         );
       }
@@ -186,7 +186,7 @@ export const StorageController = {
       if (sniffed) {
         if (sniffed !== allowedMimeByExt) {
           return c.json(
-            { error: "File content does not match declared type" },
+            { message: "File content does not match declared type" },
             400
           );
         }
@@ -260,25 +260,25 @@ export const StorageController = {
       const userId = c.get("userId");
       const role = c.get("role");
       if (role !== "staff" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: staff, or SUPER_ADMIN only" }, 403);
+        return c.json({ message: "Forbidden: staff, or SUPER_ADMIN only" }, 403);
       }
 
       const formData = await c.req.formData();
 
       const courseId = String(formData.get("courseId") ?? "");
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const assignmentId = String(formData.get("assignmentId") ?? "");
       if (!assignmentId) {
-        return c.json({ error: "assignmentId is required" }, 400);
+        return c.json({ message: "assignmentId is required" }, 400);
       }
       if (!isValidUUID(assignmentId)) {
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
       }
 
       const assignment = await prisma.assignment.findUnique({
@@ -286,18 +286,18 @@ export const StorageController = {
         select: { courseId: true },
       });
       if (!assignment) {
-        return c.json({ error: "Assignment not found" }, 404);
+        return c.json({ message: "Assignment not found" }, 404);
       }
       if (assignment.courseId !== courseId) {
         return c.json(
-          { error: "assignmentId does not belong to the given courseId" },
+          { message: "assignmentId does not belong to the given courseId" },
           400
         );
       }
 
       const file = formData.get("file") as File | null;
       if (!file) {
-        return c.json({ error: "No file uploaded" }, 400);
+        return c.json({ message: "No file uploaded" }, 400);
       }
 
       // Reuse the same core logic via helper (below)
@@ -375,49 +375,49 @@ export const StorageController = {
 
       const role = c.get("role");
       if (role !== "student")
-        return c.json({ error: "Forbidden: STUDENT only" }, 403);
+        return c.json({ message: "Forbidden: STUDENT only" }, 403);
 
       const userId = c.get("userId");
-      if (!userId) return c.json({ error: "Unauthorized" }, 401);
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
 
       const submissionId = String(formData.get("submissionId") ?? "");
       if (!submissionId)
-        return c.json({ error: "submissionId is required" }, 400);
+        return c.json({ message: "submissionId is required" }, 400);
       if (!isValidUUID(submissionId))
-        return c.json({ error: "submissionId must be a valid UUID" }, 400);
+        return c.json({ message: "submissionId must be a valid UUID" }, 400);
 
       const deliverableId = String(formData.get("deliverableId") ?? "");
       if (!deliverableId)
-        return c.json({ error: "deliverableId is required" }, 400);
+        return c.json({ message: "deliverableId is required" }, 400);
       if (!isValidUUID(deliverableId))
-        return c.json({ error: "deliverableId must be a valid UUID" }, 400);
+        return c.json({ message: "deliverableId must be a valid UUID" }, 400);
 
       const assignment = await SubmissionModel.getAssignmentBySubmission(
         submissionId
       );
       if (!assignment?.id)
-        return c.json({ error: "assignmentId is required" }, 400);
+        return c.json({ message: "assignmentId is required" }, 400);
       if (!isValidUUID(assignment.id))
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
 
       const courseId = await SubmissionModel.getCourseIdByAssignment(
         assignment.id
       );
       if (!courseId) {
         return c.json(
-          { error: "No course found for the given assignmentId" },
+          { message: "No course found for the given assignmentId" },
           400
         );
       }
       if (!isValidUUID(courseId))
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
 
       const cm = await prisma.courseMember.findUnique({
         where: { courseId_userId: { courseId, userId } },
         select: { id: true },
       });
       if (!cm)
-        return c.json({ error: "You are not a member of this course" }, 403);
+        return c.json({ message: "You are not a member of this course" }, 403);
 
       const memberships = await prisma.groupMember.findMany({
         where: { courseMemberId: cm.id },
@@ -430,7 +430,7 @@ export const StorageController = {
       });
       if (memberships.length === 0) {
         return c.json(
-          { error: "You are not in any group for this course" },
+          { message: "You are not in any group for this course" },
           400
         );
       }
@@ -448,7 +448,7 @@ export const StorageController = {
       //ต้องแก้ cs ใช้ product name dsi ใช้ project name
       const groupName = memberships[0].group.projectName;
       if (!isValidUUID(groupId))
-        return c.json({ error: "groupId must be a valid UUID" }, 400);
+        return c.json({ message: "groupId must be a valid UUID" }, 400);
 
       const allowed = await prisma.allowedFileType.findMany({
         where: { deliverableId },
@@ -456,14 +456,14 @@ export const StorageController = {
       });
       if (allowed.length === 0) {
         return c.json(
-          { error: "No allowed file types configured for this deliverable" },
+          { message: "No allowed file types configured for this deliverable" },
           400
         );
       }
       const allowedMimes = new Set(allowed.map((a) => a.mime));
 
       const file = formData.get("file") as File | null;
-      if (!file) return c.json({ error: "No file uploaded" }, 400);
+      if (!file) return c.json({ message: "No file uploaded" }, 400);
       if (file.size > MAX_SIZE_BYTES) {
         return c.json(
           {
@@ -495,7 +495,7 @@ export const StorageController = {
 
       if (!finalMime) {
         return c.json(
-          { error: "Cannot determine file type; upload rejected" },
+          { message: "Cannot determine file type; upload rejected" },
           415
         );
       }
@@ -583,55 +583,55 @@ export const StorageController = {
 
       const role = c.get("role");
       if (role !== "lecturer") {
-        return c.json({ error: "Forbidden: LECTURER only" }, 403);
+        return c.json({ message: "Forbidden: LECTURER only" }, 403);
       }
       const feedbackId = String(formData.get("feedbackId") ?? "");
-      if (!feedbackId) return c.json({ error: "feedbackId is required" }, 400);
+      if (!feedbackId) return c.json({ message: "feedbackId is required" }, 400);
       if (!isValidUUID(feedbackId))
-        return c.json({ error: "feedbackId must be a valid UUID" }, 400);
+        return c.json({ message: "feedbackId must be a valid UUID" }, 400);
 
       const submissionId = await SubmissionModel.getSubmissionByFeedback(
         feedbackId
       );
       if (!submissionId)
-        return c.json({ error: "submissionId is required" }, 400);
+        return c.json({ message: "submissionId is required" }, 400);
       if (!isValidUUID(submissionId))
-        return c.json({ error: "submissionId must be a valid UUID" }, 400);
+        return c.json({ message: "submissionId must be a valid UUID" }, 400);
 
       const assignment = await SubmissionModel.getAssignmentBySubmission(
         submissionId
       );
       if (!assignment?.id)
-        return c.json({ error: "assignmentId is required" }, 400);
+        return c.json({ message: "assignmentId is required" }, 400);
       if (!isValidUUID(assignment.id))
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
 
       const courseId = await SubmissionModel.getCourseIdByAssignment(
         assignment.id
       );
-      if (!courseId) return c.json({ error: "courseId is required" }, 400);
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
       if (!isValidUUID(courseId))
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
 
       const deliverableId = String(formData.get("deliverableId") ?? "");
       if (!deliverableId)
-        return c.json({ error: "deliverableId is required" }, 400);
+        return c.json({ message: "deliverableId is required" }, 400);
       if (!isValidUUID(deliverableId))
-        return c.json({ error: "deliverableId must be a valid UUID" }, 400);
+        return c.json({ message: "deliverableId must be a valid UUID" }, 400);
 
       const groupId = String(formData.get("groupId") ?? "");
-      if (!groupId) return c.json({ error: "groupId is required" }, 400);
+      if (!groupId) return c.json({ message: "groupId is required" }, 400);
       if (!isValidUUID(groupId))
-        return c.json({ error: "groupId must be a valid UUID" }, 400);
+        return c.json({ message: "groupId must be a valid UUID" }, 400);
       const groupName = await SubmissionModel.getGroupNameById(groupId);
       if (!groupName)
         return c.json(
-          { error: "Cannot find group with the given groupId" },
+          { message: "Cannot find group with the given groupId" },
           400
         );
 
       const file = formData.get("file") as File | null;
-      if (!file) return c.json({ error: "No file uploaded" }, 400);
+      if (!file) return c.json({ message: "No file uploaded" }, 400);
 
       if (file.size > MAX_SIZE_BYTES) {
         return c.json(
@@ -647,13 +647,13 @@ export const StorageController = {
       const ext = getExt(file.name);
       if (!ext || BLOCK_EXT.has(ext)) {
         return c.json(
-          { error: `Disallowed file extension: .${ext || "(none)"}` },
+          { message: `Disallowed file extension: .${ext || "(none)"}` },
           400
         );
       }
       const allowedMimeByExt = ALLOW_EXT_TO_MIME[ext];
       if (!allowedMimeByExt) {
-        return c.json({ error: `File type not allowed: .${ext}` }, 400);
+        return c.json({ message: `File type not allowed: .${ext}` }, 400);
       }
 
       const arrayBuf = await file.arrayBuffer();
@@ -662,7 +662,7 @@ export const StorageController = {
       const clientType = (file.type || "").toLowerCase();
       if (clientType && BLOCK_MIME.has(clientType)) {
         return c.json(
-          { error: `Dangerous MIME is not allowed: ${clientType}` },
+          { message: `Dangerous MIME is not allowed: ${clientType}` },
           400
         );
       }
@@ -672,7 +672,7 @@ export const StorageController = {
       if (sniffed) {
         if (sniffed !== allowedMimeByExt) {
           return c.json(
-            { error: "File content does not match declared type" },
+            { message: "File content does not match declared type" },
             400
           );
         }
@@ -700,7 +700,7 @@ export const StorageController = {
       });
 
       const userId = c.get("userId");
-      if (!userId) return c.json({ error: "Unauthorized" }, 401);
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
       //mail
       // const mailStudentUsersSubmission = await mailRoles.getAllStudentsInGroup(
       //   groupId

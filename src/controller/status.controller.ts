@@ -28,12 +28,12 @@ export const StatusController = {
     try {
       const role = c.get("role");
       if( role!== "staff"){
-        return c.json({ error: "Forbidden: STAFF only" }, 403);
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
       const courseId = c.req.param("courseId");
-      if (!courseId) return c.json({ error: "courseId is required" }, 400);
+      if (!courseId) return c.json({ message: "courseId is required" }, 400);
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const assignmentId = c.req.query("assignmentId") ?? undefined;
@@ -42,12 +42,12 @@ export const StatusController = {
         assignmentId !== "" &&
         !isValidUUID(assignmentId)
       ) {
-        return c.json({ error: "Invalid assignmentId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid assignmentId (UUID expected)" }, 400);
       }
 
       const groupId = c.req.query("groupId") ?? undefined;
       if (groupId !== undefined && groupId !== "" && !isValidUUID(groupId)) {
-        return c.json({ error: "Invalid groupId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid groupId (UUID expected)" }, 400);
       }
 
       const statusParam = readStatusParam(c.req.query("status"));
@@ -83,7 +83,7 @@ export const StatusController = {
       );
     } catch (error: any) {
       if (error?.message === "COURSE_NOT_FOUND") {
-        return c.json({ error: "This course doesn't exist." }, 404);
+        return c.json({ message: "This course doesn't exist." }, 404);
       }
       console.error({
         context: "getAllGroupStatusInCourse",

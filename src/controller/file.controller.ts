@@ -10,7 +10,7 @@ export const FileController = {
       const role = c.get("role");
       if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
         return c.json(
-          { error: "Forbidden: ADVISOR, ADMIN or SUPER_ADMIN only" },
+          { message: "Forbidden: ADVISOR, ADMIN or SUPER_ADMIN only" },
           403
         );
       }
@@ -19,7 +19,7 @@ export const FileController = {
       const fileId = body.fileId;
       if (!fileId || !isValidUUID(fileId)) {
         return c.json(
-          { error: "fileId is required and must be a valid UUID" },
+          { message: "fileId is required and must be a valid UUID" },
           400
         );
       }
@@ -46,13 +46,13 @@ export const FileController = {
       const role = c.get("role");
       if (role !== "lecturer" && role !== "staff" && role !== "SUPER_ADMIN") {
         return c.json(
-          { error: "Forbidden: LECTURER, STAFF or SUPER_ADMIN only" },
+          { message: "Forbidden: LECTURER, STAFF or SUPER_ADMIN only" },
           403
         );
       }
 
       const userId = c.get("userId");
-      if (!userId) return c.json({ error: "Unauthorized" }, 401);
+      if (!userId) return c.json({ message: "Unauthorized" }, 401);
 
       const body = await c.req.json<any>();
       const courseId = body.courseId;
@@ -63,10 +63,10 @@ export const FileController = {
           ? String(body.announcementId)
           : undefined;
 
-      if (!name) return c.json({ error: "name is required" }, 400);
-      if (!filepath) return c.json({ error: "filepath is required" }, 400);
+      if (!name) return c.json({ message: "name is required" }, 400);
+      if (!filepath) return c.json({ message: "filepath is required" }, 400);
       if (announcementId !== undefined) {
-        return c.json({ error: "announcementId must be a valid UUID" }, 400);
+        return c.json({ message: "announcementId must be a valid UUID" }, 400);
       }
 
       const file = await FileModel.createFile({
@@ -80,10 +80,10 @@ export const FileController = {
       return c.json(file, 201);
     } catch (err: any) {
       if (err?.status === 400 || err?.status === 404) {
-        return c.json({ error: err.message }, err.status);
+        return c.json({ message: err.message }, err.status);
       }
       console.error("Error creating file:", err);
-      return c.json({ error: "Failed to create file" }, 500);
+      return c.json({ message: "Failed to create file" }, 500);
     }
   },
 
@@ -124,13 +124,13 @@ export const FileController = {
       const order = orderParam === "desc" ? "desc" : "asc";
 
       if (courseId && !isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
       if (announcementId && !isValidUUID(announcementId)) {
-        return c.json({ error: "Invalid announcementId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid announcementId (UUID expected)" }, 400);
       }
       if (createdById && !isValidUUID(createdById)) {
-        return c.json({ error: "Invalid createdById (UUID expected)" }, 400);
+        return c.json({ message: "Invalid createdById (UUID expected)" }, 400);
       }
 
       const files = await FileModel.getAllFiles({
@@ -144,7 +144,7 @@ export const FileController = {
       return c.json(files, 200);
     } catch (err) {
       console.error("Error fetching files:", err);
-      return c.json({ error: "Failed to fetch files" }, 500);
+      return c.json({ message: "Failed to fetch files" }, 500);
     }
   },
 
@@ -152,10 +152,10 @@ export const FileController = {
     try {
       const courseId = c.req.param("courseId"); 
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "Invalid courseId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid courseId (UUID expected)" }, 400);
       }
 
       const url = new URL(c.req.url);
@@ -184,10 +184,10 @@ export const FileController = {
       const order: "asc" | "desc" = orderParam === "desc" ? "desc" : "asc";
 
       if (announcementId && !isValidUUID(announcementId)) {
-        return c.json({ error: "Invalid announcementId (UUID expected)" }, 400);
+        return c.json({ message: "Invalid announcementId (UUID expected)" }, 400);
       }
       if (createdById && !isValidUUID(createdById)) {
-        return c.json({ error: "Invalid createdById (UUID expected)" }, 400);
+        return c.json({ message: "Invalid createdById (UUID expected)" }, 400);
       }
 
       const files = await FileModel.getFilesByCourseId(courseId, {
@@ -200,7 +200,7 @@ export const FileController = {
       return c.json(files, 200);
     } catch (err) {
       console.error("Error fetching files by course:", err);
-      return c.json({ error: "Failed to fetch files by course" }, 500);
+      return c.json({ message: "Failed to fetch files by course" }, 500);
     }
   },
 };

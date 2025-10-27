@@ -15,12 +15,12 @@ export const AssignmentController = {
     try {
       const role = c.get("role");
       if (role != "lecturer") {
-        return c.json({ error: "Forbidden: lecturer only" }, 403);
+        return c.json({ message: "Forbidden: lecturer only" }, 403);
       }
 
       const userId = c.get("userId");
       if (!userId) {
-        return c.json({ error: "Unauthorized" }, 401);
+        return c.json({ message: "Unauthorized" }, 401);
       }
 
       const courseId = c.req.param("courseId");
@@ -59,51 +59,51 @@ export const AssignmentController = {
     try {
       const role = c.get("role");
       if (role !== "staff" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: STAFF only" }, 403);
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
       const body = await c.req.json<AssignmentPayload.CreateAssignment>();
 
       const courseId = body.courseId;
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const name = body.name.trim();
       if (!name) {
-        return c.json({ error: "name is required" }, 400);
+        return c.json({ message: "name is required" }, 400);
       }
       const description = body.description;
 
       const endDateStr = body.endDate;
       if (!endDateStr) {
-        return c.json({ error: "endDate is required" }, 400);
+        return c.json({ message: "endDate is required" }, 400);
       }
       const scheduleStr = body.schedule;
       const schedule = new Date(scheduleStr);
       if (!schedule || isNaN(schedule.getTime())) {
         return c.json(
-          { error: "schedule must be a valid ISO datetime string" },
+          { message: "schedule must be a valid ISO datetime string" },
           400
         );
       }
       const dueDateStr = body.dueDate;
       if (!dueDateStr) {
-        return c.json({ error: "dueDate is required" }, 400);
+        return c.json({ message: "dueDate is required" }, 400);
       }
 
       const endDate = new Date(endDateStr);
       const dueDate = new Date(dueDateStr);
 
       if (isNaN(endDate.getTime()))
-        return c.json({ error: "endDate must be a valid ISO datetime" }, 400);
+        return c.json({ message: "endDate must be a valid ISO datetime" }, 400);
       if (isNaN(schedule.getTime()))
-        return c.json({ error: "schedule must be a valid ISO datetime" }, 400);
+        return c.json({ message: "schedule must be a valid ISO datetime" }, 400);
       if (isNaN(dueDate.getTime()))
-        return c.json({ error: "dueDate must be a valid ISO datetime" }, 400);
+        return c.json({ message: "dueDate must be a valid ISO datetime" }, 400);
 
       const deliverables = body.deliverables;
 
@@ -121,7 +121,7 @@ export const AssignmentController = {
       //const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test(courseId);
       const courseRow = await mailRoles.coursename(courseId);
-      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+      if (!courseRow) return c.json({ message: "Course not found" }, 404);
 
       await mailSentAndSummary(mailUsers, async (u) => {
         const recipientName = u?.user?.name || u?.name || "User";
@@ -156,7 +156,7 @@ export const AssignmentController = {
     try {
       const role = c.get("role");
       if (role !== "staff") {
-        return c.json({ error: "Forbidden: STAFF only" }, 403);
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
       // ---- read form-data instead of JSON
@@ -191,7 +191,7 @@ export const AssignmentController = {
       // ---- fields from form-data
       const assignmentId = mustStr("assignmentId", "assignmentId");
       if (!isValidUUID(assignmentId)) {
-        return c.json({ error: "assignmentId must be a valid UUID" }, 400);
+        return c.json({ message: "assignmentId must be a valid UUID" }, 400);
       }
 
       // cannot update once there are submissions
@@ -292,7 +292,7 @@ export const AssignmentController = {
       });
 
       if (!updated) {
-        return c.json({ error: "Assignment not found" }, 404);
+        return c.json({ message: "Assignment not found" }, 404);
       }
 
       // ---- FILES: preserve kept rows + add new rows with names ----
@@ -302,7 +302,7 @@ export const AssignmentController = {
         where: { id: assignmentId },
         select: { courseId: true },
       });
-      if (!assignmentRow) return c.json({ error: "Assignment not found" }, 404);
+      if (!assignmentRow) return c.json({ message: "Assignment not found" }, 404);
       const courseId = assignmentRow.courseId;
 
       // 1) Parse keepUrls (existing URLs that should remain)
@@ -315,7 +315,7 @@ export const AssignmentController = {
           keepUrls = arr.map((s: any) => String(s)).filter(Boolean);
         } catch (e: any) {
           return c.json(
-            { error: `Invalid keepUrls JSON: ${e?.message ?? String(e)}` },
+            { message: `Invalid keepUrls JSON: ${e?.message ?? String(e)}` },
             400
           );
         }
@@ -390,12 +390,12 @@ export const AssignmentController = {
         assignmentId
       );
       if (!mailCourseId) {
-        return c.json({ error: "Course not found" }, 404);
+        return c.json({ message: "Course not found" }, 404);
       }
 
       const mailUsers = await mailRoles.test(mailCourseId);
       const courseRow = await mailRoles.coursename(mailCourseId);
-      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+      if (!courseRow) return c.json({ message: "Course not found" }, 404);
 
       await mailSentAndSummary(mailUsers, async (u) => {
         const recipientName =
@@ -418,7 +418,7 @@ export const AssignmentController = {
       // convert thrown validation errors from helpers
       const msg = typeof error?.message === "string" ? error.message : null;
       if (msg?.includes("required") || msg?.includes("must be a valid")) {
-        return c.json({ error: msg }, 400);
+        return c.json({ message: msg }, 400);
       }
 
       console.error({
@@ -437,13 +437,13 @@ export const AssignmentController = {
     try {
       const role = c.get("role");
       if (role !== "staff" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: STAFF only" }, 403);
+        return c.json({ message: "Forbidden: STAFF only" }, 403);
       }
 
       const body = await c.req.json<{ assignmentId: string }>();
       const assignmentId = body.assignmentId;
       if (!assignmentId) {
-        return c.json({ error: "assignmentId is required" }, 400);
+        return c.json({ message: "assignmentId is required" }, 400);
       }
 
       const assignmentRow = await prisma.assignment.findUnique({
@@ -459,12 +459,12 @@ export const AssignmentController = {
         },
       });
       if (!assignmentRow) {
-        return c.json({ error: "Assignment not found" }, 404);
+        return c.json({ message: "Assignment not found" }, 404);
       }
 
       const ok = await AssignmentModel.deleteAssignment(assignmentId);
       if (!ok) {
-        return c.json({ error: "Assignment not found" }, 404);
+        return c.json({ message: "Assignment not found" }, 404);
       }
 
       const staff = await mailRoles.getStaffInCourse(assignmentRow.courseId);
@@ -511,16 +511,16 @@ export const AssignmentController = {
       const role = c.get("role");
       if (role !== "staff" && role !== "lecturer" && role !== "student") {
         return c.json(
-          { error: "Forbidden: staff, lecturer, student only" },
+          { message: "Forbidden: staff, lecturer, student only" },
           403
         );
       }
       const courseId = c.req.param("courseId");
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const rows = await AssignmentModel.getAllAssignments(courseId);

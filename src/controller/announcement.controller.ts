@@ -16,17 +16,17 @@ export const AnnouncementController = {
       const role = c.get("role");
       const userId = c.get("userId");
       if (role !== "staff" && role !== "lecturer" && role !== "SUPER_ADMIN") {
-        return c.json({ error: "Forbidden: STAFF and LECTURER only" }, 403);
+        return c.json({ message: "Forbidden: STAFF and LECTURER only" }, 403);
       }
 
       const body = await c.req.json<AnnouncementPayload.CreateAnnouncement>();
 
       const courseId = body.courseId;
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const name = body.name ? body.name.trim() : undefined;
@@ -36,10 +36,10 @@ export const AnnouncementController = {
 
       const scheduleStr = body.schedule;
       const schedule = new Date(scheduleStr);
-      if (!name) return c.json({ error: "name is required" }, 400);
+      if (!name) return c.json({ message: "name is required" }, 400);
       if (!schedule || isNaN(schedule.getTime())) {
         return c.json(
-          { error: "schedule must be a valid ISO datetime string" },
+          { message: "schedule must be a valid ISO datetime string" },
           400
         );
       }
@@ -55,7 +55,7 @@ export const AnnouncementController = {
       // const mailUsers = await mailRoles.getAllUsersInCourse(courseId);
       const mailUsers = await mailRoles.test(courseId);
       const courseRow = await mailRoles.coursename(courseId);
-      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+      if (!courseRow) return c.json({ message: "Course not found" }, 404);
 
       await mailSentAndSummary(mailUsers, async (u) => {
         const recipientName = u?.user?.name || u?.name || "User";
@@ -95,7 +95,6 @@ export const AnnouncementController = {
       const form = await c.req.formData();
       const requestOrigin = ensureOrigin(new URL(c.req.url).origin);
 
-      // helpers
       const getStr = (key: string) => {
         const v = form.get(key);
         return typeof v === "string" ? v.trim() : "";
@@ -106,10 +105,9 @@ export const AnnouncementController = {
         return v;
       };
 
-      // ---- fields from form-data ----
       const announcementId = mustStr("announcementId", "announcementId");
       if (!isValidUUID(announcementId)) {
-        return c.json({ error: "announcementId must be a valid UUID" }, 400);
+        return c.json({ message: "announcementId must be a valid UUID" }, 400);
       }
 
       const name = mustStr("name", "name");
@@ -117,10 +115,9 @@ export const AnnouncementController = {
       const scheduleStr = getStr("schedule");
       const schedule = new Date(scheduleStr);
       if (isNaN(schedule.getTime())) {
-        return c.json({ error: "schedule must be a valid ISO datetime" }, 400);
+        return c.json({ message: "schedule must be a valid ISO datetime" }, 400);
       }
 
-      // ---- find related course ----
       const courseRow = await AnnouncementModel.getCourseIdByAnnouncementId(
         announcementId
       );
@@ -132,7 +129,6 @@ export const AnnouncementController = {
       }
       const courseId = courseRow.courseId;
 
-      // ---- update main announcement ----
       const updated = await AnnouncementModel.updateAnnouncement(
         announcementId,
         name,
@@ -143,7 +139,6 @@ export const AnnouncementController = {
         return c.json({ message: "Announcement not found" }, 404);
       }
 
-      // ---- FILE HANDLING ----
       const uploadedFiles: { name: string; filepath: string }[] = [];
       const newFiles = form
         .getAll("files")
@@ -233,7 +228,7 @@ export const AnnouncementController = {
       });
       const msg = typeof error?.message === "string" ? error.message : null;
       if (msg?.includes("required") || msg?.includes("valid")) {
-        return c.json({ error: msg }, 400);
+        return c.json({ message: msg }, 400);
       }
       return c.json(
         { message: "Internal server error. Please try again later." },
@@ -281,7 +276,7 @@ export const AnnouncementController = {
       //mail
       const mailUsers = await mailRoles.getStaffInCourse(deleted.courseId);
       const courseRow = await mailRoles.coursename(courseId.courseId);
-      if (!courseRow) return c.json({ error: "Course not found" }, 404);
+      if (!courseRow) return c.json({ message: "Course not found" }, 404);
 
       await mailSentAndSummary(mailUsers, async (u) => {
         const recipientName = u?.user?.name || u?.name || "User";
@@ -318,10 +313,10 @@ export const AnnouncementController = {
       const role = c.get("role"); 
       const courseId = c.req.param("courseId");
       if (!courseId) {
-        return c.json({ error: "courseId is required" }, 400);
+        return c.json({ message: "courseId is required" }, 400);
       }
       if (!isValidUUID(courseId)) {
-        return c.json({ error: "courseId must be a valid UUID" }, 400);
+        return c.json({ message: "courseId must be a valid UUID" }, 400);
       }
 
       const publishedOnly =
