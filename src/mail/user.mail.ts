@@ -87,6 +87,7 @@ export const userMail = {
     const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
       token
     )}`;
+    console.log("base:", base);
 
     const subject = `C-Flow: Your new password reset link`;
 
