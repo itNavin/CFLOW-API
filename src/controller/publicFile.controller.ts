@@ -54,7 +54,7 @@ export const PublicFileController = {
       );
       headers.set("Cache-Control", "private, max-age=0, must-revalidate");
 
-      return new Response(buffer, { status: 200, headers });
+      return new Response(buffer as any, { status: 200, headers });
     } catch (error: any) {
       const code = error?.code || error?.name;
       if (code === "NoSuchKey") {
