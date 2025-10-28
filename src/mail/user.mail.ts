@@ -83,7 +83,7 @@ export const userMail = {
       throw new Error("resetLinkMail requires { user, token }");
     }
     const { user, token } = payload;
-    const base = opts?.frontendBaseUrl ?? "http://localhost:3000";
+    const base = opts?.frontendBaseUrl ?? "http://c-flow.sit.kmutt.ac.th";
     const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
       token
     )}`;
