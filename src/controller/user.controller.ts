@@ -286,7 +286,9 @@ export const UserController = {
         payload,
         {
           frontendBaseUrl:
-            process.env.FRONTEND_BASE_URL ?? "http://localhost:3000",
+            Bun.env.FRONTEND_AFTER_LOGIN_URL ??
+            process.env.FRONTEND_AFTER_LOGIN_URL ??
+            "http://c-flow.sit.kmutt.ac.th",
         }
       );
 
@@ -339,7 +341,7 @@ export const UserController = {
         return c.json({ message: "Email already in use" }, 400);
       }
       let newId = email.split("@")[0];
-      if( email.startsWith("Sol#")){
+      if( id.startsWith("Sol#")){
         newId = "Sol#" + email.split("@")[0];
       }
 
