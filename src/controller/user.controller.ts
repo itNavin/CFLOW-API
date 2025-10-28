@@ -339,7 +339,7 @@ export const UserController = {
         return c.json({ message: "Email already in use" }, 400);
       }
       let newId = email.split("@")[0];
-      if( email.startsWith("Sol#")){
+      if( id.startsWith("Sol#")){
         newId = "Sol#" + email.split("@")[0];
       }
 
