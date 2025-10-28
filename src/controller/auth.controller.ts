@@ -212,9 +212,14 @@ export const AuthController = {
       data: { userId: user.id, tokenHash: hash, expiresAt },
     });
 
+    const frontendBaseUrl =
+      Bun.env.FRONTEND_AFTER_LOGIN_URL ??
+      process.env.FRONTEND_AFTER_LOGIN_URL ??
+      "http://c-flow.sit.kmutt.ac.th";
+
     const { subject, html, text } = await userMail.resetLinkMail(
       { user, token: raw },
-      { frontendBaseUrl: process.env.FRONTEND_AFTER_LOGIN_URL ?? "http://localhost:3000" }
+      { frontendBaseUrl }
     );
 
     await mailSentAndSummary([user], subject, html, text);
