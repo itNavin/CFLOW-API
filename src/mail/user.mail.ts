@@ -29,7 +29,8 @@ export const userMail = {
     }
 
     const { user, tempPassword, token } = payload;
-    const base = opts?.frontendBaseUrl ?? "http://localhost:3000";
+    const base =
+      opts?.frontendBaseUrl ?? "http://c-flow.sit.kmutt.ac.th";
     const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
       token
     )}`;
@@ -87,7 +88,6 @@ export const userMail = {
     const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
       token
     )}`;
-    console.log("base:", base);
 
     const subject = `C-Flow: Your new password reset link`;
 

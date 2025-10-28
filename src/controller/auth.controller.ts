@@ -216,7 +216,6 @@ export const AuthController = {
       Bun.env.FRONTEND_AFTER_LOGIN_URL ??
       process.env.FRONTEND_AFTER_LOGIN_URL ??
       "http://c-flow.sit.kmutt.ac.th";
-      console.log("frontendBaseUrl:", frontendBaseUrl);
 
     const { subject, html, text } = await userMail.resetLinkMail(
       { user, token: raw },

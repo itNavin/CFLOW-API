@@ -286,7 +286,9 @@ export const UserController = {
         payload,
         {
           frontendBaseUrl:
-            process.env.FRONTEND_BASE_URL ?? "http://localhost:3000",
+            Bun.env.FRONTEND_AFTER_LOGIN_URL ??
+            process.env.FRONTEND_AFTER_LOGIN_URL ??
+            "http://c-flow.sit.kmutt.ac.th",
         }
       );
 
