@@ -338,8 +338,12 @@ export const UserController = {
       if (isEmailExisting && isEmailExisting.id !== id) {
         return c.json({ message: "Email already in use" }, 400);
       }
+      let newId = email.split("@")[0];
+      if( email.startsWith("Sol#")){
+        newId = "Sol#" + email.split("@")[0];
+      }
 
-      const updated = await UserModel.updateStaffAndLecturer(id, name, email);
+      const updated = await UserModel.updateStaffAndLecturer(id, newId, name, email);
       if (!updated) return c.json({ message: "User not found" }, 404);
 
       return c.json({ message: "User updated successfully" }, 200);
