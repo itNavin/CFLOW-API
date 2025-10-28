@@ -214,7 +214,7 @@ export const AuthController = {
 
     const { subject, html, text } = await userMail.resetLinkMail(
       { user, token: raw },
-      { frontendBaseUrl: process.env.FRONTEND_BASE_URL ?? "http://localhost:3000" }
+      { frontendBaseUrl: process.env.FRONTEND_AFTER_LOGIN_URL ?? "http://localhost:3000" }
     );
 
     await mailSentAndSummary([user], subject, html, text);
