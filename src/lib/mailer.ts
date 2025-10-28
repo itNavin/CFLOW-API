@@ -1,8 +1,5 @@
 import nodemailer from "nodemailer";
 import type Mail from "nodemailer/lib/mailer";
-import fs from "node:fs";
-import path from "node:path";
-import { MAIL_SIT_LOGO_CID, MAIL_CFLOW_LOGO_CID } from "src/mail/main.mail";
 
 const {
   SMTP_HOST,
@@ -39,27 +36,6 @@ const transporter = nodemailer.createTransport({
   // debug: true,
 });
 
-const inlineImageConfigs = [
-  { filename: "SIT-LOGO.png", cid: MAIL_SIT_LOGO_CID },
-  { filename: "C-Flow-LOGO.png", cid: MAIL_CFLOW_LOGO_CID },
-] as const;
-
-const inlineLogoAttachments: Mail.Attachment[] = inlineImageConfigs
-  .map(({ filename, cid }) => {
-    const filePath = path.resolve(process.cwd(), "src", "assets", filename);
-    if (!fs.existsSync(filePath)) {
-      console.warn("[mailer] Inline logo not found at", filePath);
-      return null;
-    }
-    return {
-      filename,
-      path: filePath,
-      cid,
-      contentDisposition: "inline",
-    } satisfies Mail.Attachment;
-  })
-  .filter(Boolean) as Mail.Attachment[];
-
 (async () => {
   try {
     await transporter.verify();
@@ -83,7 +59,6 @@ export async function sendEmail(
   const from = `"C-Flow" <${MAIL_FROM}>`; 
 
   const attachments: Mail.Attachment[] = [
-    ...inlineLogoAttachments,
     ...(options?.attachments ?? []),
   ];
 
