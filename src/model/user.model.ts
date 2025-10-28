@@ -208,10 +208,10 @@ class UserModel {
     });
   }
 
-  static async updateStaffAndLecturer(id: string, name:string, email:string){
+  static async updateStaffAndLecturer(id: string, newId: string, name:string, email:string){
     return prisma.user.update({
       where: { id },
-      data: { name, email },
+      data: { id: newId, name, email },
     });
   }
 
