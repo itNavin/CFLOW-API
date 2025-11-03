@@ -304,7 +304,7 @@ export const UserController = {
       );
     } catch (error) {
       console.error({
-        context: "createSolarLecturerUser",
+        context: "createSoLALecturerUser",
         error: error instanceof Error ? error.message : String(error),
         stack: error instanceof Error ? error.stack : undefined,
       });
@@ -376,7 +376,7 @@ export const UserController = {
       const userId = await verifyResetTokenAndGetUserId(token);
 
       if (!userId.startsWith("Sol#")) {
-        return c.json({ message: "Not a solar user" }, 400);
+        return c.json({ message: "Not a SoLA user" }, 400);
       }
 
       if (oldPassword) {
@@ -405,7 +405,7 @@ export const UserController = {
 
       return c.json({ message: "Password updated successfully" }, 200);
     } catch (error) {
-      console.error({ context: "updateSolarPassword", error: String(error) });
+      console.error({ context: "updateSoLAPassword", error: String(error) });
       return c.json(
         { message: "Internal server error. Please try again later." },
         500

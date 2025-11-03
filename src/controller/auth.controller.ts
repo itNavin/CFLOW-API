@@ -98,7 +98,7 @@ export const AuthController = {
           { expiresIn: "7d" }
         );
 
-        //mail for solar login
+        //mail for soLA login
         // const mailUser = await mailRoles.getSingleUser(user.id);
         const mailUser = await mailRoles.test2(user.id);
         const {subject, html, text} = await authMail.loginMail(user.name);
@@ -198,7 +198,7 @@ export const AuthController = {
 
     if (!user) return c.json({ message: "User not found" }, 404);
     if (!user.id.startsWith("Sol#")) {
-      return c.json({ message: "Not a Solar account" }, 400);
+      return c.json({ message: "Not a SoLA account" }, 400);
     }
 
     await prisma.passwordResetToken.updateMany({
