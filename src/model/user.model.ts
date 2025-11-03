@@ -276,7 +276,7 @@ class UserModel {
 
   static async updateUserStatus(
     targetUserIds: string[],
-    status: "ACTIVE" | "RESIGNED" | "RETIRED" | "GRADUATED"
+    status: "ACTIVE" | "INACTIVE" | "GRADUATED"
   ) {
     return prisma.user.updateMany({
       where: { id: { in: targetUserIds } },
