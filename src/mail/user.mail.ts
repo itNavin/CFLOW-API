@@ -24,22 +24,22 @@ export const userMail = {
   ) => {
     if (!payload?.user || !payload?.tempPassword || !payload?.token) {
       throw new Error(
-        "createSolarLecturerMail requires { user, tempPassword, token }"
+        "createSoLALecturerMail requires { user, tempPassword, token }"
       );
     }
 
     const { user, tempPassword, token } = payload;
     const base =
       opts?.frontendBaseUrl ?? "http://c-flow.sit.kmutt.ac.th";
-    const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
+    const updateLink = `${base}/SoLA/update-password?token=${encodeURIComponent(
       token
     )}`;
 
-    const subject = `Welcome to C-Flow as a Solar Lecturer`;
+    const subject = `Welcome to C-Flow as a SoLA Lecturer`;
 
     const contentHtml = `
 <p style="margin:0 0 12px;color:#111111;">Dear ${escapeHtml(user.name)},</p>
-<p style="margin:0 0 12px;color:#111111;">You have been registered as a <strong>Solar Lecturer</strong> in the C-Flow system.</p>
+<p style="margin:0 0 12px;color:#111111;">You have been registered as a <strong>SoLA Lecturer</strong> in the C-Flow system.</p>
 
 <div style="background:#f6f6f8;border:1px solid #eaeaea;border-radius:8px;padding:12px;margin:12px 0;">
   <p style="margin:0 4px 6px 0;color:#111111;"><strong>Username (ID):</strong> ${escapeHtml(
@@ -67,7 +67,7 @@ export const userMail = {
     });
 
     const text = mailTemplates.textTemplate([
-      "You have been registered as a Solar Lecturer in the C-Flow system. Check out your temporary password and update your password via Email (link expires in 60 minutes):",
+      "You have been registered as a SoLA Lecturer in the C-Flow system. Check out your temporary password and update your password via Email (link expires in 60 minutes):",
     ]);
 
     return { subject, html, text };
@@ -85,7 +85,7 @@ export const userMail = {
     }
     const { user, token } = payload;
     const base = opts?.frontendBaseUrl ?? "http://c-flow.sit.kmutt.ac.th";
-    const updateLink = `${base}/solar/update-password?token=${encodeURIComponent(
+    const updateLink = `${base}/SoLA/update-password?token=${encodeURIComponent(
       token
     )}`;
 
