@@ -43,8 +43,7 @@ enum EntityType {
 
 enum UserStatus {
   ACTIVE
-  RESIGNED
-  RETIRED
+  INACTIVE
   GRADUATED
 }
 
