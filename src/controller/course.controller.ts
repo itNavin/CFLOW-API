@@ -186,8 +186,8 @@ export const CourseController = {
   getCourseByUser: async (c: Context) => {
     try {
       const role = c.get("role");
-      if (role !== "student" && role !== "lecturer") {
-        return c.json({ message: "Forbidden: student, lecturer only" }, 403);
+      if (role !== "student" && role !== "lecturer" && role !== "staff") {
+        return c.json({ message: "Forbidden: student, lecturer, staff only" }, 403);
       }
 
       const userId = c.get("userId");
