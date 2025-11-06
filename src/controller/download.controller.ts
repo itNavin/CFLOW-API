@@ -24,10 +24,7 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const originCandidate =
-        c.req.header("origin") ?? new URL(c.req.url).origin;
-      const origin = ensureOrigin(originCandidate);
-      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, {
         mode,
       });
 
@@ -58,10 +55,7 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const originCandidate =
-        c.req.header("origin") ?? new URL(c.req.url).origin;
-      const origin = ensureOrigin(originCandidate);
-      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, {
         mode,
       });
 
@@ -87,10 +81,7 @@ export const DownloadController = {
       if (!meta) return c.json({ message: "File not found" }, 404);
 
       const mode = getMode(c);
-      const originCandidate =
-        c.req.header("origin") ?? new URL(c.req.url).origin;
-      const origin = ensureOrigin(originCandidate);
-      const url = buildPublicFileUrl(meta.objectKey, meta.filename, origin, {
+      const url = buildPublicFileUrl(meta.objectKey, meta.filename, {
         mode,
       });
 

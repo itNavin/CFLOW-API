@@ -74,19 +74,18 @@ function tryDecodePublicFilePath(pathname: string): string | null {
 export function buildPublicFileUrl(
   objectKey: string,
   filename?: string,
-  origin?: string,
   options?: {
     mode?: "inline" | "download";
   }
 ): string {
   const encodedKey = toBase64Url(objectKey);
   const namePart = filename ? `/${encodeURIComponent(filename)}` : "";
-  const baseOrigin = ensureOrigin(origin);
+  const FILE_ORIGIN = Bun.env.FILE_ORIGIN_URL;
   const params = new URLSearchParams();
   if (options?.mode) params.set("mode", options.mode);
   const query = params.toString();
   const queryPart = query ? `?${query}` : "";
-  return `${baseOrigin}${PUBLIC_FILES_ROUTE_PREFIX}/${encodedKey}${namePart}${queryPart}`;
+  return `${FILE_ORIGIN}${PUBLIC_FILES_ROUTE_PREFIX}/${encodedKey}${namePart}${queryPart}`;
 }
 
 export function extractObjectKeyFromAbsoluteUrl(url: string): string {
