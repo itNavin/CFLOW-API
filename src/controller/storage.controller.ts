@@ -71,10 +71,32 @@ const BLOCK_MIME = new Set([
   "application/x-msdos-program",
 ]);
 
+const STRICT_MIME_VALIDATION = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "application/zip",
+]);
+
+const ZIP_SIGNATURE_EXTS = new Set(["docx", "xlsx", "pptx", "zip"]);
+
 function startsWithBytes(buf: Uint8Array, sig: number[]) {
   if (buf.length < sig.length) return false;
   for (let i = 0; i < sig.length; i++) if (buf[i] !== sig[i]) return false;
   return true;
+}
+
+function isZipLike(buf: Uint8Array) {
+  return (
+    startsWithBytes(buf, [0x50, 0x4b, 0x03, 0x04]) ||
+    startsWithBytes(buf, [0x50, 0x4b, 0x05, 0x06]) ||
+    startsWithBytes(buf, [0x50, 0x4b, 0x07, 0x08])
+  );
 }
 
 function getExt(name: string): string {
@@ -102,12 +124,9 @@ function sniffBinaryMime(buf: Uint8Array, ext: string): string | null {
   ) {
     return "image/webp";
   }
-  if (
-    (ext === "docx" || ext === "xlsx" || ext === "pptx") &&
-    (startsWithBytes(buf, [0x50, 0x4b, 0x03, 0x04]) ||
-      startsWithBytes(buf, [0x50, 0x4b, 0x05, 0x06]))
-  ) {
-    return ALLOW_EXT_TO_MIME[ext];
+  if (ZIP_SIGNATURE_EXTS.has(ext) && isZipLike(buf)) {
+    const mapped = ALLOW_EXT_TO_MIME[ext];
+    if (mapped) return mapped;
   }
   return null;
 }
@@ -460,7 +479,20 @@ export const StorageController = {
           400
         );
       }
-      const allowedMimes = new Set(allowed.map((a) => a.mime));
+      const allowedMimes = new Set(
+        allowed
+          .map((a) => a.mime?.toLowerCase())
+          .filter((mime): mime is string => Boolean(mime))
+      );
+      if (allowedMimes.size === 0) {
+        return c.json(
+          {
+            message:
+              "Allowed file type configuration is invalid for this deliverable",
+          },
+          400
+        );
+      }
 
       const file = formData.get("file") as File | null;
       if (!file) return c.json({ message: "No file uploaded" }, 400);
@@ -476,21 +508,34 @@ export const StorageController = {
       }
 
       const ext = getExt(file.name);
+      if (!ext) {
+        return c.json(
+          { message: "Uploaded file must include an extension" },
+          400
+        );
+      }
+      if (BLOCK_EXT.has(ext)) {
+        return c.json(
+          { message: `Disallowed file extension: .${ext}` },
+          400
+        );
+      }
+
       const buf = new Uint8Array(await file.arrayBuffer());
 
       const sniffed = sniffBinaryMime(buf, ext);
       const clientType = (file.type || "").toLowerCase();
+      if (clientType && BLOCK_MIME.has(clientType)) {
+        return c.json(
+          { message: `Dangerous MIME is not allowed: ${clientType}` },
+          400
+        );
+      }
 
-      let finalMime: string | null = null;
-      if (sniffed) {
-        finalMime = sniffed;
-      } else if (clientType) {
-        finalMime = clientType;
-      } else {
-        if (ext === "txt") finalMime = "text/plain";
-        else if (ext === "csv") finalMime = "text/csv";
-        else if (ext === "md") finalMime = "text/markdown";
-        else if (ext === "json") finalMime = "application/json";
+      const guessedMime = ALLOW_EXT_TO_MIME[ext];
+      let finalMime: string | null = sniffed || clientType || guessedMime || null;
+      if (finalMime) {
+        finalMime = finalMime.toLowerCase();
       }
 
       if (!finalMime) {
@@ -499,6 +544,14 @@ export const StorageController = {
           415
         );
       }
+
+      if (STRICT_MIME_VALIDATION.has(finalMime) && sniffed !== finalMime) {
+        return c.json(
+          { message: "File content does not match declared type" },
+          415
+        );
+      }
+
       if (!allowedMimes.has(finalMime)) {
         return c.json(
           {
