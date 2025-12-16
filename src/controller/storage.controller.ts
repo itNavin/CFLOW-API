@@ -555,11 +555,12 @@ export const StorageController = {
       if (!allowedMimes.has(finalMime)) {
         return c.json(
           {
-            error: "File type not allowed for this deliverable",
+            message: "File type not allowed for this deliverable",
             receivedMime: finalMime,
             allowedMimes: [...allowedMimes],
+            shouldRemoveClientFile: true,
           },
-          415
+          400
         );
       }
 
