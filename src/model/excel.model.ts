@@ -233,6 +233,13 @@ export async function validateWorkbook(
         message: `Row ${excelRow}: Column "Name" cannot be empty when a student entry is provided`,
       });
     }
+    if (course.program === "DSI" && hasMemberData && !role) {
+      issues.push({
+        row: excelRow,
+        column: "Role",
+        message: `Row ${excelRow}: Column "Role" is required for DSI students`,
+      });
+    }
 
     if (studentId) {
       const rowsForStudent = studentIdRows.get(studentId) ?? [];
@@ -457,6 +464,10 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
     if (studentId || fullName) {
       if (studentId) checkDup(seen.studentIds, studentId, "Student ID");
       if (fullName) checkDup(seen.studentNames, fullName, "Student Name");
+
+      if (course.program === "DSI" && !role) {
+        throw new Error(`Row ${excelRow}: Missing required field "Role"`);
+      }
 
       groupsToInsert.get(groupCode)!.members.push({
         studentId,
