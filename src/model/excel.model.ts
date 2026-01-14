@@ -73,6 +73,7 @@ export async function validateWorkbook(
       projectName?: string;
       productName?: string | null;
       company?: string | null;
+      advisor?: string | null;
     }
   >();
 
@@ -81,6 +82,8 @@ export async function validateWorkbook(
   const missingProjectGroups = new Set<string>();
   const missingProductGroups = new Set<string>();
   const missingCompanyGroups = new Set<string>();
+  const missingAdvisorGroups = new Set<string>();
+  const seenGroupCodes = new Map<string, number>();
   const studentIdRows = new Map<string, number[]>();
   const advisorEntries: Array<{
     name: string;
@@ -112,6 +115,13 @@ export async function validateWorkbook(
       studentId ||
       fullName ||
       role;
+    const rowHasAnyContent = Object.entries(raw).some(([key, value]) => {
+      if (key === "__rowNum__") return false;
+      return s(value) !== "";
+    });
+    if (!rowHasContent && rowHasAnyContent) {
+      return;
+    }
     if (!rowHasContent) {
       issues.push({
         row: excelRow,
@@ -133,6 +143,27 @@ export async function validateWorkbook(
       return;
     }
 
+    if (rawGroup && !/^\d+$/.test(rawGroup)) {
+      issues.push({
+        row: excelRow,
+        column: "Group No.",
+        message: `Row ${excelRow}: "Group No." must be a number`,
+      });
+    }
+
+    if (rawGroup) {
+      if (seenGroupCodes.has(rawGroup)) {
+        const prevRow = seenGroupCodes.get(rawGroup)!;
+        issues.push({
+          row: excelRow,
+          column: "Group No.",
+          message: `Group No. "${rawGroup}" are duplicated in row ${prevRow} and ${excelRow}`,
+        });
+      } else {
+        seenGroupCodes.set(rawGroup, excelRow);
+      }
+    }
+
     if (!carryByGroup.has(groupCode)) carryByGroup.set(groupCode, {});
     const carry = carryByGroup.get(groupCode)!;
 
@@ -147,6 +178,9 @@ export async function validateWorkbook(
     if (course.program === "DSI" && rawCompany) {
       carry.company = rawCompany;
       missingCompanyGroups.delete(groupCode);
+    }
+    if (rawAdvisor) {
+      carry.advisor = rawAdvisor;
     }
 
     if (!carry.projectName && !missingProjectGroups.has(groupCode)) {
@@ -223,6 +257,7 @@ export async function validateWorkbook(
         advisorNameSet.add(normalized);
         advisorQueryNames.push(rawAdvisor);
       }
+      missingAdvisorGroups.delete(groupCode);
     }
     if (rawCoAdvisor) {
       advisorEntries.push({
@@ -235,6 +270,15 @@ export async function validateWorkbook(
         advisorNameSet.add(normalized);
         advisorQueryNames.push(rawCoAdvisor);
       }
+    }
+
+    if (!carry.advisor && !missingAdvisorGroups.has(groupCode)) {
+      issues.push({
+        row: excelRow,
+        column: "Advisor",
+        message: `Row ${excelRow}: Column "Advisor" is required for group "${groupCode}"`,
+      });
+      missingAdvisorGroups.add(groupCode);
     }
   });
 
@@ -354,6 +398,9 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
     if (!groupCode) {
       throw new Error(`Row ${excelRow}: Missing required field "Group No."`);
     }
+    if (!/^\d+$/.test(groupCode)) {
+      throw new Error(`Row ${excelRow}: "Group No." must be a number`);
+    }
 
     if (!carryByGroup.has(groupCode)) carryByGroup.set(groupCode, {});
     const carry = carryByGroup.get(groupCode)!;
@@ -372,6 +419,9 @@ export async function enrollFromWorkbook(courseId: string, fileBuffer: Buffer) {
     }
     if (course.program === "DSI" && !carry.company) {
       throw new Error(`Row ${excelRow}: Missing required field "Company"`);
+    }
+    if (!carry.advisor) {
+      throw new Error(`Row ${excelRow}: Missing required field "Advisor"`);
     }
 
     function checkDup(map: Map<string, number>, key: string, label: string) {

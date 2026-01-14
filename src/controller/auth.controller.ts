@@ -5,7 +5,7 @@ import type { Context } from "hono";
 import * as jwt from "jsonwebtoken";
 import { loginSSO } from "src/lib/sso";
 import { SsoAccessTokenPayload } from "src/types/sso";
-import bcrypt from "bcryptjs"; 
+import bcrypt from "bcryptjs";
 import { mailRoles } from "src/util/mailRole";
 import { mailSentAndSummary } from "src/util/mailSummary";
 import { authMail } from "src/mail/auth.mail";
@@ -57,12 +57,12 @@ export const AuthController = {
       return c.json({ message: "Invalid credentials" }, 401);
     }
     if (userStatus.status !== "ACTIVE") {
-      return c.json({ message: `Access denied.`}, 403);
+      return c.json({ message: `Access denied.` }, 403);
     }
 
     try {
       if (username.startsWith("Sol#")) {
-        const user = await(async () => {
+        const user = await (async () => {
           return prisma.user.findUnique({
             where: { id: username },
             select: {
@@ -101,7 +101,7 @@ export const AuthController = {
         //mail for soLA login
         // const mailUser = await mailRoles.getSingleUser(user.id);
         const mailUser = await mailRoles.test2(user.id);
-        const {subject, html, text} = await authMail.loginMail(user.name);
+        const { subject, html, text } = await authMail.loginMail(user.name);
         mailSentAndSummary(mailUser, subject, html, text);
 
         return c.json({
@@ -118,7 +118,7 @@ export const AuthController = {
         const ssoResponse = await loginSSO(username, password);
 
         if (!ssoResponse.success || !ssoResponse.data) {
-          return c.json({ message: "Invalid credentials" }, 401);
+          return c.json({ message: "Incorrect username or password" }, 401);
         }
 
         const accessTokenPayload = jwt.decode(
@@ -128,10 +128,12 @@ export const AuthController = {
         const role = mapRole(
           (accessTokenPayload as any).role ?? accessTokenPayload.description
         );
-        //mail 
+        //mail
         const date = new Date();
         //const mailUser = await mailRoles.getSingleUser(accessTokenPayload.preferred_username);
-        const mailUser = await mailRoles.test2(accessTokenPayload.preferred_username);
+        const mailUser = await mailRoles.test2(
+          accessTokenPayload.preferred_username
+        );
         const { subject, html, text } = await authMail.loginMail(
           accessTokenPayload.name,
           { loginAt: date }
@@ -149,7 +151,6 @@ export const AuthController = {
           },
         });
       }
-      
     } catch (error) {
       console.error("Login failed:", error);
       return c.json({ message: "Login failed" }, 500);
@@ -161,74 +162,75 @@ export const AuthController = {
 
   verifyResetTokenAndGetUserId: async (c: Context) => {
     const token = c.req.query("token");
-      if (!token) return c.json({ valid: false }, 400);
-    
-      try {
-        const userId = await verifyResetTokenAndGetUserId(token);
-        const user = await prisma.user.findUnique({
-          where: { id: userId },
-          select: { id: true, name: true, email: true },
-        });
-    
-        if (!user) return c.json({ valid: false }, 200);
-    
-        return c.json({ valid: true, user }, 200);
-      } catch {
-        return c.json({ valid: false }, 200);
-      }
-    },
+    if (!token) return c.json({ valid: false }, 400);
+
+    try {
+      const userId = await verifyResetTokenAndGetUserId(token);
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, name: true, email: true },
+      });
+
+      if (!user) return c.json({ valid: false }, 200);
+
+      return c.json({ valid: true, user }, 200);
+    } catch {
+      return c.json({ valid: false }, 200);
+    }
+  },
 
   refreshTokenUpdatePassword: async (c: Context) => {
     try {
-    const body = await c.req.json().catch(() => null);
-    const userIdOrEmail: string | undefined = body?.userIdOrEmail;
-    if (!userIdOrEmail) {
-      return c.json({ message: "userIdOrEmail is required" }, 400);
-    }
+      const body = await c.req.json().catch(() => null);
+      const userIdOrEmail: string | undefined = body?.userIdOrEmail;
+      if (!userIdOrEmail) {
+        return c.json({ message: "userIdOrEmail is required" }, 400);
+      }
 
-    const where =
-      userIdOrEmail.startsWith("Sol#")
+      const where = userIdOrEmail.startsWith("Sol#")
         ? { id: userIdOrEmail }
         : { email: userIdOrEmail };
 
-    const user = await prisma.user.findUnique({
-      where,
-      select: { id: true, name: true, email: true, role: true },
-    });
+      const user = await prisma.user.findUnique({
+        where,
+        select: { id: true, name: true, email: true, role: true },
+      });
 
-    if (!user) return c.json({ message: "User not found" }, 404);
-    if (!user.id.startsWith("Sol#")) {
-      return c.json({ message: "Not a SoLA account" }, 400);
+      if (!user) return c.json({ message: "User not found" }, 404);
+      if (!user.id.startsWith("Sol#")) {
+        return c.json({ message: "Not a SoLA account" }, 400);
+      }
+
+      await prisma.passwordResetToken.updateMany({
+        where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      });
+
+      const { raw, hash } = makeToken();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1hr
+      await prisma.passwordResetToken.create({
+        data: { userId: user.id, tokenHash: hash, expiresAt },
+      });
+
+      const frontendBaseUrl =
+        Bun.env.FRONTEND_AFTER_LOGIN_URL ??
+        process.env.FRONTEND_AFTER_LOGIN_URL ??
+        "http://c-flow.sit.kmutt.ac.th";
+
+      const { subject, html, text } = await userMail.resetLinkMail(
+        { user, token: raw },
+        { frontendBaseUrl }
+      );
+
+      await mailSentAndSummary([user], subject, html, text);
+
+      return c.json(
+        { message: "A new reset link has been sent to your email." },
+        200
+      );
+    } catch (e: any) {
+      console.error("[resend-reset-link] error:", e);
+      return c.json({ message: "Failed to send a new link" }, 500);
     }
-
-    await prisma.passwordResetToken.updateMany({
-      where: { userId: user.id, usedAt: null, expiresAt: { gt: new Date() } },
-      data: { usedAt: new Date() },
-    });
-
-    const { raw, hash } = makeToken();
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1hr
-    await prisma.passwordResetToken.create({
-      data: { userId: user.id, tokenHash: hash, expiresAt },
-    });
-
-    const frontendBaseUrl =
-      Bun.env.FRONTEND_AFTER_LOGIN_URL ??
-      process.env.FRONTEND_AFTER_LOGIN_URL ??
-      "http://c-flow.sit.kmutt.ac.th";
-
-    const { subject, html, text } = await userMail.resetLinkMail(
-      { user, token: raw },
-      { frontendBaseUrl }
-    );
-
-    await mailSentAndSummary([user], subject, html, text);
-
-    return c.json({ message: "A new reset link has been sent to your email." }, 200);
-  } catch (e: any) {
-    console.error("[resend-reset-link] error:", e);
-    return c.json({ message: "Failed to send a new link" }, 500);
-  }
-
-  }
+  },
 };
